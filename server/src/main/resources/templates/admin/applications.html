@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="az" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AO IDP Admin Tətbiqlər</title>
+    <link rel="icon" th:href="@{/favicon.ico}">
+    <link rel="stylesheet" th:href="@{/css/admin.css}">
+</head>
+<body>
+<div class="shell">
+    <aside class="sidebar">
+        <h2>AO IDP</h2>
+        <nav>
+            <a href="/admin/dashboard">Dashboard</a>
+            <a class="active" href="/admin/applications">Tətbiqlər</a>
+            <a href="/admin/users">İstifadəçilər</a>
+            <a href="/admin/directory">LDAP</a>
+            <a href="/admin/admins">Adminlər</a>
+            <a href="/admin/audit">Audit</a>
+            <a href="/admin/logout">Çıxış</a>
+        </nav>
+    </aside>
+    <main class="content">
+        <header class="topbar">
+            <h1>Tətbiqlər</h1>
+        </header>
+        <section class="card">
+            <h3>Yeni tətbiq yarat</h3>
+            <p class="ok" th:if="${success}" th:text="${success}"></p>
+            <p class="error" th:if="${error}" th:text="${error}"></p>
+            <form method="post" action="/admin/applications" class="form-grid">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                <label>Ad</label>
+                <input name="name" type="text" required>
+                <label>Slug</label>
+                <input name="slug" type="text" required>
+                <div class="field-row">
+                    <div class="field-half">
+                        <label>Client növü</label>
+                        <div class="radio-group">
+                            <label>
+                                <input type="radio" name="publicClient" value="false" checked>
+                                Confidential (server-side, secret ilə)
+                            </label>
+                            <label>
+                                <input type="radio" name="publicClient" value="true">
+                                Public (SPA/mobil, PKCE ilə)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <label>Redirect URI-lər (hər sətirdə biri)</label>
+                <textarea name="redirectUris" rows="4" required></textarea>
+                <label>Allowed Origins (hər sətirdə biri)</label>
+                <textarea name="allowedOrigins" rows="3"></textarea>
+                <button type="submit">Yarat</button>
+            </form>
+        </section>
+        <section class="card">
+            <table>
+                <thead>
+                <tr><th>Ad</th><th>Slug</th><th>Client ID</th><th>Növ</th><th>Status</th><th>Əməliyyat</th></tr>
+                </thead>
+                <tbody>
+                <tr th:each="app : ${apps}">
+                    <td th:text="${app.name}"></td>
+                    <td th:text="${app.slug}"></td>
+                    <td>
+                        <div class="inline-form">
+                            <code th:text="${app.clientId}"></code>
+                            <button type="button" class="ghost copy-btn" th:attr="data-copy=${app.clientId}">Copy</button>
+                        </div>
+                    </td>
+                    <td th:text="${app.publicClient} ? 'Public' : 'Confidential'"></td>
+                    <td th:text="${app.active} ? 'Aktiv' : 'Passiv'"></td>
+                    <td>
+                        <div class="stack">
+                            <a th:href="@{'/admin/applications/' + ${app.id}}">Detallar</a>
+                            <form method="post" th:action="@{'/admin/applications/' + ${app.id} + '/delete'}">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                                <button type="submit" class="danger">Sil</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="card" th:if="${selectedAppId != null}">
+            <h3 th:text="'Tətbiq redaktəsi: ' + ${selectedAppName}"></h3>
+            <form method="post" th:action="@{'/admin/applications/' + ${selectedAppId} + '/update'}" class="form-grid">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                <label>Ad</label>
+                <input name="name" type="text" required th:value="${selectedApp != null ? selectedApp.name : ''}">
+                <label>Slug</label>
+                <input name="slug" type="text" required th:value="${selectedApp != null ? selectedApp.slug : ''}">
+                <div class="field-row">
+                    <div class="field-half">
+                        <label>Client növü</label>
+                        <div class="radio-group">
+                            <label>
+                                <input type="radio" name="publicClient" value="false" th:checked="${selectedApp != null && !selectedApp.publicClient}">
+                                Confidential (server-side, secret ilə)
+                            </label>
+                            <label>
+                                <input type="radio" name="publicClient" value="true" th:checked="${selectedApp != null && selectedApp.publicClient}">
+                                Public (SPA/mobil, PKCE ilə)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <label>Redirect URI-lər (hər sətirdə biri)</label>
+                <textarea name="redirectUris" rows="4" required th:text="${selectedApp != null ? #strings.arrayJoin(selectedApp.redirectUris, '\n') : ''}"></textarea>
+                <label>Allowed Origins (hər sətirdə biri)</label>
+                <textarea name="allowedOrigins" rows="3" th:text="${selectedApp != null && selectedApp.allowedOrigins != null ? #strings.arrayJoin(selectedApp.allowedOrigins, '\n') : ''}"></textarea>
+                <button type="submit">Yenilə</button>
+            </form>
+        </section>
+
+        <section class="card" th:if="${selectedAppId != null}">
+            <h3 th:text="${selectedAppName} + ' üçün istifadəçilər'"></h3>
+            <table>
+                <thead>
+                <tr><th>LDAP</th><th>Ad Soyad</th><th>Email</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                <tr th:if="${#lists.isEmpty(appUsers)}">
+                    <td colspan="4">Bu tətbiq üçün aktiv istifadəçi tapılmadı</td>
+                </tr>
+                <tr th:each="user : ${appUsers}">
+                    <td th:text="${user.ldapUsername}"></td>
+                    <td th:text="${user.displayName}"></td>
+                    <td th:text="${user.email}"></td>
+                    <td th:text="${user.active} ? 'Aktiv' : 'Passiv'"></td>
+                </tr>
+                </tbody>
+            </table>
+        </section>
+        <section class="card" th:if="${selectedAppId != null}">
+            <h3>OIDC endpoint-ləri</h3>
+            <div class="stack">
+                <div class="inline-form">
+                    <label style="min-width:120px;">Authorization</label>
+                    <code>/oauth2/authorize</code>
+                    <button type="button" class="ghost copy-static" data-copy="/oauth2/authorize">Copy</button>
+                </div>
+                <div class="inline-form">
+                    <label style="min-width:120px;">Token</label>
+                    <code>/oauth2/token</code>
+                    <button type="button" class="ghost copy-static" data-copy="/oauth2/token">Copy</button>
+                </div>
+                <div class="inline-form">
+                    <label style="min-width:120px;">UserInfo</label>
+                    <code>/oauth2/userinfo</code>
+                    <button type="button" class="ghost copy-static" data-copy="/oauth2/userinfo">Copy</button>
+                </div>
+            </div>
+        </section>
+
+        <div id="new-client-secret-modal"
+             style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 60; align-items: center; justify-content: center; padding: 18px;"
+             th:if="${newClientSecret != null}">
+            <div style="max-width: 560px; width: 100%; background: #000; border: 1px solid rgba(0,245,255,0.22); border-radius: 12px; overflow: hidden;">
+                <div style="display:flex; align-items:center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid rgba(0,245,255,0.14);">
+                    <div style="display:flex; flex-direction: column; gap: 2px;">
+                        <div style="font-size: 12px; opacity: 0.95; color: rgba(0,245,255,0.95); text-transform: uppercase; letter-spacing: 0.12em;">application created</div>
+                        <div style="font-size: 14px; font-weight: 700; color: rgba(0,245,255,1);" th:text="${newAppName}">New app</div>
+                    </div>
+                    <button type="button" class="ghost" id="new-secret-modal-close" style="font-size: 24px; padding: 0 10px; border: none;">×</button>
+                </div>
+                <div style="padding: 16px;">
+                    <div style="display:flex; flex-direction: column; gap: 12px;">
+                        <div style="color: rgba(255,170,0,0.95); border: 1px solid rgba(255,170,0,0.3); background: rgba(255,170,0,0.06); border-radius: 10px; padding: 10px 12px;">
+                            [WARN] client_secret is shown only once
+                        </div>
+
+                        <div>
+                            <div style="font-size: 12px; opacity: 0.9; margin-bottom: 6px; color: rgba(0,245,255,0.75);">client_id</div>
+                            <div class="inline-form" style="gap: 10px;">
+                                <code th:text="${newClientId}" style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></code>
+                                <button type="button" class="ghost copy-btn" th:attr="data-copy=${newClientId}">Copy</button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div style="font-size: 12px; opacity: 0.9; margin-bottom: 6px; color: rgba(0,245,255,0.75);">client_secret</div>
+                            <div class="inline-form" style="gap: 10px;">
+                                <code th:text="${newClientSecret}" style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></code>
+                                <button type="button" class="ghost copy-btn" th:attr="data-copy=${newClientSecret}">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 14px; display:flex; justify-content: flex-end;">
+                        <button type="button" id="new-secret-modal-ok" style="border: 1px solid rgba(0,245,255,0.5); background: transparent; color: rgba(0,245,255,0.95); padding: 10px 14px; border-radius: 10px; cursor: pointer;">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            document.querySelectorAll('.copy-btn').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    var value = button.getAttribute('data-copy') || '';
+                    navigator.clipboard.writeText(value).then(function () {
+                        button.textContent = 'Copied';
+                        setTimeout(function () {
+                            button.textContent = 'Copy';
+                        }, 1200);
+                    }).catch(function () {
+                        button.textContent = 'Failed';
+                        setTimeout(function () {
+                            button.textContent = 'Copy';
+                        }, 1200);
+                    });
+                });
+            });
+            document.querySelectorAll('.copy-static').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    var value = button.getAttribute('data-copy') || '';
+                    navigator.clipboard.writeText(value).then(function () {
+                        button.textContent = 'Copied';
+                        setTimeout(function () {
+                            button.textContent = 'Copy';
+                        }, 1200);
+                    }).catch(function () {
+                        button.textContent = 'Failed';
+                        setTimeout(function () {
+                            button.textContent = 'Copy';
+                        }, 1200);
+                    });
+                });
+            });
+
+            (function () {
+                var modal = document.getElementById('new-client-secret-modal');
+                if (!modal) return;
+                modal.style.display = 'flex';
+
+                var closeBtn = document.getElementById('new-secret-modal-close');
+                var okBtn = document.getElementById('new-secret-modal-ok');
+                function close() { modal.style.display = 'none'; }
+                if (closeBtn) closeBtn.addEventListener('click', close);
+                if (okBtn) okBtn.addEventListener('click', close);
+                modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+            })();
+        </script>
+    </main>
+</div>
+</body>
+</html>

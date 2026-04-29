@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="az" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AO IDP Admin Giriş</title>
+    <link rel="icon" th:href="@{/favicon.ico}">
+    <link rel="stylesheet" th:href="@{/css/admin.css}">
+</head>
+<body class="login-body">
+<main class="login-wrap">
+    <section class="card login-card">
+        <h1>Admin Paneli</h1>
+        <p class="muted">AO IDP idarəetmə sisteminə daxil olun</p>
+        <form method="post" action="/admin/login" class="form-grid">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <label for="username">İstifadəçi adı</label>
+            <input id="username" name="username" type="text" required autocomplete="username">
+            <label for="password">Şifrə</label>
+            <input id="password" name="password" type="password" required autocomplete="current-password">
+            <button type="submit">Daxil ol</button>
+        </form>
+        <p class="error" th:if="${error}" th:text="${error}"></p>
+    </section>
+</main>
+</body>
+</html>

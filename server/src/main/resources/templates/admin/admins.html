@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="az" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AO IDP Adminlər</title>
+    <link rel="icon" th:href="@{/favicon.ico}">
+    <link rel="stylesheet" th:href="@{/css/admin.css}">
+</head>
+<body>
+<div class="shell">
+    <aside class="sidebar">
+        <h2>AO IDP</h2>
+        <nav>
+            <a href="/admin/dashboard">Dashboard</a>
+            <a href="/admin/applications">Tətbiqlər</a>
+            <a href="/admin/users">İstifadəçilər</a>
+            <a href="/admin/directory">LDAP</a>
+            <a class="active" href="/admin/admins">Adminlər</a>
+            <a href="/admin/audit">Audit</a>
+            <a href="/admin/logout">Çıxış</a>
+        </nav>
+    </aside>
+    <main class="content">
+        <header class="topbar">
+            <h1>Admin İdarəetmə</h1>
+        </header>
+        <section class="card">
+            <h3>Yeni admin yarat</h3>
+            <p class="ok" th:if="${success}" th:text="${success}"></p>
+            <p class="error" th:if="${error}" th:text="${error}"></p>
+            <form method="post" action="/admin/admins" class="form-grid">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                <label>Username</label>
+                <input type="text" name="username" required>
+                <label>Display Name</label>
+                <input type="text" name="displayName" required>
+                <label>Şifrə</label>
+                <input type="password" name="password" required>
+                <label>Admin Type</label>
+                <select name="adminType" required>
+                    <option value="idp_admin">idp_admin</option>
+                    <option value="app_admin">app_admin</option>
+                </select>
+                <button type="submit">Yarat</button>
+            </form>
+        </section>
+        <section class="card">
+            <h3>Admin siyahısı</h3>
+            <table>
+                <thead>
+                <tr><th>Username</th><th>Display Name</th><th>Type</th><th>Status</th><th>Scope</th><th>Əməliyyat</th></tr>
+                </thead>
+                <tbody>
+                <tr th:each="admin : ${admins}">
+                    <td th:text="${admin.username}"></td>
+                    <td th:text="${admin.displayName}"></td>
+                    <td th:text="${admin.adminType}"></td>
+                    <td th:text="${admin.active} ? 'Aktiv' : 'Passiv'"></td>
+                    <td>
+                        <form method="post" th:action="@{'/admin/admins/' + ${admin.id} + '/scopes/add'}" class="inline-form">
+                            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                            <select name="appId" required>
+                                <option value="">Tətbiq seç</option>
+                                <option th:each="app : ${allApps}" th:value="${app.id}" th:text="${app.name}"></option>
+                            </select>
+                            <button type="submit">Add Scope</button>
+                        </form>
+                        <form method="post" th:action="@{'/admin/admins/' + ${admin.id} + '/scopes/remove'}" class="inline-form">
+                            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                            <select name="appId" required>
+                                <option value="">Tətbiq seç</option>
+                                <option th:each="app : ${allApps}" th:value="${app.id}" th:text="${app.name}"></option>
+                            </select>
+                            <button type="submit">Remove Scope</button>
+                        </form>
+                    </td>
+                    <td>
+                        <form method="post" th:action="@{'/admin/admins/' + ${admin.id} + '/deactivate'}">
+                            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                            <button type="submit" class="danger">Deaktiv et</button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+</div>
+</body>
+</html>

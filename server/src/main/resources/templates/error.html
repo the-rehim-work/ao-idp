@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="az">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>AO ID — Sistem xətası</title>
+    <link rel="icon" th:href="@{/favicon.ico}">
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --maroon:   #5e1c1f;
+            --maroon-d: #441214;
+            --gold:     #c9a032;
+            --gold-l:   #e0bf57;
+            --cream-2:  #ece4d0;
+            --beige:    #d8cfb8;
+            --ink:      #2d2018;
+            --ink-soft: #5e5040;
+            --muted:    #7a6f5d;
+            --az-red:   #EF3340;
+            --serif:    'Cinzel', 'Georgia', serif;
+            --sans:     'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+        }
+
+        html, body { min-height: 100%; }
+
+        body {
+            font-family: var(--sans);
+            color: var(--ink);
+            background-color: var(--cream-2);
+            background-image: linear-gradient(180deg, #f6f1e7 0%, #eee5d4 100%);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .topbar {
+            background: var(--maroon);
+            color: var(--gold-l);
+            border-bottom: 2px solid var(--gold);
+            padding: 0.55rem 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.72rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+        }
+        .topbar-left { display: inline-flex; align-items: center; gap: 0.65rem; }
+        .flag-az { width: 28px; height: 14px; border: 1px solid rgba(255,255,255,0.25); }
+        .stamp {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            padding: 0.2rem 0.55rem;
+            border: 1px solid rgba(239,51,64,0.55);
+            color: #ffb1b8;
+            font-weight: 600;
+            font-size: 0.65rem;
+        }
+        .stamp::before { content: ''; width: 6px; height: 6px; background: var(--az-red); border-radius: 50%; box-shadow: 0 0 6px rgba(239,51,64,0.8); }
+
+        main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2.5rem 1rem 3rem;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 460px;
+            background: #fff;
+            border: 1px solid var(--beige);
+            border-radius: 4px;
+            box-shadow:
+                0 1px 0 rgba(255,255,255,0.6) inset,
+                0 12px 36px rgba(94, 28, 31, 0.12),
+                0 2px 8px rgba(45, 32, 24, 0.06);
+            overflow: hidden;
+            position: relative;
+            text-align: center;
+            padding: 2rem 1.75rem 1.75rem;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--maroon), var(--az-red), var(--gold), var(--az-red), var(--maroon));
+        }
+
+        .crest {
+            width: 90px;
+            height: 90px;
+            margin: 0 auto 0.8rem;
+            display: block;
+            opacity: 0.85;
+        }
+
+        .stamp-fail {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.3rem 0.75rem;
+            border: 1px dashed rgba(239,51,64,0.45);
+            background: rgba(239,51,64,0.06);
+            color: var(--az-red);
+            font-size: 0.66rem;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+
+        .stamp-fail::before {
+            content: '';
+            width: 6px; height: 6px;
+            background: var(--az-red);
+            box-shadow: 0 0 6px rgba(239,51,64,0.6);
+        }
+
+        .code {
+            font-family: var(--serif);
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: var(--maroon);
+            margin-bottom: 0.3rem;
+            letter-spacing: 0.05em;
+        }
+
+        h1 {
+            font-size: 0.95rem;
+            color: var(--maroon);
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            margin-bottom: 0.7rem;
+            font-weight: 700;
+        }
+
+        p {
+            color: var(--ink-soft);
+            font-size: 0.92rem;
+            line-height: 1.6;
+        }
+
+        .meta-row {
+            margin-top: 1.25rem;
+            padding-top: 0.85rem;
+            border-top: 1px dashed var(--beige);
+            font-size: 0.7rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        footer {
+            background: var(--maroon);
+            color: var(--gold-l);
+            border-top: 2px solid var(--gold);
+            padding: 0.85rem 1.25rem;
+            text-align: center;
+            font-size: 0.68rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+        }
+        footer .motto { font-family: var(--serif); font-weight: 700; letter-spacing: 0.28em; }
+    </style>
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-left">
+        <svg class="flag-az" viewBox="0 0 60 30" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect width="60" height="10" fill="#00B5E2"/>
+            <rect y="10" width="60" height="10" fill="#EF3340"/>
+            <rect y="20" width="60" height="10" fill="#00f5ff"/>
+            <circle cx="28" cy="15" r="3.6" fill="#fff"/>
+            <circle cx="29.4" cy="15" r="3.0" fill="#EF3340"/>
+            <polygon fill="#fff" transform="translate(34 15)" points="0,-2.8 0.43,-1.03 1.98,-1.98 1.03,-0.43 2.8,0 1.03,0.43 1.98,1.98 0.43,1.03 0,2.8 -0.43,1.03 -1.98,1.98 -1.03,0.43 -2.8,0 -1.03,-0.43 -1.98,-1.98 -0.43,-1.03"/>
+        </svg>
+        <span>Azərbaycan Respublikası</span>
+    </div>
+    <span class="stamp">Sistem xətası</span>
+</header>
+
+<main>
+    <section class="card">
+        <img src="/img/mod-crest.png" alt="AO ID gerbi" class="crest"/>
+        <span class="stamp-fail">Giriş rədd edildi</span>
+        <div class="code" th:text="${status} ?: 'Xəta'">Xəta</div>
+        <h1 th:text="${error} ?: 'Sistemdə xəta baş verdi'">Sistemdə xəta baş verdi</h1>
+        <p th:text="${message} ?: 'Yenidən cəhd edin və ya idarəçi ilə əlaqə saxlayın.'">
+            Yenidən cəhd edin və ya idarəçi ilə əlaqə saxlayın.
+        </p>
+        <div class="meta-row">auth.ao.az · OAuth 2.0 · OpenID Connect</div>
+    </section>
+</main>
+
+<footer>
+    AO Kimlik Təminatçısı &nbsp;·&nbsp; <span class="motto">Vətən Sağ Olsun</span>
+</footer>
+
+</body>
+</html>

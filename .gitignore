@@ -1,0 +1,16 @@
+# Build outputs
+server/.gradle/
+server/build/
+admin/node_modules/
+admin/dist/
+
+# Secrets
+.env
+docker/certs/*.crt
+docker/certs/*.key
+docker/certs/*.pem
+
+# IDE
+.idea/
+*.iml
+.DS_Store

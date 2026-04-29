@@ -1,0 +1,89 @@
+spring:
+  application:
+    name: ao-idp
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:ao_idp}
+    username: ${DB_USERNAME:ao_idp}
+    password: ${DB_PASSWORD:dev_password}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    open-in-view: false
+    show-sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    clean-disabled: false
+    clean-on-validation-error: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+  thymeleaf:
+    cache: false
+  security:
+    user:
+      name: ignored
+      password: ignored
+
+ao:
+  idp:
+    issuer: ${IDP_ISSUER:http://localhost:8080}
+    ldap:
+      url: ${LDAP_URL:ldap://localhost:389}
+      base-dn: ${LDAP_BASE_DN:dc=ao,dc=az}
+      service-account-dn: ${LDAP_SERVICE_ACCOUNT_DN:cn=readonly,dc=ao,dc=az}
+      service-account-password: ${LDAP_SERVICE_PASSWORD:readonlypassword}
+      username-attribute: ${LDAP_USERNAME_ATTR:uid}
+      user-object-class: ${LDAP_USER_OBJECT_CLASS:inetOrgPerson}
+    jwt:
+      access-token-expiry-minutes: 15
+      refresh-token-expiry-days: 7
+      admin-token-expiry-minutes: 30
+      rsa-key-path: ${JWT_KEY_PATH:classpath:keys}
+    brute-force:
+      max-attempts: 5
+      lockout-duration-minutes: 15
+      ip-rate-limit-per-minute: 20
+    cookie:
+      domain: ${COOKIE_DOMAIN:localhost}
+      name: ${COOKIE_NAME:ao-session}
+      max-age-seconds: 28800
+
+server:
+  port: 8080
+  error:
+    whitelabel:
+      enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    disable-swagger-default-url: true
+    doc-expansion: none
+
+logging:
+  level:
+    root: INFO
+    az.ao.idp: DEBUG
+    org.springframework.security: INFO
+    org.springframework.ldap: INFO

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="az" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AO IDP Admin İstifadəçilər</title>
+    <link rel="icon" th:href="@{/favicon.ico}">
+    <link rel="stylesheet" th:href="@{/css/admin.css}">
+</head>
+<body>
+<div class="shell">
+    <aside class="sidebar">
+        <h2>AO IDP</h2>
+        <nav>
+            <a href="/admin/dashboard">Dashboard</a>
+            <a href="/admin/applications">Tətbiqlər</a>
+            <a class="active" href="/admin/users">İstifadəçilər</a>
+            <a href="/admin/directory">LDAP</a>
+            <a href="/admin/admins">Adminlər</a>
+            <a href="/admin/audit">Audit</a>
+            <a href="/admin/logout">Çıxış</a>
+        </nav>
+    </aside>
+    <main class="content">
+        <header class="topbar">
+            <h1>İstifadəçilər</h1>
+            <form method="get" action="/admin/users" class="inline-form">
+                <input type="text" name="search" placeholder="Axtarış" th:value="${search}">
+                <button type="submit">Axtar</button>
+            </form>
+        </header>
+        <section class="card">
+            <h3>LDAP istifadəçisini aktiv et</h3>
+            <p class="ok" th:if="${success}" th:text="${success}"></p>
+            <p class="error" th:if="${error}" th:text="${error}"></p>
+            <form method="post" action="/admin/users/activate" class="inline-form">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                <input type="text" name="ldapUsername" placeholder="ldap username" required>
+                <button type="submit">Aktiv et</button>
+            </form>
+        </section>
+        <section class="card">
+            <table>
+                <thead>
+                <tr><th>LDAP</th><th>Ad Soyad</th><th>Email</th><th>Status</th><th>Son giriş</th><th>Əməliyyat</th></tr>
+                </thead>
+                <tbody>
+                <tr th:each="user : ${users}">
+                    <td th:text="${user.ldapUsername}"></td>
+                    <td th:text="${user.displayName}"></td>
+                    <td th:text="${user.email}"></td>
+                    <td th:text="${user.active} ? 'Aktiv' : 'Passiv'"></td>
+                    <td th:text="${user.lastLoginAt}"></td>
+                    <td>
+                        <div class="stack">
+                            <form method="post" th:action="@{'/admin/users/' + ${user.id} + '/deactivate'}">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                                <button type="submit" class="danger">Deaktiv et</button>
+                            </form>
+                            <form method="post" th:action="@{'/admin/users/' + ${user.id} + '/grant-app'}" class="inline-form">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                                <select name="appId" required>
+                                    <option value="">Tətbiq seç</option>
+                                    <option th:each="app : ${allApps}" th:value="${app.id}" th:text="${app.name}"></option>
+                                </select>
+                                <button type="submit">Grant</button>
+                            </form>
+                            <form method="post" th:action="@{'/admin/users/' + ${user.id} + '/revoke-app'}" class="inline-form">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                                <select name="appId" required>
+                                    <option value="">Tətbiq seç</option>
+                                    <option th:each="app : ${allApps}" th:value="${app.id}" th:text="${app.name}"></option>
+                                </select>
+                                <button type="submit">Revoke</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+            <div class="pager">
+                <a th:if="${page > 0}" th:href="@{/admin/users(page=${page - 1}, search=${search})}">Geri</a>
+                <span th:text="${(page + 1) + ' / ' + totalPages}"></span>
+                <a th:if="${page + 1 < totalPages}" th:href="@{/admin/users(page=${page + 1}, search=${search})}">İrəli</a>
+            </div>
+        </section>
+    </main>
+</div>
+</body>
+</html>

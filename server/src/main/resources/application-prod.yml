@@ -1,0 +1,89 @@
+spring:
+  application:
+    name: ao-idp
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:postgres}:${DB_PORT:5432}/${DB_NAME:ao_idp}
+    username: ${DB_USERNAME:ao_idp}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 10
+      connection-timeout: 30000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+  thymeleaf:
+    cache: true
+  security:
+    user:
+      name: ignored
+      password: ignored
+
+ao:
+  idp:
+    issuer: ${IDP_ISSUER:https://auth.ao.az}
+    ldap:
+      url: ${LDAP_URL:ldaps://ldap.ao.az:636}
+      base-dn: ${LDAP_BASE_DN:DC=ao,DC=az}
+      service-account-dn: ${LDAP_SERVICE_ACCOUNT_DN:CN=idp-svc,OU=ServiceAccounts,DC=ao,DC=az}
+      service-account-password: ${LDAP_SERVICE_PASSWORD}
+      username-attribute: ${LDAP_USERNAME_ATTR:sAMAccountName}
+      user-object-class: ${LDAP_USER_OBJECT_CLASS:user}
+    jwt:
+      access-token-expiry-minutes: 15
+      refresh-token-expiry-days: 7
+      admin-token-expiry-minutes: 30
+      rsa-key-path: ${JWT_KEY_PATH:classpath:keys}
+    brute-force:
+      max-attempts: 5
+      lockout-duration-minutes: 15
+      ip-rate-limit-per-minute: 20
+    cookie:
+      domain: ${COOKIE_DOMAIN:.ao.az}
+      name: ${COOKIE_NAME:ao-session}
+      max-age-seconds: 28800
+
+server:
+  port: 8080
+  forward-headers-strategy: native
+  servlet:
+    session:
+      cookie:
+        secure: true
+        http-only: true
+  error:
+    whitelabel:
+      enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    disable-swagger-default-url: true
+    doc-expansion: none
+
+logging:
+  level:
+    root: WARN
+    az.ao.idp: INFO

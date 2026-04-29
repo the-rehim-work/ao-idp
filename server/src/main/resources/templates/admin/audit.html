@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="az" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AO IDP Admin Audit</title>
+    <link rel="icon" th:href="@{/favicon.ico}">
+    <link rel="stylesheet" th:href="@{/css/admin.css}">
+</head>
+<body>
+<div class="shell">
+    <aside class="sidebar">
+        <h2>AO IDP</h2>
+        <nav>
+            <a href="/admin/dashboard">Dashboard</a>
+            <a href="/admin/applications">Tətbiqlər</a>
+            <a href="/admin/users">İstifadəçilər</a>
+            <a href="/admin/directory">LDAP</a>
+            <a href="/admin/admins">Adminlər</a>
+            <a class="active" href="/admin/audit">Audit</a>
+            <a href="/admin/logout">Çıxış</a>
+        </nav>
+    </aside>
+    <main class="content">
+        <header class="topbar">
+            <h1>Audit Qeydləri</h1>
+        </header>
+        <section class="card">
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                <div>
+                    <label style="display:block; font-size:12px; opacity:0.9; margin-bottom:6px;">Event type</label>
+                    <select id="audit-action" style="width:100%;">
+                        <option value="">Bütün</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display:block; font-size:12px; opacity:0.9; margin-bottom:6px;">Actor ID</label>
+                    <input id="audit-actor-input" type="text" placeholder="actor..." style="width:100%;">
+                </div>
+                <div>
+                    <label style="display:block; font-size:12px; opacity:0.9; margin-bottom:6px;">From</label>
+                    <input id="audit-from" type="date" style="width:100%; color-scheme: dark;">
+                </div>
+                <div>
+                    <label style="display:block; font-size:12px; opacity:0.9; margin-bottom:6px;">To</label>
+                    <input id="audit-to" type="date" style="width:100%; color-scheme: dark;">
+                </div>
+            </div>
+
+            <div style="display:flex; gap:10px; align-items:center; margin-bottom: 14px;">
+                <button type="button" id="audit-apply">Filtrlə</button>
+                <button type="button" id="audit-reset" class="ghost">Reset</button>
+                <span id="audit-loading" style="margin-left: 10px; display:none; opacity:0.9;">yüklənir...</span>
+            </div>
+
+            <table>
+                <thead>
+                <tr><th>Vaxt</th><th>Action</th><th>Actor</th><th>Entity</th><th>IP</th></tr>
+                </thead>
+                <tbody id="audit-tbody">
+                <tr><td colspan="5">loading...</td></tr>
+                </tbody>
+            </table>
+
+            <div class="pager" style="justify-content: flex-end;">
+                <a href="#" id="audit-prev" style="pointer-events:auto;">Geri</a>
+                <span id="audit-page-indicator" style="min-width: 120px; text-align:center;"></span>
+                <a href="#" id="audit-next" style="pointer-events:auto;">İrəli</a>
+            </div>
+        </section>
+
+        <div id="audit-modal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 50; padding: 18px;">
+            <div style="max-width: 820px; margin: 40px auto; background: #000; border: 1px solid rgba(0,245,255,0.22); border-radius: 12px; overflow:hidden;">
+                <div style="display:flex; align-items:center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid rgba(0,245,255,0.14);">
+                    <div style="display:flex; align-items:center; gap: 12px;">
+                        <span id="audit-modal-action" style="padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(0,245,255,0.22); background: rgba(0,245,255,0.06); color: rgba(0,245,255,0.95); font-size: 12px;"></span>
+                        <span style="font-size: 12px; opacity:0.9;">event detail</span>
+                    </div>
+                    <button type="button" id="audit-modal-close" style="background:none; border:none; color: rgba(0,245,255,0.65); cursor:pointer; font-size: 24px; line-height: 1;">×</button>
+                </div>
+                <div style="padding: 16px;">
+                    <div id="audit-modal-summary" style="margin-bottom: 14px; padding: 12px; border: 1px solid rgba(0,245,255,0.14); background: rgba(0,245,255,0.04); border-radius: 10px; color: rgba(0,245,255,0.95); font-size: 13px;"></div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                        <div><div style="font-size:12px; opacity:0.9; margin-bottom:4px;">actor_type</div><div id="audit-actor-type" style="color: rgba(0,245,255,0.75); font-size: 13px;"></div></div>
+                        <div><div style="font-size:12px; opacity:0.9; margin-bottom:4px;">actor_id</div><div id="audit-actor-id" style="color: rgba(0,245,255,0.75); font-size: 13px;"></div></div>
+                        <div><div style="font-size:12px; opacity:0.9; margin-bottom:4px;">target_type</div><div id="audit-target-type" style="color: rgba(0,245,255,0.75); font-size: 13px;"></div></div>
+                        <div><div style="font-size:12px; opacity:0.9; margin-bottom:4px;">target_id</div><div id="audit-target-id" style="color: rgba(0,245,255,0.75); font-size: 13px;"></div></div>
+                        <div><div style="font-size:12px; opacity:0.9; margin-bottom:4px;">application_id</div><div id="audit-app-id" style="color: rgba(0,245,255,0.75); font-size: 13px;"></div></div>
+                        <div><div style="font-size:12px; opacity:0.9; margin-bottom:4px;">ip_address</div><div id="audit-ip" style="color: rgba(0,245,255,0.75); font-size: 13px;"></div></div>
+                        <div style="grid-column: 1 / -1;"><div style="font-size:12px; opacity:0.9; margin-bottom:4px;">user_agent</div><div id="audit-user-agent" style="color: rgba(0,245,255,0.75); font-size: 13px; word-break: break-word;"></div></div>
+                    </div>
+
+                    <div>
+                        <div style="font-size:12px; opacity:0.9; margin-bottom:6px;">event_payload (details)</div>
+                        <div id="audit-details" style="border: 1px solid rgba(0,245,255,0.14); background: rgba(0,0,0,0.2); border-radius: 10px; padding: 12px; max-height: 50vh; overflow:auto; color: rgba(0,245,255,0.9); font-size: 13px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+    (function () {
+        const cookieName = 'ao-admin-web';
+
+        const getCookie = function (name) {
+            const parts = document.cookie ? document.cookie.split('; ') : [];
+            for (let i = 0; i < parts.length; i++) {
+                const p = parts[i].split('=');
+                const k = p[0];
+                if (k === name) return decodeURIComponent(p.slice(1).join('='));
+            }
+            return '';
+        };
+
+        const token = getCookie(cookieName);
+        const authHeader = token ? ('Bearer ' + token) : '';
+
+        const actionEl = document.getElementById('audit-action');
+        const actorEl = document.getElementById('audit-actor-input');
+        const fromEl = document.getElementById('audit-from');
+        const toEl = document.getElementById('audit-to');
+        const tbody = document.getElementById('audit-tbody');
+        const pageIndicator = document.getElementById('audit-page-indicator');
+        const prevEl = document.getElementById('audit-prev');
+        const nextEl = document.getElementById('audit-next');
+
+        const applyBtn = document.getElementById('audit-apply');
+        const resetBtn = document.getElementById('audit-reset');
+        const loadingEl = document.getElementById('audit-loading');
+
+        const modal = document.getElementById('audit-modal');
+        const closeBtn = document.getElementById('audit-modal-close');
+        const actionBadgeEl = document.getElementById('audit-modal-action');
+        const summaryEl = document.getElementById('audit-modal-summary');
+        const actorTypeEl = document.getElementById('audit-actor-type');
+        const actorIdEl = document.getElementById('audit-actor-id');
+        const targetTypeEl = document.getElementById('audit-target-type');
+        const targetIdEl = document.getElementById('audit-target-id');
+        const appIdEl = document.getElementById('audit-app-id');
+        const ipEl = document.getElementById('audit-ip');
+        const uaEl = document.getElementById('audit-user-agent');
+        const detailsEl = document.getElementById('audit-details');
+
+        const COLORS = {
+            login: 'rgba(0,245,255,0.95)',
+            logout: 'rgba(0,245,255,0.65)',
+            login_failed: 'rgba(255,51,51,0.95)',
+            user_activated: 'rgba(0,204,255,0.95)',
+            user_deactivated: 'rgba(255,136,0,0.95)',
+            app_registered: 'rgba(0,204,255,0.95)',
+            app_updated: 'rgba(0,245,255,0.85)',
+            app_deleted: 'rgba(255,51,51,0.95)',
+            token_refresh: 'rgba(0,245,255,0.65)'
+        };
+
+        function colorForAction(action) {
+            return COLORS[action] || 'rgba(0,245,255,0.75)';
+        }
+
+        function isoFromDateInput(el) {
+            if (!el) return null;
+            const v = el.value;
+            if (!v) return null;
+            const d = new Date(v + 'T00:00:00Z');
+            return d.toISOString();
+        }
+
+        function setLoading(isLoading) {
+            if (!loadingEl) return;
+            loadingEl.style.display = isLoading ? 'inline' : 'none';
+        }
+
+        function escapeHtml(s) {
+            return String(s)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('\"', '&quot;')
+                .replaceAll('\'', '&#039;');
+        }
+
+        function getState() {
+            return {
+                action: actionEl ? actionEl.value : '',
+                actorId: actorEl ? actorEl.value : '',
+                from: isoFromDateInput(fromEl),
+                to: isoFromDateInput(toEl)
+            };
+        }
+
+        async function loadEventTypes() {
+            if (!authHeader || !actionEl) return;
+            const r = await fetch('/admin/api/v1/audit-logs/event-types', { headers: { 'Authorization': authHeader } });
+            if (!r.ok) return;
+            const types = await r.json();
+            types.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t;
+                opt.textContent = t;
+                actionEl.appendChild(opt);
+            });
+        }
+
+        async function fetchLogs(page, size) {
+            if (!authHeader) return null;
+            const state = getState();
+            const params = new URLSearchParams();
+            params.set('page', String(page));
+            params.set('size', String(size));
+            if (state.action) params.set('action', state.action);
+            if (state.actorId) params.set('actorId', state.actorId);
+            if (state.from) params.set('from', state.from);
+            if (state.to) params.set('to', state.to);
+
+            const r = await fetch('/admin/api/v1/audit-logs?' + params.toString(), { headers: { 'Authorization': authHeader } });
+            if (!r.ok) throw new Error('audit fetch failed');
+            return await r.json();
+        }
+
+        let currentPage = parseInt(new URLSearchParams(window.location.search).get('page') || '0', 10);
+        const pageSize = 25;
+
+        function renderDetails(log) {
+            const c = colorForAction(log.action);
+            if (actionBadgeEl) {
+                actionBadgeEl.textContent = log.action || '';
+                actionBadgeEl.style.borderColor = c;
+                actionBadgeEl.style.color = c;
+            }
+
+            const actor = (log.actorType || '') + ':' + (log.actorId || '');
+            const entity = (log.targetType || '') + ':' + (log.targetId || '');
+            summaryEl.textContent = '[' + (log.action || '') + '] actor=' + actor + (entity ? (' entity=' + entity) : '') + (log.ipAddress ? (' ip=' + log.ipAddress) : '');
+
+            actorTypeEl.textContent = log.actorType || '';
+            actorIdEl.textContent = log.actorId || '';
+            targetTypeEl.textContent = log.targetType || '';
+            targetIdEl.textContent = log.targetId || '';
+            appIdEl.textContent = log.applicationId || '';
+            ipEl.textContent = log.ipAddress || '';
+            uaEl.textContent = log.userAgent || '';
+
+            const det = log.details && typeof log.details === 'object' ? log.details : {};
+            const entries = Object.entries(det);
+            if (entries.length === 0) {
+                detailsEl.textContent = '{}';
+            } else {
+                detailsEl.innerHTML = entries.map(([k, v]) => {
+                    const val = (v === null || v === undefined) ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v);
+                    return '<div style="display:flex; gap:12px; margin: 3px 0;"><span style="min-width: 180px; color: rgba(0,245,255,0.75); font-weight: 600;">' + escapeHtml(k) + '</span><span style="color: rgba(0,245,255,0.95); word-break: break-word;">' + escapeHtml(val) + '</span></div>';
+                }).join('');
+            }
+        }
+
+        function openModalForLog(log) {
+            renderDetails(log);
+            modal.style.display = 'block';
+        }
+
+        function closeModal() {
+            modal.style.display = 'none';
+        }
+
+        closeBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) closeModal();
+        });
+
+        function renderTable(pageData) {
+            const content = pageData && pageData.content ? pageData.content : [];
+            const p = pageData.page;
+            const totalPages = pageData.total_pages !== undefined ? pageData.total_pages : pageData.totalPages;
+
+            pageIndicator.textContent = (p + 1) + ' / ' + (totalPages || '');
+
+            prevEl.style.pointerEvents = (p > 0) ? 'auto' : 'none';
+            nextEl.style.pointerEvents = (p + 1 < (totalPages || 0)) ? 'auto' : 'none';
+
+            tbody.innerHTML = '';
+
+            if (content.length === 0) {
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.colSpan = 5;
+                td.textContent = 'no events';
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+                return;
+            }
+
+            content.forEach(log => {
+                const tr = document.createElement('tr');
+                tr.style.cursor = 'pointer';
+
+                const tdTime = document.createElement('td');
+                tdTime.textContent = log.createdAt || log.created_at || '';
+
+                const tdAction = document.createElement('td');
+                const badgeColor = colorForAction(log.action);
+                const badge = document.createElement('span');
+                badge.textContent = log.action || '';
+                badge.style.padding = '2px 8px';
+                badge.style.border = '1px solid ' + badgeColor;
+                badge.style.background = 'rgba(0,245,255,0.06)';
+                badge.style.color = badgeColor;
+                badge.style.borderRadius = '999px';
+                badge.style.fontSize = '12px';
+                tdAction.appendChild(badge);
+
+                const tdActor = document.createElement('td');
+                tdActor.textContent = (log.actorType || '') + ':' + (log.actorId || '');
+
+                const tdEntity = document.createElement('td');
+                tdEntity.textContent = (log.targetType || '') + ':' + (log.targetId || '');
+
+                const tdIp = document.createElement('td');
+                tdIp.textContent = log.ipAddress || '';
+
+                tr.appendChild(tdTime);
+                tr.appendChild(tdAction);
+                tr.appendChild(tdActor);
+                tr.appendChild(tdEntity);
+                tr.appendChild(tdIp);
+
+                tr.onclick = function () { openModalForLog(log); };
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function refresh() {
+            if (!authHeader) return;
+            setLoading(true);
+            try {
+                const pageData = await fetchLogs(currentPage, pageSize);
+                renderTable(pageData);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        if (!authHeader) {
+            tbody.innerHTML = '<tr><td colspan="5">Admin token not found (cookie ao-admin-web)</td></tr>';
+            return;
+        }
+
+        loadEventTypes().finally(refresh);
+
+        applyBtn.addEventListener('click', function () {
+            currentPage = 0;
+            refresh();
+        });
+
+        resetBtn.addEventListener('click', function () {
+            if (actionEl) actionEl.value = '';
+            if (actorEl) actorEl.value = '';
+            if (fromEl) fromEl.value = '';
+            if (toEl) toEl.value = '';
+            currentPage = 0;
+            refresh();
+        });
+
+        prevEl.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (currentPage > 0) {
+                currentPage -= 1;
+                refresh();
+            }
+        });
+
+        nextEl.addEventListener('click', function (e) {
+            e.preventDefault();
+            currentPage += 1;
+            refresh();
+        });
+    })();
+</script>
+</body>
+</html>

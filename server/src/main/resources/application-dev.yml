@@ -1,0 +1,76 @@
+spring:
+  application:
+    name: ao-idp
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ao_idp
+    username: ao_idp
+    password: dev_password
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+      connection-timeout: 30000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: false
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+  thymeleaf:
+    cache: false
+  security:
+    user:
+      name: ignored
+      password: ignored
+
+ao:
+  idp:
+    issuer: http://localhost:8080
+    ldap:
+      url: ldap://localhost:389
+      base-dn: dc=ao,dc=az
+      service-account-dn: cn=admin,dc=ao,dc=az
+      service-account-password: adminpassword
+      username-attribute: uid
+      user-object-class: inetOrgPerson
+    jwt:
+      access-token-expiry-minutes: 15
+      refresh-token-expiry-days: 7
+      admin-token-expiry-minutes: 480
+      rsa-key-path: classpath:keys
+    brute-force:
+      max-attempts: 10
+      lockout-duration-minutes: 5
+      ip-rate-limit-per-minute: 100
+    cookie:
+      domain: localhost
+      name: ao-session
+      max-age-seconds: 28800
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+logging:
+  level:
+    az.ao.idp: DEBUG
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
