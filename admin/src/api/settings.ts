@@ -53,6 +53,7 @@ export const settingsApi = {
     test: (data: LdapConfigRequest) => apiClient.post<{ success: boolean; message: string }>('/settings/ldap/test', data).then(r => r.data),
     testById: (id: string) => apiClient.post<{ success: boolean; message: string }>(`/settings/ldap/${id}/test`).then(r => r.data),
     attributes: () => apiClient.get<Record<string, string>>('/settings/ldap/attributes').then(r => r.data),
+    attributesFromConfig: (data: LdapConfigRequest) => apiClient.post<Record<string, string>>('/settings/ldap/attributes', data).then(r => r.data),
   },
   tokens: {
     get: () => apiClient.get<TokenSettings>('/settings/tokens').then(r => r.data),

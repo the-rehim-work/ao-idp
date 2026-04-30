@@ -316,13 +316,22 @@ public class LdapService {
         return getAvailableAttributes(null);
     }
 
+    public Map<String, String> getAvailableAttributesForRequest(String url, String baseDn, String userDn, String password, String userObjectClass) {
+        LdapContextSource source = LdapConfigService.buildContextSource(url, baseDn, userDn, password);
+        LdapTemplate template = new LdapTemplate(source);
+        return fetchAvailableAttributes(template, userObjectClass);
+    }
+
     public Map<String, String> getAvailableAttributes(UUID ldapServerId) {
         LdapServerConfig config = ldapServerId != null
                 ? ldapConfigService.get(ldapServerId)
                 : primaryConfig();
         LdapProps props = propsFrom(config);
         LdapTemplate template = forConfig(config).template();
+        return fetchAvailableAttributes(template, props.userObjectClass());
+    }
 
+    private Map<String, String> fetchAvailableAttributes(LdapTemplate template, String userObjectClass) {
         SearchControls controls = new SearchControls();
         controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
         controls.setCountLimit(1);
@@ -351,7 +360,7 @@ public class LdapService {
         };
 
         try {
-            List<Map<String, String>> results = template.search("", "(objectClass=" + props.userObjectClass() + ")", controls, mapper);
+            List<Map<String, String>> results = template.search("", "(objectClass=" + userObjectClass + ")", controls, mapper);
             return results.isEmpty() ? Map.of() : results.get(0);
         } catch (Exception e) {
             log.error("Failed to fetch LDAP available attributes: {}", e.getMessage());

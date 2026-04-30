@@ -165,6 +165,7 @@ function LdapSection() {
   const [formError, setFormError] = useState('')
   const [testing, setTesting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<LdapServerConfig | null>(null)
+  const [formAttrs, setFormAttrs] = useState<Record<string, string> | undefined>(undefined)
 
   const activeConfig = configs.find(c => c.active)
   const isEdit = !!editTarget
@@ -178,7 +179,7 @@ function LdapSection() {
   })
 
   const openCreate = () => {
-    setEditTarget(null); setForm(emptyLdapForm()); setFormClaims([]); setTestResult(null); setFormError(''); setShowForm(true)
+    setEditTarget(null); setForm(emptyLdapForm()); setFormClaims([]); setTestResult(null); setFormError(''); setFormAttrs(undefined); setShowForm(true)
   }
   const openEdit = (c: LdapServerConfig) => {
     setEditTarget(c)
@@ -189,7 +190,7 @@ function LdapSection() {
       claimMappings: undefined,
     })
     setFormClaims(parseClaimMappings(c.claimMappings))
-    setTestResult(null); setFormError(''); setShowForm(true)
+    setTestResult(null); setFormError(''); setFormAttrs(undefined); setShowForm(true)
   }
 
   const handleSave = () => saveMut.mutate({ ...form, claimMappings: JSON.stringify(formClaims) })
@@ -222,6 +223,12 @@ function LdapSection() {
         ? await settingsApi.ldap.testById(editTarget!.id)
         : await settingsApi.ldap.test(form)
       setTestResult(result)
+      if (result.success) {
+        try {
+          const attrs = await settingsApi.ldap.attributesFromConfig(form)
+          setFormAttrs(attrs)
+        } catch { /* ignore — attrs are optional */ }
+      }
     }
     catch (e: any) { setTestResult({ success: false, message: e.response?.data?.message ?? 'Connection failed' }) }
     finally { setTesting(false) }
@@ -313,7 +320,7 @@ function LdapSection() {
             <ClaimMappingsEditor
               claims={formClaims}
               onChange={setFormClaims}
-              availableAttrs={isEdit && editTarget?.active ? availableAttrs : undefined}
+              availableAttrs={formAttrs ?? (isEdit && editTarget?.active ? availableAttrs : undefined)}
             />
           </div>
 

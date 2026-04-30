@@ -252,11 +252,23 @@ function DirectoryTab({ apps }: { apps: Application[] }) {
             <div className="p-6 text-xs" style={{ color: C.textMuted }}>Loading directory...</div>
           ) : filtered.length === 0 ? (
             <div className="p-12 text-center text-xs" style={{ color: C.textMuted }}>No users found.</div>
-          ) : (
-            filtered.map(user => (
-              <LdapUserRow key={user.ldap_username} user={user} apps={apps} />
+          ) : (() => {
+            const groups = new Map<string, typeof filtered>()
+            for (const u of filtered) {
+              const key = u.ldap_server_name ?? 'Unknown Server'
+              const grp = groups.get(key) ?? []
+              grp.push(u)
+              groups.set(key, grp)
+            }
+            return Array.from(groups.entries()).map(([serverName, users]) => (
+              <div key={serverName}>
+                <div className="px-4 py-2 text-xs font-semibold tracking-widest uppercase" style={{ background: 'rgba(0,204,255,0.06)', color: '#00ccff', borderBottom: `1px solid rgba(0,204,255,0.15)` }}>
+                  {serverName} <span style={{ color: C.textMuted, fontWeight: 400 }}>({users.length})</span>
+                </div>
+                {users.map(user => <LdapUserRow key={user.ldap_username} user={user} apps={apps} />)}
+              </div>
             ))
-          )}
+          })()}
         </div>
       )}
     </div>

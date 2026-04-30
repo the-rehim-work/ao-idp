@@ -85,4 +85,18 @@ public class AdminLdapConfigController {
         if (!ldapConfigService.isConfigured()) return ResponseEntity.status(503).body(LDAP_NOT_CONFIGURED);
         return ResponseEntity.ok(ldapService.getAvailableAttributes());
     }
+
+    @PostMapping("/attributes")
+    public ResponseEntity<Map<String, String>> attributesFromConfig(@Valid @RequestBody LdapConfigRequest request) {
+        try {
+            Map<String, String> attrs = ldapService.getAvailableAttributesForRequest(
+                    request.url(), request.baseDn(),
+                    request.serviceAccountDn(), request.serviceAccountPassword(),
+                    request.userObjectClass()
+            );
+            return ResponseEntity.ok(attrs);
+        } catch (Exception e) {
+            return ResponseEntity.status(503).build();
+        }
+    }
 }
