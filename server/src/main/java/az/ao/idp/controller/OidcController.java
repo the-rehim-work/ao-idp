@@ -5,7 +5,6 @@ import az.ao.idp.dto.response.TokenResponse;
 import az.ao.idp.dto.response.UserInfoResponse;
 import az.ao.idp.entity.Application;
 import az.ao.idp.entity.User;
-import az.ao.idp.exception.AuthenticationException;
 import az.ao.idp.exception.InvalidTokenException;
 import az.ao.idp.repository.ApplicationRepository;
 import az.ao.idp.service.*;
@@ -155,8 +154,11 @@ public class OidcController {
         try {
             bruteForceService.checkAndThrowIfLocked(username, ipAddress);
 
-            boolean authenticated = ldapService.authenticate(username, password);
-            if (!authenticated) {
+            User existingUser = userService.findByLdapUsername(username).orElse(null);
+            UUID knownLdapServerId = existingUser != null ? existingUser.getLdapServerId() : null;
+
+            LdapService.AuthResult authResult = ldapService.authenticate(username, password, knownLdapServerId);
+            if (!authResult.success()) {
                 bruteForceService.recordFailedAttempt(username, ipAddress);
                 int remaining = bruteForceService.getRemainingAttempts(username, ipAddress);
                 auditService.log("user", username, "login_failed", null, null, null, ipAddress, request.getHeader("User-Agent"),
@@ -166,15 +168,16 @@ public class OidcController {
                         "İstifadəçi adı və ya şifrə yanlışdır");
             }
 
-            LdapService.LdapUserAttributes attrs = ldapService.getUserAttributes(username);
+            LdapService.LdapUserAttributes attrs = ldapService.getUserAttributes(username, authResult.ldapServerId());
 
-            if (!userService.userExistsByLdapUsername(username)) {
+            if (existingUser == null) {
                 return buildLoginRedirect(clientId, redirectUri, state, scope, codeChallenge, codeChallengeMethod,
                         "Hesab aktivləşdirilməyib. Administratorla əlaqə saxlayın.");
             }
 
-            User user = userService.getByLdapUsername(username);
+            User user = existingUser;
             userService.updateLastLogin(user.getId());
+            userService.updateLdapServerId(user.getId(), authResult.ldapServerId());
             bruteForceService.recordSuccessfulAttempt(username, ipAddress);
 
             if (clientId != null && redirectUri != null) {

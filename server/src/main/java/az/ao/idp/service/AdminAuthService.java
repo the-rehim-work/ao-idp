@@ -3,6 +3,7 @@ package az.ao.idp.service;
 import az.ao.idp.dto.request.CreateAdminRequest;
 import az.ao.idp.dto.response.AdminTokenResponse;
 import az.ao.idp.entity.AdminAppScope;
+import az.ao.idp.entity.AdminAppScopeId;
 import az.ao.idp.entity.AdminUser;
 import az.ao.idp.entity.Application;
 import az.ao.idp.exception.AuthenticationException;
@@ -91,13 +92,19 @@ public class AdminAuthService {
                 .orElseThrow(() -> new ResourceNotFoundException("Admin not found: " + id));
     }
 
+    public List<UUID> getAppScopes(UUID adminId) {
+        return adminAppScopeRepository.findApplicationIdsByAdminUserId(adminId);
+    }
+
     @Transactional
     public void addAppScope(UUID adminId, UUID appId) {
         AdminUser admin = getAdmin(adminId);
         Application app = applicationRepository.findById(appId)
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found"));
-        AdminAppScope scope = new AdminAppScope(admin, app);
-        adminAppScopeRepository.save(scope);
+        AdminAppScopeId scopeId = new AdminAppScopeId(adminId, appId);
+        if (!adminAppScopeRepository.existsById(scopeId)) {
+            adminAppScopeRepository.save(new AdminAppScope(admin, app));
+        }
     }
 
     @Transactional
@@ -110,6 +117,54 @@ public class AdminAuthService {
         AdminUser admin = getAdmin(adminId);
         admin.setActive(false);
         adminUserRepository.save(admin);
+        auditService.log("admin", adminId.toString(), "admin_deactivated", null, null, null, null, null,
+                Map.of("admin_username", admin.getUsername()));
+    }
+
+    @Transactional
+    public AdminUser activateAdmin(UUID adminId) {
+        AdminUser admin = getAdmin(adminId);
+        admin.setActive(true);
+        AdminUser saved = adminUserRepository.save(admin);
+        auditService.log("admin", adminId.toString(), "admin_activated", null, null, null, null, null,
+                Map.of("admin_username", admin.getUsername()));
+        return saved;
+    }
+
+    @Transactional
+    public AdminUser updateAdmin(UUID adminId, String displayName, String adminType, String updatedByAdminId) {
+        AdminUser admin = getAdmin(adminId);
+        admin.setDisplayName(displayName);
+        admin.setAdminType(adminType);
+        AdminUser saved = adminUserRepository.save(admin);
+        auditService.log("admin", updatedByAdminId, "admin_updated", "admin", adminId.toString(), null, null, null,
+                Map.of("admin_username", admin.getUsername(), "new_type", adminType, "new_display_name", displayName));
+        return saved;
+    }
+
+    @Transactional
+    public void changeOwnPassword(UUID adminId, String currentPassword, String newPassword) {
+        AdminUser admin = getAdmin(adminId);
+        if (!passwordEncoder.matches(currentPassword, admin.getPasswordHash())) {
+            throw new AuthenticationException("Current password is incorrect");
+        }
+        admin.setPasswordHash(passwordEncoder.encode(newPassword));
+        adminUserRepository.save(admin);
+        auditService.log("admin", adminId.toString(), "admin_password_changed", null, null, null, null, null,
+                Map.of("admin_username", admin.getUsername()));
+    }
+
+    @Transactional
+    public void resetAdminPassword(UUID adminId, String newPassword, String requestedByAdminId) {
+        AdminUser admin = getAdmin(adminId);
+        admin.setPasswordHash(passwordEncoder.encode(newPassword));
+        adminUserRepository.save(admin);
+        auditService.log("admin", requestedByAdminId, "admin_password_reset", "admin", adminId.toString(), null, null, null,
+                Map.of("admin_username", admin.getUsername()));
+    }
+
+    public AdminUser getCurrentAdmin(UUID adminId) {
+        return getAdmin(adminId);
     }
 
     private List<UUID> getScopedAppIds(AdminUser admin) {

@@ -382,7 +382,7 @@ function AppCard({ app, onEdit, onRemove, onToggleActive }: {
 
 export default function ApplicationsPage() {
   const qc = useQueryClient()
-  const { data: apps, isLoading, error } = useQuery({ queryKey: ['apps'], queryFn: appsApi.list })
+  const { data: apps, isLoading, error } = useQuery({ queryKey: ['applications'], queryFn: appsApi.list })
   const [showCreate, setShowCreate] = useState(false)
   const [editApp, setEditApp] = useState<Application | null>(null)
   const [removeApp, setRemoveApp] = useState<Application | null>(null)
@@ -398,7 +398,7 @@ export default function ApplicationsPage() {
       isPublicClient: f.isPublicClient,
     }),
     onSuccess: data => {
-      qc.invalidateQueries({ queryKey: ['apps'] })
+      qc.invalidateQueries({ queryKey: ['applications'] })
       setShowCreate(false); setForm(emptyForm)
       if ((data as Application & { client_secret?: string }).client_secret) {
         setNewSecret({ clientId: (data as any).client_id, clientSecret: (data as any).client_secret })
@@ -412,23 +412,23 @@ export default function ApplicationsPage() {
       name: f.name, slug: f.slug,
       redirectUris: f.redirectUris, allowedOrigins: f.allowedOrigins,
     }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['apps'] }); setEditApp(null); setForm(emptyForm) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['applications'] }); setEditApp(null); setForm(emptyForm) },
     onError: (e: any) => setFormError(e.response?.data?.error_description ?? 'update failed'),
   })
 
   const deactivateMut = useMutation({
     mutationFn: (id: string) => appsApi.deactivate(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['apps'] }); setRemoveApp(null) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['applications'] }); setRemoveApp(null) },
   })
 
   const activateMut = useMutation({
     mutationFn: (id: string) => appsApi.activate(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['apps'] }) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['applications'] }) },
   })
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => appsApi.delete(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['apps'] }); setRemoveApp(null) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['applications'] }); setRemoveApp(null) },
   })
 
   function openEdit(app: Application) {

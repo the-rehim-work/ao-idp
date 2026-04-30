@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -47,6 +49,10 @@ public class UserService {
     public User getByLdapUsername(String ldapUsername) {
         return userRepository.findByLdapUsername(ldapUsername)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + ldapUsername));
+    }
+
+    public Optional<User> findByLdapUsername(String ldapUsername) {
+        return userRepository.findByLdapUsername(ldapUsername);
     }
 
     @Transactional
@@ -132,6 +138,16 @@ public class UserService {
         userRepository.findById(userId).ifPresent(user -> {
             user.setLastLoginAt(Instant.now());
             userRepository.save(user);
+        });
+    }
+
+    @Transactional
+    public void updateLdapServerId(UUID userId, UUID ldapServerId) {
+        userRepository.findById(userId).ifPresent(user -> {
+            if (!Objects.equals(user.getLdapServerId(), ldapServerId)) {
+                user.setLdapServerId(ldapServerId);
+                userRepository.save(user);
+            }
         });
     }
 

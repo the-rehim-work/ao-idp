@@ -5,23 +5,19 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.time.Duration;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private static final String RATE_KEY = "rate:global:ip:";
-
-    private final RedisTemplate<String, Object> redisTemplate;
     private final int limit;
+    private final ConcurrentHashMap<String, long[]> ipWindowMap = new ConcurrentHashMap<>();
 
-    public RateLimitFilter(RedisTemplate<String, Object> redisTemplate, IdpProperties idpProperties) {
-        this.redisTemplate = redisTemplate;
+    public RateLimitFilter(IdpProperties idpProperties) {
         this.limit = idpProperties.bruteForce().ipRateLimitPerMinute() * 3;
     }
 
@@ -38,13 +34,17 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
 
         String ip = getClientIp(request);
-        String key = RATE_KEY + ip;
+        long now = System.currentTimeMillis();
 
-        Long count = redisTemplate.opsForValue().increment(key);
-        if (count != null && count == 1) {
-            redisTemplate.expire(key, Duration.ofMinutes(1));
-        }
-        if (count != null && count > limit) {
+        long[] window = ipWindowMap.compute(ip, (k, existing) -> {
+            if (existing == null || now - existing[1] > 60_000) {
+                return new long[]{1, now};
+            }
+            existing[0]++;
+            return existing;
+        });
+
+        if (window[0] > limit) {
             response.setStatus(429);
             response.addHeader("Retry-After", "60");
             response.getWriter().write("{\"error\":\"rate_limited\",\"error_description\":\"Too many requests\"}");

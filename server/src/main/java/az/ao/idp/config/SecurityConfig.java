@@ -5,6 +5,7 @@ import az.ao.idp.security.JwtAuthFilter;
 import az.ao.idp.security.RateLimitFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -36,7 +37,36 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    @Order(1)
+    public SecurityFilterChain adminApiFilterChain(HttpSecurity http) throws Exception {
+        return http
+                .securityMatcher("/admin/api/**")
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/admin/api/v1/auth/**").permitAll()
+                        .anyRequest().authenticated()
+                )
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(401);
+                            response.setContentType("application/json");
+                            response.getWriter().write("{\"error\":\"unauthorized\",\"error_description\":\"Bearer token required\"}");
+                        })
+                )
+                .formLogin(form -> form.disable())
+                .httpBasic(basic -> basic.disable())
+                .logout(logout -> logout.disable())
+                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(adminJwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .build();
+    }
+
+    @Bean
+    @Order(2)
+    public SecurityFilterChain defaultFilterChain(HttpSecurity http) throws Exception {
         CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
 
         return http
@@ -45,8 +75,7 @@ public class SecurityConfig {
                         .csrfTokenRequestHandler(requestHandler)
                         .ignoringRequestMatchers(
                                 "/login", "/token", "/token/revoke", "/logout",
-                                "/api/v1/**",
-                                "/admin/api/**"
+                                "/api/v1/**"
                         )
                 )
                 .sessionManagement(session ->
@@ -56,12 +85,10 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/authorize", "/login",
                                 "/.well-known/**", "/jwks",
-                                "/admin/api/v1/auth/**",
                                 "/error", "/css/**", "/js/**", "/images/**", "/img/**",
                                 "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**"
                         ).permitAll()
                         .requestMatchers("/userinfo").authenticated()
-                        .requestMatchers("/admin/api/**").authenticated()
                         .requestMatchers("/api/v1/**").permitAll()
                         .anyRequest().permitAll()
                 )
@@ -77,7 +104,6 @@ public class SecurityConfig {
                 .logout(logout -> logout.disable())
                 .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(adminJwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
 

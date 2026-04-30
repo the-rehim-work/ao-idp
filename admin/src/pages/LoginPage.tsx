@@ -26,6 +26,12 @@ export default function LoginPage() {
     try {
       const { data } = await apiClient.post('/auth/login', { username, password })
       setAuth(data.access_token, data.admin_type, data.display_name)
+      if ('credentials' in navigator && typeof PasswordCredential !== 'undefined') {
+        try {
+          const cred = new PasswordCredential({ id: username, password })
+          await navigator.credentials.store(cred)
+        } catch (_) { /* unsupported browser */ }
+      }
       navigate('/')
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error_description?: string } } })

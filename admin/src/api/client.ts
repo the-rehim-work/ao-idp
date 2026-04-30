@@ -17,9 +17,9 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (res) => res,
   (error) => {
-    if (error.response?.status === 401 && window.location.pathname !== '/admin/login') {
-      useAuthStore.getState().clearAuth()
-      window.location.href = '/admin/login'
+    const isLoginEndpoint = error.config?.url?.includes('/auth/login')
+    if (error.response?.status === 401 && !isLoginEndpoint) {
+      useAuthStore.getState().setSessionExpired(true)
     }
     return Promise.reject(error)
   }

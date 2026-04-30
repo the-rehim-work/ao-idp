@@ -6,6 +6,7 @@ export interface LdapUser {
   title: string | null
   ou: string | null
   groups: string[]
+  ldap_server_name?: string
 }
 
 export interface AdminUser {
@@ -38,6 +39,7 @@ export interface User {
   active: boolean
   lastLoginAt: string | null
   createdAt: string
+  ldapServerName?: string
 }
 
 export interface AuditLog {

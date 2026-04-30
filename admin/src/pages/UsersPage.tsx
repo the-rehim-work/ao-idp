@@ -168,6 +168,11 @@ function LdapUserRow({ user, apps }: { user: LdapUser; apps: Application[] }) {
             <span className="text-xs" style={{ color: C.textDim }}>{user.ldap_username}</span>
             {user.email && <span className="text-xs" style={{ color: C.textMuted }}>{user.email}</span>}
             {user.ou && <span className="text-xs" style={{ color: C.textMuted }}>[{user.ou}]</span>}
+            {user.ldap_server_name && (
+              <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(0,204,255,0.08)', color: '#00ccff', border: '1px solid rgba(0,204,255,0.2)' }}>
+                {user.ldap_server_name}
+              </span>
+            )}
           </div>
         </div>
 
@@ -189,10 +194,13 @@ function DirectoryTab({ apps }: { apps: Application[] }) {
   const [search, setSearch] = useState('')
   const [filterActivated, setFilterActivated] = useState<'all' | 'activated' | 'not_activated'>('all')
 
-  const { data: allUsers = [], isLoading } = useQuery({
+  const { data: allUsers = [], isLoading, error } = useQuery({
     queryKey: ['ldap-users', search],
     queryFn: () => usersApi.listLdap(search || undefined),
+    retry: false,
   })
+
+  const notConfigured = (error as any)?.response?.status === 503
 
   const filtered = allUsers.filter(u => {
     if (filterActivated === 'activated') return u.is_activated
@@ -231,17 +239,26 @@ function DirectoryTab({ apps }: { apps: Application[] }) {
         </select>
       </div>
 
-      <div className="rounded border overflow-hidden" style={{ borderColor: C.border, background: C.surface }}>
-        {isLoading ? (
-          <div className="p-6 text-xs" style={{ color: C.textMuted }}>Loading directory...</div>
-        ) : filtered.length === 0 ? (
-          <div className="p-12 text-center text-xs" style={{ color: C.textMuted }}>No users found.</div>
-        ) : (
-          filtered.map(user => (
-            <LdapUserRow key={user.ldap_username} user={user} apps={apps} />
-          ))
-        )}
-      </div>
+      {notConfigured ? (
+        <div className="rounded border p-10 text-center" style={{ borderColor: C.border, background: C.surface }}>
+          <div className="text-sm mb-2" style={{ color: '#ff8800' }}>No LDAP server configured</div>
+          <div className="text-xs" style={{ color: C.textMuted }}>
+            Go to <span style={{ color: C.green }}>Settings → LDAP Server</span> to add and activate an LDAP connection.
+          </div>
+        </div>
+      ) : (
+        <div className="rounded border overflow-hidden" style={{ borderColor: C.border, background: C.surface }}>
+          {isLoading ? (
+            <div className="p-6 text-xs" style={{ color: C.textMuted }}>Loading directory...</div>
+          ) : filtered.length === 0 ? (
+            <div className="p-12 text-center text-xs" style={{ color: C.textMuted }}>No users found.</div>
+          ) : (
+            filtered.map(user => (
+              <LdapUserRow key={user.ldap_username} user={user} apps={apps} />
+            ))
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -297,9 +314,12 @@ function ActivatedTab() {
                       {user.active ? 'active' : 'blocked'}
                     </span>
                   </div>
-                  <div className="flex gap-3 mt-0.5 text-xs" style={{ color: C.textMuted }}>
+                  <div className="flex gap-3 mt-0.5 text-xs flex-wrap" style={{ color: C.textMuted }}>
                     <span>{user.ldapUsername}</span>
                     {user.email && <span>{user.email}</span>}
+                    {user.ldapServerName && (
+                      <span style={{ color: '#00ccff' }}>{user.ldapServerName}</span>
+                    )}
                     <span>Last login: {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : 'never'}</span>
                   </div>
                 </div>

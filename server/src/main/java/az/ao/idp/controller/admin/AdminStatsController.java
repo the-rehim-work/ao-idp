@@ -3,7 +3,6 @@ package az.ao.idp.controller.admin;
 import az.ao.idp.repository.*;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,20 +22,20 @@ public class AdminStatsController {
     private final ApplicationRepository applicationRepository;
     private final AuditLogRepository auditLogRepository;
     private final LoginAttemptRepository loginAttemptRepository;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final SessionRepository sessionRepository;
 
     public AdminStatsController(
             UserRepository userRepository,
             ApplicationRepository applicationRepository,
             AuditLogRepository auditLogRepository,
             LoginAttemptRepository loginAttemptRepository,
-            RedisTemplate<String, Object> redisTemplate
+            SessionRepository sessionRepository
     ) {
         this.userRepository = userRepository;
         this.applicationRepository = applicationRepository;
         this.auditLogRepository = auditLogRepository;
         this.loginAttemptRepository = loginAttemptRepository;
-        this.redisTemplate = redisTemplate;
+        this.sessionRepository = sessionRepository;
     }
 
     @GetMapping
@@ -64,12 +63,7 @@ public class AdminStatsController {
         stats.put("events_today", auditLogRepository.countByCreatedAtGreaterThanEqual(today));
         stats.put("events_month", auditLogRepository.countByCreatedAtGreaterThanEqual(month));
 
-        long activeSessions = 0;
-        try {
-            Set<String> keys = redisTemplate.keys("session:*");
-            if (keys != null) activeSessions = keys.size();
-        } catch (Exception ignored) {}
-        stats.put("active_sessions", activeSessions);
+        stats.put("active_sessions", sessionRepository.countByExpiresAtAfter(now));
 
         List<Object[]> eventBreakdown = auditLogRepository.countByActionSince(week);
         List<Map<String, Object>> breakdown = new ArrayList<>();

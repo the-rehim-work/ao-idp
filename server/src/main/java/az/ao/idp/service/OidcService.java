@@ -16,10 +16,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class OidcService {
@@ -32,6 +30,8 @@ public class OidcService {
     private final PasswordEncoder passwordEncoder;
     private final SecureRandomUtil secureRandomUtil;
     private final AuditService auditService;
+    private final LdapService ldapService;
+    private final IdpSettingsService settingsService;
 
     public OidcService(
             ApplicationRepository applicationRepository,
@@ -41,7 +41,9 @@ public class OidcService {
             RefreshTokenService refreshTokenService,
             PasswordEncoder passwordEncoder,
             SecureRandomUtil secureRandomUtil,
-            AuditService auditService
+            AuditService auditService,
+            LdapService ldapService,
+            IdpSettingsService settingsService
     ) {
         this.applicationRepository = applicationRepository;
         this.userService = userService;
@@ -51,6 +53,8 @@ public class OidcService {
         this.passwordEncoder = passwordEncoder;
         this.secureRandomUtil = secureRandomUtil;
         this.auditService = auditService;
+        this.ldapService = ldapService;
+        this.settingsService = settingsService;
     }
 
     public Application validateClient(String clientId, String clientSecret) {
@@ -196,12 +200,47 @@ public class OidcService {
     }
 
     private TokenResponse buildTokenResponse(User user, Application app) {
-        String accessToken = jwtService.issueAccessToken(
-                user.getId(), app.getClientId(),
-                user.getLdapUsername(), user.getEmail(), user.getDisplayName()
-        );
+        Map<String, Object> claims = buildClaims(user);
+        String accessToken = jwtService.issueAccessToken(user.getId(), app.getClientId(), claims);
         String newRefreshToken = refreshTokenService.issue(user.getId(), app.getClientId());
-        return new TokenResponse(accessToken, "Bearer", 900, newRefreshToken, "openid profile");
+        long expirySeconds = settingsService.getAccessTokenExpiryMinutes() * 60;
+        return new TokenResponse(accessToken, "Bearer", (int) expirySeconds, newRefreshToken, "openid profile");
+    }
+
+    private Map<String, Object> buildClaims(User user) {
+        List<IdpSettingsService.ClaimMapping> mappings = settingsService.getClaimMappings();
+        if (mappings.isEmpty()) {
+            return Map.of(
+                    "ldap_username", user.getLdapUsername(),
+                    "email", user.getEmail() != null ? user.getEmail() : "",
+                    "display_name", user.getDisplayName() != null ? user.getDisplayName() : ""
+            );
+        }
+
+        Set<String> storedClaims = Set.of("ldap_username", "email", "display_name");
+        List<String> extraAttrs = mappings.stream()
+                .filter(m -> m.enabled() && !storedClaims.contains(m.claim()))
+                .map(IdpSettingsService.ClaimMapping::ldapAttr)
+                .collect(Collectors.toList());
+
+        Map<String, String> ldapValues = extraAttrs.isEmpty()
+                ? Map.of()
+                : ldapService.getClaimAttributes(user.getLdapUsername(), extraAttrs);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        for (IdpSettingsService.ClaimMapping m : mappings) {
+            if (!m.enabled()) continue;
+            switch (m.claim()) {
+                case "ldap_username" -> result.put("ldap_username", user.getLdapUsername());
+                case "email" -> { if (user.getEmail() != null) result.put("email", user.getEmail()); }
+                case "display_name" -> { if (user.getDisplayName() != null) result.put("display_name", user.getDisplayName()); }
+                default -> {
+                    String val = ldapValues.get(m.ldapAttr());
+                    if (val != null) result.put(m.claim(), val);
+                }
+            }
+        }
+        return result;
     }
 
     private String computeS256Challenge(String codeVerifier) {

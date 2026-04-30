@@ -21,6 +21,9 @@ public class User {
     @Column(name = "display_name", length = 255)
     private String displayName;
 
+    @Column(name = "ldap_server_id")
+    private UUID ldapServerId;
+
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 
@@ -42,6 +45,8 @@ public class User {
     public void setEmail(String email) { this.email = email; }
     public String getDisplayName() { return displayName; }
     public void setDisplayName(String displayName) { this.displayName = displayName; }
+    public UUID getLdapServerId() { return ldapServerId; }
+    public void setLdapServerId(UUID ldapServerId) { this.ldapServerId = ldapServerId; }
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
     public Instant getLastLoginAt() { return lastLoginAt; }

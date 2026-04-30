@@ -17,16 +17,16 @@ import java.util.*;
 public class JwtService {
 
     private final JwtConfig jwtConfig;
-    private final IdpProperties.JwtProperties jwtProps;
+    private final IdpSettingsService settingsService;
     private final String issuer;
 
     private List<JwtConfig.KeyPair> keyPairs;
     private JwtConfig.KeyPair activeKeyPair;
 
-    public JwtService(JwtConfig jwtConfig, IdpProperties idpProperties) {
+    public JwtService(JwtConfig jwtConfig, IdpProperties idpProperties, IdpSettingsService settingsService) {
         this.jwtConfig = jwtConfig;
-        this.jwtProps = idpProperties.jwt();
         this.issuer = idpProperties.issuer();
+        this.settingsService = settingsService;
     }
 
     @PostConstruct
@@ -35,31 +35,31 @@ public class JwtService {
         activeKeyPair = keyPairs.get(keyPairs.size() - 1);
     }
 
-    public String issueAccessToken(UUID userId, String clientId, String ldapUsername, String email, String displayName) {
+    public String issueAccessToken(UUID userId, String clientId, Map<String, Object> claims) {
         Instant now = Instant.now();
-        return Jwts.builder()
+        long expirySeconds = settingsService.getAccessTokenExpiryMinutes() * 60;
+        var builder = Jwts.builder()
                 .subject(userId.toString())
                 .issuer(issuer)
                 .audience().add(clientId).and()
                 .issuedAt(Date.from(now))
-                .expiration(Date.from(now.plusSeconds(jwtProps.accessTokenExpiryMinutes() * 60)))
+                .expiration(Date.from(now.plusSeconds(expirySeconds)))
                 .id(UUID.randomUUID().toString())
-                .claim("ldap_username", ldapUsername)
-                .claim("email", email)
-                .claim("display_name", displayName)
                 .header().keyId(activeKeyPair.kid()).and()
-                .signWith(activeKeyPair.privateKey(), Jwts.SIG.RS256)
-                .compact();
+                .signWith(activeKeyPair.privateKey(), Jwts.SIG.RS256);
+        claims.forEach(builder::claim);
+        return builder.compact();
     }
 
     public String issueAdminToken(UUID adminId, String username, String adminType, String displayName, List<UUID> scopedAppIds) {
         Instant now = Instant.now();
+        long expirySeconds = settingsService.getAdminTokenExpiryMinutes() * 60;
         return Jwts.builder()
                 .subject(adminId.toString())
                 .issuer(issuer)
                 .audience().add("ao-admin").and()
                 .issuedAt(Date.from(now))
-                .expiration(Date.from(now.plusSeconds(jwtProps.adminTokenExpiryMinutes() * 60)))
+                .expiration(Date.from(now.plusSeconds(expirySeconds)))
                 .id(UUID.randomUUID().toString())
                 .claim("username", username)
                 .claim("admin_type", adminType)

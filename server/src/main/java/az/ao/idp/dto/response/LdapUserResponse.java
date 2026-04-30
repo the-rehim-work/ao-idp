@@ -11,5 +11,6 @@ public record LdapUserResponse(
         @JsonProperty("is_activated") boolean activated,
         String title,
         String ou,
-        List<String> groups
+        List<String> groups,
+        @JsonProperty("ldap_server_name") String ldapServerName
 ) {}

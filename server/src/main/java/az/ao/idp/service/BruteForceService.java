@@ -4,28 +4,25 @@ import az.ao.idp.config.IdpProperties;
 import az.ao.idp.entity.LoginAttempt;
 import az.ao.idp.exception.AccountLockedException;
 import az.ao.idp.repository.LoginAttemptRepository;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class BruteForceService {
 
-    private static final String IP_RATE_KEY = "rate:login:ip:";
-
     private final LoginAttemptRepository loginAttemptRepository;
-    private final RedisTemplate<String, Object> redisTemplate;
     private final IdpProperties.BruteForceProperties config;
+
+    private final ConcurrentHashMap<String, long[]> ipWindowMap = new ConcurrentHashMap<>();
 
     public BruteForceService(
             LoginAttemptRepository loginAttemptRepository,
-            RedisTemplate<String, Object> redisTemplate,
             IdpProperties idpProperties
     ) {
         this.loginAttemptRepository = loginAttemptRepository;
-        this.redisTemplate = redisTemplate;
         this.config = idpProperties.bruteForce();
     }
 
@@ -40,11 +37,7 @@ public class BruteForceService {
         attempt.setIpAddress(ipAddress);
         attempt.setSuccess(false);
         loginAttemptRepository.save(attempt);
-
-        Long count = redisTemplate.opsForValue().increment(IP_RATE_KEY + ipAddress);
-        if (count != null && count == 1) {
-            redisTemplate.expire(IP_RATE_KEY + ipAddress, Duration.ofMinutes(1));
-        }
+        incrementIpWindow(ipAddress);
     }
 
     public void recordSuccessfulAttempt(String username, String ipAddress) {
@@ -73,12 +66,23 @@ public class BruteForceService {
     }
 
     private void checkIpRateLimit(String ipAddress) {
-        Object count = redisTemplate.opsForValue().get(IP_RATE_KEY + ipAddress);
-        if (count instanceof Integer c && c >= config.ipRateLimitPerMinute()) {
+        long[] window = ipWindowMap.get(ipAddress);
+        if (window == null) return;
+        long now = System.currentTimeMillis();
+        if (now - window[1] > 60_000) return;
+        if (window[0] >= config.ipRateLimitPerMinute()) {
             throw new AccountLockedException("Too many requests from this IP address");
         }
-        if (count instanceof Long c && c >= config.ipRateLimitPerMinute()) {
-            throw new AccountLockedException("Too many requests from this IP address");
-        }
+    }
+
+    private void incrementIpWindow(String ipAddress) {
+        long now = System.currentTimeMillis();
+        ipWindowMap.compute(ipAddress, (k, existing) -> {
+            if (existing == null || now - existing[1] > 60_000) {
+                return new long[]{1, now};
+            }
+            existing[0]++;
+            return existing;
+        });
     }
 }

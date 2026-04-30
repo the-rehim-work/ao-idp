@@ -8,13 +8,13 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/admin/api': {
-        target: process.env.VITE_IDP_SERVER_URL || 'http://localhost:8080',
+        target: 'http://localhost:8080',
         changeOrigin: true,
       },
     },
   },
   build: {
-    outDir: 'dist',
+    outDir: '../ao-idp/src/main/resources/static/admin',
     emptyOutDir: true,
     sourcemap: false,
   },

@@ -41,25 +41,31 @@ public class AdminJwtAuthFilter extends OncePerRequestFilter {
         }
 
         String header = request.getHeader("Authorization");
-        if (header != null && header.startsWith("Bearer ")) {
-            String token = header.substring(7);
-            try {
-                Claims claims = jwtService.validateAdminToken(token);
-                String adminType = claims.get("admin_type", String.class);
-                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                        claims.getSubject(), null,
-                        List.of(new SimpleGrantedAuthority("ROLE_ADMIN"),
-                                new SimpleGrantedAuthority("ROLE_" + adminType.toUpperCase()))
-                );
-                auth.setDetails(claims);
-                SecurityContextHolder.getContext().setAuthentication(auth);
-            } catch (Exception e) {
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                objectMapper.writeValue(response.getWriter(),
-                        Map.of("error", "invalid_token", "error_description", e.getMessage()));
-                return;
-            }
+        if (header == null || !header.startsWith("Bearer ")) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            objectMapper.writeValue(response.getWriter(),
+                    Map.of("error", "unauthorized", "error_description", "Bearer token required"));
+            return;
+        }
+
+        String token = header.substring(7);
+        try {
+            Claims claims = jwtService.validateAdminToken(token);
+            String adminType = claims.get("admin_type", String.class);
+            UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                    claims.getSubject(), null,
+                    List.of(new SimpleGrantedAuthority("ROLE_ADMIN"),
+                            new SimpleGrantedAuthority("ROLE_" + adminType.toUpperCase()))
+            );
+            auth.setDetails(claims);
+            SecurityContextHolder.getContext().setAuthentication(auth);
+        } catch (Exception e) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            objectMapper.writeValue(response.getWriter(),
+                    Map.of("error", "invalid_token", "error_description", e.getMessage()));
+            return;
         }
         filterChain.doFilter(request, response);
     }
