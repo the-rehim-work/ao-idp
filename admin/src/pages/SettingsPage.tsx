@@ -128,7 +128,7 @@ const emptyLdapForm = (): LdapConfigRequest => ({
 
 function ActiveConnectionPanel({ config }: { config: LdapServerConfig }) {
   return (
-    <div style={{ border: `1px solid ${C}`, background: 'rgba(0,255,255,0.03)', padding: '1rem 1.25rem', marginBottom: '1.5rem', boxShadow: '0 0 16px rgba(0,255,255,0.07)' }}>
+    <div style={{ border: `1px solid ${C}`, background: 'rgba(0,255,255,0.03)', padding: '1rem 1.25rem', boxShadow: '0 0 16px rgba(0,255,255,0.07)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
         <div style={{ width: 7, height: 7, borderRadius: '50%', background: C, boxShadow: '0 0 6px rgba(0,255,255,0.8)', flexShrink: 0 }} />
         <div style={{ fontSize: '0.75rem', fontWeight: 700, color: C, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
@@ -167,13 +167,13 @@ function LdapSection() {
   const [confirmDelete, setConfirmDelete] = useState<LdapServerConfig | null>(null)
   const [formAttrs, setFormAttrs] = useState<Record<string, string> | undefined>(undefined)
 
-  const activeConfig = configs.find(c => c.active)
+  const activeConfigs = configs.filter(c => c.active)
   const isEdit = !!editTarget
 
   const { data: availableAttrs } = useQuery({
     queryKey: ['ldap-attributes'],
     queryFn: settingsApi.ldap.attributes,
-    enabled: !!activeConfig,
+    enabled: activeConfigs.length > 0,
     retry: false,
     staleTime: 60_000,
   })
@@ -238,7 +238,11 @@ function LdapSection() {
 
   return (
     <div>
-      {activeConfig && <ActiveConnectionPanel config={activeConfig} />}
+      {activeConfigs.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: activeConfigs.length > 1 ? '1fr 1fr' : '1fr', gap: '0.75rem', marginBottom: '1.5rem' }}>
+          {activeConfigs.map(c => <ActiveConnectionPanel key={c.id} config={c} />)}
+        </div>
+      )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
         <SectionTitle>All LDAP Servers</SectionTitle>
@@ -394,8 +398,7 @@ function LdapClaimsEditor({ config }: { config: LdapServerConfig }) {
 
   const { data: availableAttrs } = useQuery({
     queryKey: ['ldap-attributes', config.id],
-    queryFn: () => settingsApi.ldap.attributes(),
-    enabled: config.active,
+    queryFn: () => settingsApi.ldap.attributesById(config.id),
     retry: false,
     staleTime: 60_000,
   })

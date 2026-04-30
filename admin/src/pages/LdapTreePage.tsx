@@ -177,10 +177,6 @@ function UserDetail({ node, onActivate }: { node: TreeNode; onActivate: () => vo
           )}
         </div>
         <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-          <span className="px-2 py-0.5 rounded text-xs"
-            style={{ background: node.is_activated ? 'rgba(0,255,255,0.1)' : 'rgba(255,255,255,0.04)', color: node.is_activated ? C.green : C.textMuted, border: `1px solid ${node.is_activated ? 'rgba(0,255,255,0.25)' : C.border}` }}>
-            {node.is_activated ? 'Activated' : 'Not activated'}
-          </span>
           <button onClick={onActivate} className="px-2.5 py-1 rounded text-xs"
             style={{ color: C.green, border: `1px solid rgba(0,255,255,0.3)`, background: 'rgba(0,255,255,0.06)', cursor: 'pointer' }}>
             + Grant access
@@ -222,15 +218,9 @@ function TreeNodeRow({ node, depth, apps, expandedDns, toggleNode, loadChildren,
           : <span style={{ width: 12, flexShrink: 0 }} />
         }
         <NodeIcon type={node.type} expanded={isExpanded} />
-        <span className="text-sm truncate" style={{ color: node.type === 'user' && !node.is_activated ? C.textMuted : C.text }}>
+        <span className="text-sm truncate" style={{ color: C.text }}>
           {node.name}
         </span>
-        {node.type === 'user' && (
-          <span className="text-xs px-1.5 py-0.5 rounded ml-1 flex-shrink-0"
-            style={{ background: node.is_activated ? 'rgba(0,255,255,0.1)' : 'rgba(255,255,255,0.04)', color: node.is_activated ? C.green : C.textMuted }}>
-            {node.is_activated ? '✓' : '○'}
-          </span>
-        )}
         {node.type === 'ou' && <span className="text-xs ml-1 flex-shrink-0" style={{ color: C.textMuted }}>OU</span>}
         {node.type === 'group' && <span className="text-xs ml-1 flex-shrink-0" style={{ color: C.textMuted }}>group</span>}
       </div>
