@@ -1,0 +1,135 @@
+dn: ou=Personnel,dc=ao,dc=az
+objectClass: organizationalUnit
+ou: Personnel
+
+dn: ou=Command,dc=ao,dc=az
+objectClass: organizationalUnit
+ou: Command
+
+dn: ou=Intelligence,dc=ao,dc=az
+objectClass: organizationalUnit
+ou: Intelligence
+
+dn: ou=Logistics,dc=ao,dc=az
+objectClass: organizationalUnit
+ou: Logistics
+
+dn: uid=gen.marshall,ou=Command,dc=ao,dc=az
+objectClass: inetOrgPerson
+objectClass: posixAccount
+uid: gen.marshall
+cn: GEN Thomas Marshall
+sn: Marshall
+givenName: Thomas
+displayName: GEN Thomas Marshall
+mail: gen.marshall@ao.az
+title: General
+uidNumber: 1001
+gidNumber: 1001
+homeDirectory: /home/gen.marshall
+userPassword: {SSHA}W5tHKNfCCOFQy8Jz7mJr4b2GkV1RiX7L
+
+dn: uid=col.hayes,ou=Command,dc=ao,dc=az
+objectClass: inetOrgPerson
+objectClass: posixAccount
+uid: col.hayes
+cn: COL Rebecca Hayes
+sn: Hayes
+givenName: Rebecca
+displayName: COL Rebecca Hayes
+mail: col.hayes@ao.az
+title: Colonel
+uidNumber: 1002
+gidNumber: 1001
+homeDirectory: /home/col.hayes
+userPassword: {SSHA}W5tHKNfCCOFQy8Jz7mJr4b2GkV1RiX7L
+
+dn: uid=maj.carter,ou=Command,dc=ao,dc=az
+objectClass: inetOrgPerson
+objectClass: posixAccount
+uid: maj.carter
+cn: MAJ Diana Carter
+sn: Carter
+givenName: Diana
+displayName: MAJ Diana Carter
+mail: maj.carter@ao.az
+title: Major
+uidNumber: 1003
+gidNumber: 1001
+homeDirectory: /home/maj.carter
+userPassword: {SSHA}W5tHKNfCCOFQy8Jz7mJr4b2GkV1RiX7L
+
+dn: uid=cpt.morgan,ou=Personnel,dc=ao,dc=az
+objectClass: inetOrgPerson
+objectClass: posixAccount
+uid: cpt.morgan
+cn: CPT Nathan Morgan
+sn: Morgan
+givenName: Nathan
+displayName: CPT Nathan Morgan
+mail: cpt.morgan@ao.az
+title: Captain
+uidNumber: 1004
+gidNumber: 1002
+homeDirectory: /home/cpt.morgan
+userPassword: {SSHA}W5tHKNfCCOFQy8Jz7mJr4b2GkV1RiX7L
+
+dn: uid=analyst.chen,ou=Intelligence,dc=ao,dc=az
+objectClass: inetOrgPerson
+objectClass: posixAccount
+uid: analyst.chen
+cn: PFC Mei-Lin Chen
+sn: Chen
+givenName: Mei-Lin
+displayName: PFC Mei-Lin Chen
+mail: analyst.chen@ao.az
+title: Intelligence Analyst
+uidNumber: 1005
+gidNumber: 1003
+homeDirectory: /home/analyst.chen
+userPassword: {SSHA}W5tHKNfCCOFQy8Jz7mJr4b2GkV1RiX7L
+
+dn: uid=lt.miller,ou=Personnel,dc=ao,dc=az
+objectClass: inetOrgPerson
+objectClass: posixAccount
+uid: lt.miller
+cn: LT James Miller
+sn: Miller
+givenName: James
+displayName: LT James Miller
+mail: lt.miller@ao.az
+title: Lieutenant
+uidNumber: 1006
+gidNumber: 1002
+homeDirectory: /home/lt.miller
+userPassword: {SSHA}W5tHKNfCCOFQy8Jz7mJr4b2GkV1RiX7L
+
+dn: uid=log.williams,ou=Logistics,dc=ao,dc=az
+objectClass: inetOrgPerson
+objectClass: posixAccount
+uid: log.williams
+cn: WO Patricia Williams
+sn: Williams
+givenName: Patricia
+displayName: WO Patricia Williams
+mail: log.williams@ao.az
+title: Warrant Officer
+uidNumber: 1007
+gidNumber: 1004
+homeDirectory: /home/log.williams
+userPassword: {SSHA}W5tHKNfCCOFQy8Jz7mJr4b2GkV1RiX7L
+
+dn: uid=sgt.reeves,ou=Personnel,dc=ao,dc=az
+objectClass: inetOrgPerson
+objectClass: posixAccount
+uid: sgt.reeves
+cn: SGT Leon Reeves
+sn: Reeves
+givenName: Leon
+displayName: SGT Leon Reeves
+mail: sgt.reeves@ao.az
+title: Sergeant
+uidNumber: 1008
+gidNumber: 1002
+homeDirectory: /home/sgt.reeves
+userPassword: {SSHA}W5tHKNfCCOFQy8Jz7mJr4b2GkV1RiX7L

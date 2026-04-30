@@ -14,7 +14,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: '../ao-idp/src/main/resources/static/admin',
+    outDir: 'dist',
     emptyOutDir: true,
     sourcemap: false,
   },
