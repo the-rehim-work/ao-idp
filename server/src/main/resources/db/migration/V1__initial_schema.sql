@@ -8,7 +8,8 @@ CREATE TABLE users (
     is_active BOOLEAN NOT NULL DEFAULT true,
     last_login_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    ldap_server_id UUID
 );
 
 CREATE TABLE applications (
@@ -16,10 +17,11 @@ CREATE TABLE applications (
     name VARCHAR(255) NOT NULL,
     slug VARCHAR(100) NOT NULL UNIQUE,
     client_id VARCHAR(255) NOT NULL UNIQUE,
-    client_secret_hash VARCHAR(255) NOT NULL,
+    client_secret_hash VARCHAR(255),
     redirect_uris TEXT[] NOT NULL,
     allowed_origins TEXT[],
     is_active BOOLEAN NOT NULL DEFAULT true,
+    is_public BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
@@ -39,103 +41,6 @@ CREATE TABLE admin_app_scopes (
     PRIMARY KEY (admin_user_id, application_id)
 );
 
-CREATE TABLE roles (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    application_id UUID NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
-    name VARCHAR(100) NOT NULL,
-    description VARCHAR(500),
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    UNIQUE(application_id, name)
-);
-
-CREATE INDEX idx_roles_application ON roles(application_id);
-
-CREATE TABLE permissions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    application_id UUID NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
-    name VARCHAR(200) NOT NULL,
-    description VARCHAR(500),
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    UNIQUE(application_id, name)
-);
-
-CREATE INDEX idx_permissions_application ON permissions(application_id);
-
-CREATE TABLE role_permissions (
-    role_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
-    permission_id UUID NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
-    PRIMARY KEY (role_id, permission_id)
-);
-
-CREATE TABLE user_app_roles (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    application_id UUID NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
-    role_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
-    assigned_by UUID REFERENCES admin_users(id),
-    assigned_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    UNIQUE(user_id, application_id, role_id)
-);
-
-CREATE INDEX idx_user_app_roles_user ON user_app_roles(user_id);
-CREATE INDEX idx_user_app_roles_app ON user_app_roles(application_id);
-CREATE INDEX idx_user_app_roles_user_app ON user_app_roles(user_id, application_id);
-
-CREATE TABLE app_metadata_schemas (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    application_id UUID NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
-    field_name VARCHAR(100) NOT NULL,
-    field_type VARCHAR(20) NOT NULL CHECK (field_type IN ('string', 'number', 'boolean', 'enum')),
-    enum_values TEXT[],
-    is_required BOOLEAN NOT NULL DEFAULT false,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    UNIQUE(application_id, field_name)
-);
-
-CREATE TABLE user_app_metadata (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    schema_id UUID NOT NULL REFERENCES app_metadata_schemas(id) ON DELETE CASCADE,
-    value VARCHAR(1000) NOT NULL,
-    UNIQUE(user_id, schema_id)
-);
-
-CREATE INDEX idx_user_app_metadata_user ON user_app_metadata(user_id);
-
-CREATE TABLE org_node_types (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    application_id UUID NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
-    name VARCHAR(100) NOT NULL,
-    level INT NOT NULL DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    UNIQUE(application_id, name)
-);
-
-CREATE TABLE org_nodes (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    application_id UUID NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
-    node_type_id UUID NOT NULL REFERENCES org_node_types(id),
-    name VARCHAR(255) NOT NULL,
-    parent_id UUID REFERENCES org_nodes(id) ON DELETE CASCADE,
-    principal_user_id UUID REFERENCES users(id),
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
-
-CREATE INDEX idx_org_nodes_app ON org_nodes(application_id);
-CREATE INDEX idx_org_nodes_parent ON org_nodes(parent_id);
-CREATE INDEX idx_org_nodes_principal ON org_nodes(principal_user_id);
-
-CREATE TABLE user_org_assignments (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    org_node_id UUID NOT NULL REFERENCES org_nodes(id) ON DELETE CASCADE,
-    assigned_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    UNIQUE(user_id, org_node_id)
-);
-
-CREATE INDEX idx_user_org_user ON user_org_assignments(user_id);
-CREATE INDEX idx_user_org_node ON user_org_assignments(org_node_id);
-
 CREATE TABLE audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     actor_type VARCHAR(20) NOT NULL,
@@ -143,17 +48,12 @@ CREATE TABLE audit_logs (
     action VARCHAR(50) NOT NULL,
     target_type VARCHAR(50),
     target_id VARCHAR(255),
-    application_id UUID REFERENCES applications(id),
+    application_id UUID REFERENCES applications(id) ON DELETE SET NULL,
     ip_address VARCHAR(45),
     user_agent VARCHAR(500),
     details JSONB,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
-
-CREATE INDEX idx_audit_actor ON audit_logs(actor_id, created_at DESC);
-CREATE INDEX idx_audit_action ON audit_logs(action, created_at DESC);
-CREATE INDEX idx_audit_app ON audit_logs(application_id, created_at DESC);
-CREATE INDEX idx_audit_created ON audit_logs(created_at DESC);
 
 CREATE TABLE login_attempts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -163,5 +63,107 @@ CREATE TABLE login_attempts (
     success BOOLEAN NOT NULL DEFAULT false
 );
 
+CREATE TABLE user_mfa_methods (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    method_type VARCHAR(20) NOT NULL CHECK (method_type IN ('totp', 'email', 'sms')),
+    secret_encrypted VARCHAR(500) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE TABLE user_app_access (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    app_id UUID NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+    granted_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    UNIQUE (user_id, app_id)
+);
+
+CREATE TABLE ldap_server_config (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    url VARCHAR(500) NOT NULL,
+    base_dn VARCHAR(500) NOT NULL,
+    service_account_dn VARCHAR(500) NOT NULL,
+    service_account_password VARCHAR(500) NOT NULL,
+    username_attribute VARCHAR(100) NOT NULL DEFAULT 'sAMAccountName',
+    user_object_class VARCHAR(100) NOT NULL DEFAULT 'user',
+    additional_user_filter VARCHAR(500),
+    claim_mappings TEXT,
+    priority INTEGER NOT NULL DEFAULT 0,
+    is_active BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE idp_settings (
+    key VARCHAR(100) PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE sessions (
+    id VARCHAR(64) PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    ldap_username VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
+CREATE TABLE auth_codes (
+    code VARCHAR(64) PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    client_id VARCHAR(255) NOT NULL,
+    redirect_uri TEXT NOT NULL,
+    scope VARCHAR(500),
+    code_challenge VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
+CREATE TABLE refresh_tokens (
+    token_hash VARCHAR(64) PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    client_id VARCHAR(255) NOT NULL,
+    used BOOLEAN NOT NULL DEFAULT false,
+    issued_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
+CREATE INDEX idx_audit_actor ON audit_logs(actor_id, created_at DESC);
+CREATE INDEX idx_audit_action ON audit_logs(action, created_at DESC);
+CREATE INDEX idx_audit_app ON audit_logs(application_id, created_at DESC);
+CREATE INDEX idx_audit_created ON audit_logs(created_at DESC);
 CREATE INDEX idx_login_attempts_user ON login_attempts(username, attempted_at DESC);
 CREATE INDEX idx_login_attempts_ip ON login_attempts(ip_address, attempted_at DESC);
+CREATE INDEX idx_mfa_user ON user_mfa_methods(user_id);
+CREATE INDEX idx_user_app_access_user_id ON user_app_access(user_id);
+CREATE INDEX idx_user_app_access_app_id ON user_app_access(app_id);
+CREATE INDEX idx_sessions_user ON sessions(user_id);
+CREATE INDEX idx_sessions_expires ON sessions(expires_at);
+CREATE INDEX idx_auth_codes_expires ON auth_codes(expires_at);
+CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
+CREATE INDEX idx_refresh_tokens_expires ON refresh_tokens(expires_at);
+
+INSERT INTO admin_users (username, password_hash, display_name, admin_type, is_active)
+VALUES (
+    'superadmin',
+    '$2b$12$vCeFBsqsES2FjkFru5VSEOper008ZAqfAgc1g8Mw5PUcQ09sGIDC2',
+    'System Administrator',
+    'idp_admin',
+    true
+);
+
+INSERT INTO idp_settings (key, value) VALUES
+('access_token_expiry_minutes', '15'),
+('refresh_token_expiry_days', '7'),
+('admin_token_expiry_minutes', '480'),
+('jwt_claim_mappings', '[
+  {"claim":"ldap_username","ldap_attr":"sAMAccountName","description":"LDAP username","enabled":true},
+  {"claim":"email","ldap_attr":"mail","description":"Email address","enabled":true},
+  {"claim":"display_name","ldap_attr":"displayName","description":"Display name","enabled":true},
+  {"claim":"department","ldap_attr":"department","description":"Department","enabled":false},
+  {"claim":"title","ldap_attr":"title","description":"Job title","enabled":false},
+  {"claim":"manager","ldap_attr":"manager","description":"Manager DN","enabled":false}
+]');

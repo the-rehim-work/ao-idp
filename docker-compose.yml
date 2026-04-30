@@ -1,21 +1,41 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${DB_NAME:-ao_idp}
+      POSTGRES_USER: ${DB_USERNAME:-ao_idp}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-ao_idp}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - idp
+
   idp-server:
     build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT:-5432}
+      DB_HOST: postgres
+      DB_PORT: 5432
       DB_NAME: ${DB_NAME:-ao_idp}
       DB_USERNAME: ${DB_USERNAME:-ao_idp}
       DB_PASSWORD: ${DB_PASSWORD}
-      REDIS_HOST: ${REDIS_HOST}
-      REDIS_PORT: ${REDIS_PORT:-6379}
       LDAP_URL: ${LDAP_URL}
       LDAP_BASE_DN: ${LDAP_BASE_DN}
       LDAP_SERVICE_ACCOUNT_DN: ${LDAP_SERVICE_ACCOUNT_DN}
       LDAP_SERVICE_PASSWORD: ${LDAP_SERVICE_PASSWORD}
-      LDAP_USERNAME_ATTR: ${LDAP_USERNAME_ATTR}
-      LDAP_USER_OBJECT_CLASS: ${LDAP_USER_OBJECT_CLASS}
+      LDAP_USERNAME_ATTR: ${LDAP_USERNAME_ATTR:-sAMAccountName}
+      LDAP_USER_OBJECT_CLASS: ${LDAP_USER_OBJECT_CLASS:-user}
       IDP_ISSUER: ${IDP_ISSUER}
       COOKIE_DOMAIN: ${COOKIE_DOMAIN}
     restart: unless-stopped
@@ -36,6 +56,9 @@ services:
     restart: unless-stopped
     networks:
       - idp
+
+volumes:
+  pg_data:
 
 networks:
   idp:
