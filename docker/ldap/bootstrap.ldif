@@ -27,7 +27,7 @@ title: General
 uidNumber: 1001
 gidNumber: 1001
 homeDirectory: /home/gen.marshall
-userPassword: {SSHA}W5tHKNfCCOFQy8Jz7mJr4b2GkV1RiX7L
+userPassword: Test1234
 
 dn: uid=col.hayes,ou=Command,dc=ao,dc=az
 objectClass: inetOrgPerson
@@ -42,7 +42,7 @@ title: Colonel
 uidNumber: 1002
 gidNumber: 1001
 homeDirectory: /home/col.hayes
-userPassword: {SSHA}W5tHKNfCCOFQy8Jz7mJr4b2GkV1RiX7L
+userPassword: Test1234
 
 dn: uid=maj.carter,ou=Command,dc=ao,dc=az
 objectClass: inetOrgPerson
@@ -57,7 +57,7 @@ title: Major
 uidNumber: 1003
 gidNumber: 1001
 homeDirectory: /home/maj.carter
-userPassword: {SSHA}W5tHKNfCCOFQy8Jz7mJr4b2GkV1RiX7L
+userPassword: Test1234
 
 dn: uid=cpt.morgan,ou=Personnel,dc=ao,dc=az
 objectClass: inetOrgPerson
@@ -72,7 +72,7 @@ title: Captain
 uidNumber: 1004
 gidNumber: 1002
 homeDirectory: /home/cpt.morgan
-userPassword: {SSHA}W5tHKNfCCOFQy8Jz7mJr4b2GkV1RiX7L
+userPassword: Test1234
 
 dn: uid=analyst.chen,ou=Intelligence,dc=ao,dc=az
 objectClass: inetOrgPerson
@@ -87,7 +87,7 @@ title: Intelligence Analyst
 uidNumber: 1005
 gidNumber: 1003
 homeDirectory: /home/analyst.chen
-userPassword: {SSHA}W5tHKNfCCOFQy8Jz7mJr4b2GkV1RiX7L
+userPassword: Test1234
 
 dn: uid=lt.miller,ou=Personnel,dc=ao,dc=az
 objectClass: inetOrgPerson
@@ -102,7 +102,7 @@ title: Lieutenant
 uidNumber: 1006
 gidNumber: 1002
 homeDirectory: /home/lt.miller
-userPassword: {SSHA}W5tHKNfCCOFQy8Jz7mJr4b2GkV1RiX7L
+userPassword: Test1234
 
 dn: uid=log.williams,ou=Logistics,dc=ao,dc=az
 objectClass: inetOrgPerson
@@ -117,7 +117,7 @@ title: Warrant Officer
 uidNumber: 1007
 gidNumber: 1004
 homeDirectory: /home/log.williams
-userPassword: {SSHA}W5tHKNfCCOFQy8Jz7mJr4b2GkV1RiX7L
+userPassword: Test1234
 
 dn: uid=sgt.reeves,ou=Personnel,dc=ao,dc=az
 objectClass: inetOrgPerson
@@ -132,4 +132,4 @@ title: Sergeant
 uidNumber: 1008
 gidNumber: 1002
 homeDirectory: /home/sgt.reeves
-userPassword: {SSHA}W5tHKNfCCOFQy8Jz7mJr4b2GkV1RiX7L
+userPassword: Test1234
