@@ -44,6 +44,9 @@ public class LdapService {
         public static AuthResult failure() { return new AuthResult(false, null); }
     }
 
+    private static final String[] PERSON_CLASSES = {"inetOrgPerson", "person", "posixAccount", "organizationalPerson", "user"};
+    private static final String[] USERNAME_ATTRS  = {"uid", "sAMAccountName", "cn"};
+
     private record LdapProps(String usernameAttribute, String userObjectClass, String baseDn, String additionalFilter) {}
 
     private LdapProps propsFrom(LdapServerConfig config) {
@@ -140,22 +143,40 @@ public class LdapService {
     }
 
     private LdapUserAttributes fetchUserAttributes(String username, LdapProps props, CachedLdap ldap) {
+        OrFilter ocFilter = new OrFilter();
+        ocFilter.or(new EqualsFilter("objectClass", props.userObjectClass()));
+        for (String oc : PERSON_CLASSES) ocFilter.or(new EqualsFilter("objectClass", oc));
+
+        OrFilter unFilter = new OrFilter();
+        unFilter.or(new EqualsFilter(props.usernameAttribute(), username));
+        for (String attr : USERNAME_ATTRS) {
+            if (!attr.equalsIgnoreCase(props.usernameAttribute())) unFilter.or(new EqualsFilter(attr, username));
+        }
+
         AndFilter filter = new AndFilter();
-        filter.and(new EqualsFilter("objectClass", props.userObjectClass()));
-        filter.and(new EqualsFilter(props.usernameAttribute(), username));
+        filter.and(ocFilter);
+        filter.and(unFilter);
 
         ContextMapper<LdapUserAttributes> mapper = ctx -> {
             DirContextOperations dco = (DirContextOperations) ctx;
-            return new LdapUserAttributes(
-                    username,
-                    dco.getStringAttribute("mail"),
-                    Optional.ofNullable(dco.getStringAttribute("displayName")).orElse(username),
-                    dco.getNameInNamespace()
-            );
+            String resolved = firstNonNull(
+                    dco.getStringAttribute(props.usernameAttribute()),
+                    dco.getStringAttribute("uid"),
+                    dco.getStringAttribute("sAMAccountName"),
+                    username);
+            String display = Optional.ofNullable(dco.getStringAttribute("displayName"))
+                    .or(() -> Optional.ofNullable(dco.getStringAttribute("cn")))
+                    .orElse(resolved);
+            return new LdapUserAttributes(resolved, dco.getStringAttribute("mail"), display, dco.getNameInNamespace());
         };
 
         List<LdapUserAttributes> results = ldap.template().search("", filter.encode(), mapper);
         return results.isEmpty() ? null : results.get(0);
+    }
+
+    private static String firstNonNull(String... vals) {
+        for (String v : vals) if (v != null) return v;
+        return null;
     }
 
     public LdapUserAttributes getUserAttributesFromAny(String username) {
@@ -359,8 +380,12 @@ public class LdapService {
             return attrs;
         };
 
+        String ocClause = userObjectClass != null && !userObjectClass.isBlank()
+                ? "(objectClass=" + userObjectClass + ")"
+                : "";
+        String ocFilter = "(|(objectClass=inetOrgPerson)(objectClass=person)(objectClass=posixAccount)(objectClass=user)" + ocClause + ")";
         try {
-            List<Map<String, String>> results = template.search("", "(objectClass=" + userObjectClass + ")", controls, mapper);
+            List<Map<String, String>> results = template.search("", ocFilter, controls, mapper);
             return results.isEmpty() ? Map.of() : results.get(0);
         } catch (Exception e) {
             log.error("Failed to fetch LDAP available attributes: {}", e.getMessage());
@@ -503,9 +528,20 @@ public class LdapService {
     }
 
     private String findUserDnWith(String username, LdapProps props, LdapTemplate template) {
+        OrFilter ocFilter = new OrFilter();
+        ocFilter.or(new EqualsFilter("objectClass", props.userObjectClass()));
+        for (String oc : PERSON_CLASSES) ocFilter.or(new EqualsFilter("objectClass", oc));
+
+        OrFilter unFilter = new OrFilter();
+        unFilter.or(new EqualsFilter(props.usernameAttribute(), username));
+        for (String attr : USERNAME_ATTRS) {
+            if (!attr.equalsIgnoreCase(props.usernameAttribute())) unFilter.or(new EqualsFilter(attr, username));
+        }
+
         AndFilter filter = new AndFilter();
-        filter.and(new EqualsFilter("objectClass", props.userObjectClass()));
-        filter.and(new EqualsFilter(props.usernameAttribute(), username));
+        filter.and(ocFilter);
+        filter.and(unFilter);
+
         ContextMapper<String> mapper = ctx -> ((DirContextOperations) ctx).getNameInNamespace();
         List<String> dns = template.search("", filter.encode(), mapper);
         return dns.isEmpty() ? null : dns.get(0);

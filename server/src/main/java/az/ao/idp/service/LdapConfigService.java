@@ -130,7 +130,7 @@ public class LdapConfigService {
         source.setBase(baseDn);
         source.setUserDn(userDn);
         source.setPassword(password != null ? password : "");
-        source.setPooled(false);
+        source.setPooled(true);
         source.afterPropertiesSet();
         return source;
     }

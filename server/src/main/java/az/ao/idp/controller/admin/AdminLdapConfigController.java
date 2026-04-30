@@ -89,13 +89,7 @@ public class AdminLdapConfigController {
     @GetMapping("/{id}/attributes")
     public ResponseEntity<Map<String, String>> attributesById(@PathVariable UUID id) {
         try {
-            az.ao.idp.entity.LdapServerConfig config = ldapConfigService.get(id);
-            Map<String, String> attrs = ldapService.getAvailableAttributesForRequest(
-                    config.getUrl(), config.getBaseDn(),
-                    config.getServiceAccountDn(), config.getServiceAccountPassword(),
-                    config.getUserObjectClass()
-            );
-            return ResponseEntity.ok(attrs);
+            return ResponseEntity.ok(ldapService.getAvailableAttributes(id));
         } catch (Exception e) {
             return ResponseEntity.status(503).build();
         }
