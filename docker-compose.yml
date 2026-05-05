@@ -35,7 +35,7 @@ services:
     environment:
       POSTGRES_DB: ${DB_NAME:-ao_idp}
       POSTGRES_USER: ${DB_USERNAME:-ao_idp}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:dev_password}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dev_password}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-ao_idp}"]
       interval: 5s
@@ -60,7 +60,7 @@ services:
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-ao_idp}
       DB_USERNAME: ${DB_USERNAME:-ao_idp}
-      DB_PASSWORD:dev_password: ${DB_PASSWORD:dev_password}
+      DB_PASSWORD: ${DB_PASSWORD:-dev_password}
       LDAP_URL: ${LDAP_URL}
       LDAP_BASE_DN: ${LDAP_BASE_DN}
       LDAP_SERVICE_ACCOUNT_DN: ${LDAP_SERVICE_ACCOUNT_DN}

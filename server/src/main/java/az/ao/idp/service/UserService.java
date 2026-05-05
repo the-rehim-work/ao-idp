@@ -9,6 +9,7 @@ import az.ao.idp.repository.UserAppAccessRepository;
 import az.ao.idp.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -164,8 +165,8 @@ public class UserService {
     }
 
     public Set<String> getAllActivatedLdapUsernames() {
-        return userRepository.findAll().stream()
-                .map(User::getLdapUsername)
+        return userRepository.findAllByActiveTrue(Pageable.unpaged()).stream()
+                .map(u -> u.getLdapUsername().toLowerCase())
                 .collect(Collectors.toSet());
     }
 

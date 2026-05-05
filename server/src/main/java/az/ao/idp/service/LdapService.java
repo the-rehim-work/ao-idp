@@ -264,8 +264,12 @@ public class LdapService {
         LdapTemplate template = forConfig(config).template();
         String searchBase = (baseDn != null && !baseDn.isBlank()) ? toRelativeDn(baseDn, props.baseDn()) : "";
 
+        OrFilter ocFilter = new OrFilter();
+        ocFilter.or(new EqualsFilter("objectClass", props.userObjectClass()));
+        for (String oc : PERSON_CLASSES) ocFilter.or(new EqualsFilter("objectClass", oc));
+
         AndFilter filter = new AndFilter();
-        filter.and(new EqualsFilter("objectClass", props.userObjectClass()));
+        filter.and(ocFilter);
 
         if (search != null && !search.isBlank()) {
             OrFilter searchFilter = new OrFilter();

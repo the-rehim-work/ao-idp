@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -59,9 +60,10 @@ public class AdminUserController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String dn) {
         if (!ldapConfigService.isConfigured()) return ResponseEntity.status(503).body(LDAP_NOT_CONFIGURED);
+        Set<String> activatedUsernames = userService.getAllActivatedLdapUsernames();
         return ResponseEntity.ok(ldapService.listUsersFromAllActive(search).stream().map(u ->
                 new LdapUserResponse(u.ldapUsername(), u.email(), u.displayName(),
-                        userService.userExistsByLdapUsername(u.ldapUsername()),
+                        activatedUsernames.contains(u.ldapUsername().toLowerCase()),
                         u.title(), u.ou(), u.groups(), u.ldapServerName())
         ).toList());
     }
