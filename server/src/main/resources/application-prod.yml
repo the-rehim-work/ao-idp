@@ -30,10 +30,10 @@ ao:
   idp:
     issuer: ${IDP_ISSUER:https://auth.ao.az}
     ldap:
-      url: ${LDAP_URL:ldaps://ldap.ao.az:636}
-      base-dn: ${LDAP_BASE_DN:DC=ao,DC=az}
-      service-account-dn: ${LDAP_SERVICE_ACCOUNT_DN:CN=idp-svc,OU=ServiceAccounts,DC=ao,DC=az}
-      service-account-password: ${LDAP_SERVICE_PASSWORD}
+      url: ${LDAP_URL:}
+      base-dn: ${LDAP_BASE_DN:}
+      service-account-dn: ${LDAP_SERVICE_ACCOUNT_DN:}
+      service-account-password: ${LDAP_SERVICE_PASSWORD:}
       username-attribute: ${LDAP_USERNAME_ATTR:sAMAccountName}
       user-object-class: ${LDAP_USER_OBJECT_CLASS:user}
     jwt:

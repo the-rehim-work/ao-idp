@@ -52,8 +52,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      openldap:
-        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_HOST: postgres
@@ -61,15 +59,29 @@ services:
       DB_NAME: ${DB_NAME:-ao_idp}
       DB_USERNAME: ${DB_USERNAME:-ao_idp}
       DB_PASSWORD: ${DB_PASSWORD:-dev_password}
-      LDAP_URL: ${LDAP_URL}
-      LDAP_BASE_DN: ${LDAP_BASE_DN}
-      LDAP_SERVICE_ACCOUNT_DN: ${LDAP_SERVICE_ACCOUNT_DN}
-      LDAP_SERVICE_PASSWORD: ${LDAP_SERVICE_PASSWORD}
-      LDAP_USERNAME_ATTR: ${LDAP_USERNAME_ATTR:-sAMAccountName}
-      LDAP_USER_OBJECT_CLASS: ${LDAP_USER_OBJECT_CLASS:-user}
-      IDP_ISSUER: ${IDP_ISSUER}
-      COOKIE_DOMAIN: ${COOKIE_DOMAIN}
+      IDP_ISSUER: ${IDP_ISSUER:-https://auth.ao.az}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-.ao.az}
     restart: unless-stopped
+    networks:
+      - idp
+
+  cert-init:
+    image: alpine
+    environment:
+      DOMAIN: ${DOMAIN:-auth.ao.az}
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        apk add --no-cache openssl
+        mkdir -p /certs
+        [ -f /certs/server.crt ] && exit 0
+        openssl req -x509 -nodes -newkey rsa:2048 -days 3650 \
+          -keyout /certs/server.key \
+          -out /certs/server.crt \
+          -subj "/CN=$$DOMAIN" \
+          -addext "subjectAltName=DNS:$$DOMAIN"
+    volumes:
+      - certs:/certs
     networks:
       - idp
 
@@ -78,10 +90,19 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:-auth.ao.az}
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        envsubst '$${DOMAIN}' < /etc/nginx/templates/nginx.conf.template > /etc/nginx/nginx.conf
+        exec nginx -g 'daemon off;'
     volumes:
-      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./docker/certs:/etc/nginx/certs:ro
+      - ./docker/nginx/nginx.conf:/etc/nginx/templates/nginx.conf.template:ro
+      - certs:/etc/nginx/certs:ro
     depends_on:
+      cert-init:
+        condition: service_completed_successfully
       idp-server:
         condition: service_healthy
     restart: unless-stopped
@@ -92,6 +113,7 @@ volumes:
   pg_data:
   ldap_data:
   ldap_config:
+  certs:
 
 networks:
   idp:
