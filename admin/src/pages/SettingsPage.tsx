@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi, LdapServerConfig, LdapConfigRequest, TokenSettings, ClaimMapping, SecuritySettings } from '../api/settings'
 import { apiClient } from '../api/client'
-import { ACCENT_PRESETS, applyTheme, loadTheme, saveTheme, ThemeState } from '../theme'
+import { ACCENT_PRESETS, applyTheme, loadTheme, saveTheme, ThemeState, FONT_SCALES, FontScale } from '../theme'
 
 const C = '#5eead4', CD = '#2dd4bf', CM = '#94a3b8', CB = '#64748b', ERR = '#ff4444'
 const BORDER = 'rgba(94,234,212,0.18)', SURFACE = '#0f141b'
@@ -833,6 +833,24 @@ function AppearanceSection() {
           />
         </Card>
 
+        <Card title="Font Size" hint="Sets the root font-size; everything scales from here. Affects the entire admin panel.">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <Seg<FontScale>
+              value={theme.fontScale}
+              onChange={v => update({ fontScale: v })}
+              options={(Object.entries(FONT_SCALES) as [FontScale, typeof FONT_SCALES[FontScale]][]).map(([v, info]) => ({
+                v, label: v.toUpperCase(),
+              }))}
+            />
+            <div style={{ fontSize: '0.8em', color: 'var(--text-dim)' }}>
+              Currently: <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{FONT_SCALES[theme.fontScale].label}</span>
+              <span style={{ marginLeft: 10, color: 'var(--text-muted)', fontSize: '0.92em' }}>
+                Aa Bb Cc · The quick brown fox
+              </span>
+            </div>
+          </div>
+        </Card>
+
         <Card title="Accent Color" hint="Drives all primary buttons, links, focus rings, active states.">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
             {ACCENT_PRESETS.map(p => {
@@ -913,7 +931,7 @@ function AppearanceSection() {
       <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <button
           onClick={() => {
-            const reset: ThemeState = { mode: 'dark', accent: '#5eead4', density: 'comfortable', radius: 'soft' }
+            const reset: ThemeState = { mode: 'dark', accent: '#5eead4', density: 'comfortable', radius: 'soft', fontScale: 'base' }
             update(reset)
           }}
           style={{

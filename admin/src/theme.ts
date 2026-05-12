@@ -5,11 +5,23 @@
 
 export type ThemeMode = 'dark' | 'light' | 'system'
 
+export type FontScale = 'xs' | 'sm' | 'base' | 'lg' | 'xl'
+
 export interface ThemeState {
   mode: ThemeMode
   accent: string  // hex
   density: 'comfortable' | 'compact'
   radius: 'sharp' | 'soft' | 'round'
+  fontScale: FontScale
+}
+
+// Maps to root font-size in px; tailwind/rem/css var math cascades from here.
+export const FONT_SCALES: Record<FontScale, { px: number; label: string }> = {
+  xs:   { px: 13, label: 'XS · 13px' },
+  sm:   { px: 14, label: 'SM · 14px' },
+  base: { px: 15, label: 'Base · 15px' },
+  lg:   { px: 16, label: 'LG · 16px' },
+  xl:   { px: 17, label: 'XL · 17px' },
 }
 
 export const ACCENT_PRESETS: { name: string; hex: string }[] = [
@@ -28,6 +40,7 @@ export const DEFAULT_THEME: ThemeState = {
   accent: '#5eead4',
   density: 'comfortable',
   radius: 'soft',
+  fontScale: 'base',
 }
 
 const STORAGE_KEY = 'ao-theme-v1'
@@ -70,6 +83,9 @@ export function applyTheme(t: ThemeState) {
   root.setAttribute('data-theme', resolved)
   root.setAttribute('data-density', t.density)
   root.setAttribute('data-radius', t.radius)
+  // Font scaling — sets root font-size; everything in rem cascades from here.
+  const scale = FONT_SCALES[t.fontScale] ?? FONT_SCALES.base
+  root.style.fontSize = `${scale.px}px`
   // accent + derivatives
   const [r, g, b] = hexToRgb(t.accent)
   root.style.setProperty('--accent', t.accent)

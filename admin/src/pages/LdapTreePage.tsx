@@ -2123,22 +2123,9 @@ export default function LdapTreePage() {
     }
   }, [isDragging, panelWidth])
 
-  // Per-config root queries
-  const rootQueries = activeConfigs.map(cfg => {
-    /* eslint-disable react-hooks/rules-of-hooks */
-    return useConfigRoots(cfg, !collapsedConfigs.has(cfg.id))
-    /* eslint-enable react-hooks/rules-of-hooks */
-  })
-
-  // Roots map
-  const rootsMap = useMemo(() => {
-    const m = new Map<string, { roots: TreeNode[]; isLoading: boolean; error: unknown }>()
-    activeConfigs.forEach((cfg, i) => {
-      const q = rootQueries[i]
-      m.set(cfg.id, { roots: q.data ?? [], isLoading: q.isLoading, error: q.error })
-    })
-    return m
-  }, [activeConfigs, rootQueries])
+  // ── Stable-position hooks (BEFORE the variable-count activeConfigs.map below)
+  // These MUST be declared before any conditional/looped hooks so React's
+  // hook-slot ordering stays consistent when activeConfigs changes length.
 
   // Real LDAP schema attributes for the first active config (drives the searchable-attribute dropdown)
   const primaryConfigId = activeConfigs[0]?.id
@@ -2163,6 +2150,27 @@ export default function LdapTreePage() {
     enabled: searchScope === 'server' && !!state.debouncedSearch.trim(),
     staleTime: 5_000,
   })
+
+  // ── Per-config root queries — variable count; MUST come AFTER all stable-slot hooks above.
+  // Rules-of-hooks gotcha: any hook declared after this map shifts its
+  // React state slot when activeConfigs.length changes (causing
+  // "undefined.length" type runtime errors). Don't add new hooks below this line.
+  const rootQueries = activeConfigs.map(cfg => {
+    /* eslint-disable react-hooks/rules-of-hooks */
+    return useConfigRoots(cfg, !collapsedConfigs.has(cfg.id))
+    /* eslint-enable react-hooks/rules-of-hooks */
+  })
+
+  // Roots map
+  const rootsMap = useMemo(() => {
+    const m = new Map<string, { roots: TreeNode[]; isLoading: boolean; error: unknown }>()
+    activeConfigs.forEach((cfg, i) => {
+      const q = rootQueries[i]
+      if (!q) return
+      m.set(cfg.id, { roots: q.data ?? [], isLoading: q.isLoading, error: q.error })
+    })
+    return m
+  }, [activeConfigs, rootQueries])
 
   // Counts derived from queries (for status bar / summary)
   const counts = useMemo(() => {

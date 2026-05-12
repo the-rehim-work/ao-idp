@@ -74,9 +74,8 @@ html[data-theme="light"] {
   color-scheme: light;
 }
 
-/* Density */
-html[data-density="compact"] { font-size: 14px; }
-html[data-density="comfortable"] { font-size: 15px; }
+/* Density — applied via vertical-rhythm rules in components, not root font-size
+   (root font-size is owned by the user's Font Size preference) */
 
 /* Radius preference — applied via the helper class */
 html[data-radius="sharp"] { --r: 0px; --r-sm: 0px; --r-lg: 0px; }
