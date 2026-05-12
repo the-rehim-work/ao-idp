@@ -1,5 +1,4 @@
 import { apiClient } from './client'
-import type { LdapUser } from '../types'
 
 export interface LdapTreeNode {
   dn: string
