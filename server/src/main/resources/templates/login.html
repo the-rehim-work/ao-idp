@@ -23,16 +23,17 @@
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         :root {
-            --c:    #00ffff;
-            --cd:   #00d4e8;
-            --cm:   #009bb5;
-            --cb:   #006b8a;
-            --bg:   #000;
-            --s:    #020d10;
-            --s2:   #041520;
-            --br:   rgba(0,255,255,0.25);
-            --glow: 0 0 8px rgba(0,255,255,0.6), 0 0 20px rgba(0,255,255,0.25);
+            --c:    #5eead4;
+            --cd:   #2dd4bf;
+            --cm:   #0d9488;
+            --cb:   #134e4a;
+            --bg:   #0a0c10;
+            --s:    #12161e;
+            --s2:   #1a1f29;
+            --br:   rgba(94,234,212,0.25);
+            --glow: 0 0 8px rgba(94,234,212,0.5), 0 0 20px rgba(94,234,212,0.2);
             --font: 'JetBrains Mono', 'Courier New', monospace;
+            --txt:  #e7ebf0;
         }
 
         html, body { min-height: 100vh; background: var(--bg); color: var(--c); font-family: var(--font); }
@@ -309,21 +310,53 @@
             color: var(--cb);
         }
     </style>
+    <!-- Custom CSS from settings (injected safely) -->
+    <style th:if="${brandingCustomCss != null && !#strings.isEmpty(brandingCustomCss)}" th:text="${brandingCustomCss}"></style>
 </head>
 <body>
 
+<script th:inline="javascript">
+(function() {
+    var r = document.documentElement;
+    var pc = /*[[${brandingPrimaryColor}]]*/ '#5eead4';
+    var bg = /*[[${brandingBgColor}]]*/ '#0a0c10';
+    var tc = /*[[${brandingTextColor}]]*/ '#e7ebf0';
+    if (pc) {
+        r.style.setProperty('--c', pc);
+        r.style.setProperty('--cd', pc);
+        // compute a darker shade for --cb
+        r.style.setProperty('--br', 'rgba(0,0,0,0.3)');
+    }
+    if (bg) r.style.setProperty('--bg', bg);
+    if (tc) {
+        r.style.setProperty('--txt', tc);
+        r.style.setProperty('--cm', tc);
+    }
+})();
+</script>
+
 <div class="wrap">
 
+    <!-- Logo: show custom logo if set, otherwise default SVG icon -->
     <div class="hd">
-        <div class="hd-dot">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00ffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="1"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                <circle cx="12" cy="16" r="1.5" fill="#00ffff" stroke="none"/>
-            </svg>
-        </div>
+        <th:block th:if="${brandingLogoUrl != null && !#strings.isEmpty(brandingLogoUrl)}">
+            <div class="hd-dot" style="background:transparent;border:none;box-shadow:none;">
+                <img th:src="${brandingLogoUrl}" alt="logo" style="max-width:64px;max-height:64px;object-fit:contain;" />
+            </div>
+        </th:block>
+        <th:block th:unless="${brandingLogoUrl != null && !#strings.isEmpty(brandingLogoUrl)}">
+            <div class="hd-dot">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--c)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="1"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    <circle cx="12" cy="16" r="1.5" fill="var(--c)" stroke="none"/>
+                </svg>
+            </div>
+        </th:block>
         <div class="hd-title">AO ID</div>
-        <div class="hd-sub">auth.ao.az · kimlik təminatçısı</div>
+        <div class="hd-sub" th:text="${brandingWelcomeText != null && !#strings.isEmpty(brandingWelcomeText) ? brandingWelcomeText : 'auth.ao.az · kimlik təminatçısı'}">
+            auth.ao.az · kimlik təminatçısı
+        </div>
     </div>
 
     <div th:if="${clientId != null}" class="app-banner">
@@ -394,7 +427,9 @@
         </div>
     </div>
 
-    <div class="bottom">AO Identity Provider · TLS qorunur · 2026</div>
+    <div class="bottom" th:text="${brandingFooterText != null && !#strings.isEmpty(brandingFooterText) ? brandingFooterText : 'AO Identity Provider · TLS qorunur · 2026'}">
+        AO Identity Provider · TLS qorunur · 2026
+    </div>
 </div>
 
 <script>

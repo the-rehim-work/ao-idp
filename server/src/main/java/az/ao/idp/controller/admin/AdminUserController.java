@@ -62,11 +62,12 @@ public class AdminUserController {
     @GetMapping("/ldap/users")
     public ResponseEntity<?> ldapUsers(
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String attr,
             @RequestParam(required = false) String dn) {
         if (!ldapConfigService.isConfigured()) return ResponseEntity.status(503).body(LDAP_NOT_CONFIGURED);
         Set<String> activatedUsernames = userService.getAllActivatedLdapUsernames()
                 .stream().map(String::toLowerCase).collect(java.util.stream.Collectors.toSet());
-        return ResponseEntity.ok(ldapService.listUsersFromAllActive(search).stream().map(u ->
+        return ResponseEntity.ok(ldapService.listUsersFromAllActive(search, attr).stream().map(u ->
                 new LdapUserResponse(u.ldapUsername(), u.email(), u.displayName(),
                         activatedUsernames.contains(u.ldapUsername().toLowerCase()),
                         u.title(), u.ou(), u.groups(), u.ldapServerName())
@@ -146,6 +147,13 @@ public class AdminUserController {
 
     private String getAdminId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return auth != null ? auth.getName() : "unknown";
+        if (auth == null) return "unknown";
+        if (auth.getDetails() instanceof io.jsonwebtoken.Claims claims) {
+            String username = claims.get("username", String.class);
+            if (username != null && !username.isBlank()) return username;
+            String displayName = claims.get("display_name", String.class);
+            if (displayName != null && !displayName.isBlank()) return displayName;
+        }
+        return auth.getName();
     }
 }

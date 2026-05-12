@@ -12,6 +12,7 @@ import ProfilePage from './pages/ProfilePage'
 import SettingsPage from './pages/SettingsPage'
 import LogsPage from './pages/LogsPage'
 import DatabasePage from './pages/DatabasePage'
+import DocsPage from './pages/DocsPage'
 import Layout from './components/Layout'
 
 function SessionExpiredOverlay() {
@@ -78,6 +79,7 @@ export default function App() {
           <Route path="settings" element={<SettingsPage />} />
           <Route path="logs" element={<LogsPage />} />
           <Route path="database" element={<DatabasePage />} />
+          <Route path="docs" element={<DocsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

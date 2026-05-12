@@ -5,6 +5,7 @@ import az.ao.idp.dto.request.ChangePasswordRequest;
 import az.ao.idp.dto.response.AdminTokenResponse;
 import az.ao.idp.entity.AdminUser;
 import az.ao.idp.service.AdminAuthService;
+import az.ao.idp.service.AuditService;
 import io.jsonwebtoken.Claims;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -16,6 +17,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -24,9 +26,11 @@ import java.util.UUID;
 public class AdminAuthController {
 
     private final AdminAuthService adminAuthService;
+    private final AuditService auditService;
 
-    public AdminAuthController(AdminAuthService adminAuthService) {
+    public AdminAuthController(AdminAuthService adminAuthService, AuditService auditService) {
         this.adminAuthService = adminAuthService;
+        this.auditService = auditService;
     }
 
     @PostMapping("/login")
@@ -45,6 +49,23 @@ public class AdminAuthController {
     @SecurityRequirement(name = "AdminBearerAuth")
     public ResponseEntity<AdminUser> me() {
         return ResponseEntity.ok(adminAuthService.getCurrentAdmin(getAdminId()));
+    }
+
+    @PostMapping("/logout")
+    @Operation(summary = "Admin logout — records the audit event")
+    @SecurityRequirement(name = "AdminBearerAuth")
+    public ResponseEntity<Void> logout(HttpServletRequest request) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String actorName = "unknown";
+        if (auth != null && auth.getDetails() instanceof Claims claims) {
+            String username = claims.get("username", String.class);
+            actorName = username != null ? username : claims.getSubject();
+        }
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null) ip = request.getRemoteAddr();
+        auditService.log("admin", actorName, "ADMIN_LOGOUT", "admin", actorName,
+                null, ip, request.getHeader("User-Agent"), Map.of());
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/change-password")

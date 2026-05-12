@@ -157,9 +157,9 @@ public class AdminAuthService {
 
     private List<String> defaultPermissions(String adminType) {
         if ("idp_admin".equals(adminType)) {
-            return List.of("dashboard", "applications", "users", "directory", "audit", "logs", "database", "admins", "settings");
+            return List.of("dashboard", "applications", "users", "directory", "audit", "logs", "database", "admins", "settings", "docs");
         }
-        return List.of("dashboard", "applications", "users");
+        return List.of("dashboard", "applications", "users", "docs");
     }
 
     @Transactional

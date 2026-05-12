@@ -16,10 +16,11 @@ const ALL_SECTIONS = [
   { key: 'database',      label: 'Database Browser' },
   { key: 'admins',        label: 'Admin Management' },
   { key: 'settings',      label: 'Settings' },
+  { key: 'docs',          label: 'Documentation' },
 ]
 
 const IDP_ADMIN_SECTIONS = ALL_SECTIONS.map(s => s.key)
-const DEFAULT_APP_ADMIN_SECTIONS = ['dashboard', 'applications', 'users']
+const DEFAULT_APP_ADMIN_SECTIONS = ['dashboard', 'applications', 'users', 'docs']
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (

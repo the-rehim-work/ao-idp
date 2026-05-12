@@ -17,6 +17,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -27,6 +29,7 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
@@ -34,6 +37,8 @@ import java.util.UUID;
 @Controller
 @Tag(name = "OAuth2 / OIDC", description = "Authorization Code flow with PKCE (RFC 6749, RFC 7636), token endpoint, userinfo, logout, and token revocation (RFC 7009)")
 public class OidcController {
+
+    private static final Logger log = LoggerFactory.getLogger(OidcController.class);
 
     private final OidcService oidcService;
     private final SessionService sessionService;
@@ -114,6 +119,16 @@ public class OidcController {
         String identifierType = ldapActive ? loginSettings.identifierType() : "username";
         model.addAttribute("identifierType", identifierType);
         model.addAttribute("ldapActive", ldapActive);
+
+        // Login page branding
+        IdpSettingsService.LoginBranding branding = idpSettingsService.getLoginBranding();
+        model.addAttribute("brandingPrimaryColor", nvl(branding.primaryColor(), "#5eead4"));
+        model.addAttribute("brandingBgColor", nvl(branding.bgColor(), "#0a0c10"));
+        model.addAttribute("brandingTextColor", nvl(branding.textColor(), "#e7ebf0"));
+        model.addAttribute("brandingLogoUrl", nvl(branding.logoUrl(), ""));
+        model.addAttribute("brandingWelcomeText", nvl(branding.welcomeText(), ""));
+        model.addAttribute("brandingFooterText", nvl(branding.footerText(), ""));
+        model.addAttribute("brandingCustomCss", nvl(branding.customCss(), ""));
         return "login";
     }
 
@@ -194,6 +209,8 @@ public class OidcController {
             if (!authResult.success()) {
                 bruteForceService.recordFailedAttempt(identifier, ipAddress);
                 int remaining = bruteForceService.getRemainingAttempts(identifier, ipAddress);
+                log.info("Login failed: username={} ip={} app={} remainingAttempts={}", username, ipAddress,
+                        clientId != null ? clientId : "direct", remaining);
                 auditService.log("user", username, "login_failed", null, null, null, ipAddress, request.getHeader("User-Agent"),
                         Map.of("reason", "invalid_credentials", "ldap_username", username, "remaining_attempts", remaining,
                                 "app_client_id", clientId != null ? clientId : "none", "app_name", "none"));
@@ -204,6 +221,7 @@ public class OidcController {
             LdapService.LdapUserAttributes attrs = ldapService.getUserAttributes(username, authResult.ldapServerId());
 
             if (existingUser == null) {
+                log.info("Login blocked: username={} ip={} reason=not_activated", username, ipAddress);
                 return buildLoginRedirect(clientId, redirectUri, state, scope, codeChallenge, codeChallengeMethod,
                         "Hesab aktivləşdirilməyib. Administratorla əlaqə saxlayın.");
             }
@@ -216,6 +234,7 @@ public class OidcController {
             if (clientId != null && redirectUri != null) {
                 Application loginApp = applicationRepository.findByClientId(clientId).orElse(null);
                 if (loginApp != null && !userService.hasAppAccess(user.getId(), loginApp.getId())) {
+                    log.info("Login blocked: username={} ip={} app={} reason=no_app_access", username, ipAddress, loginApp.getName());
                     auditService.log("user", user.getId().toString(), "login_failed", "application", clientId, loginApp, ipAddress, request.getHeader("User-Agent"),
                             Map.of("reason", "no_app_access", "ldap_username", username,
                                     "display_name", attrs.displayName() != null ? attrs.displayName() : username,
@@ -228,6 +247,8 @@ public class OidcController {
             String loginAppName = clientId != null
                     ? applicationRepository.findByClientId(clientId).map(Application::getName).orElse(clientId)
                     : "direct";
+            log.info("Login success: username={} display='{}' ip={} app={}", username,
+                    attrs.displayName() != null ? attrs.displayName() : username, ipAddress, loginAppName);
             auditService.log("user", user.getId().toString(), "login", "application", clientId, null, ipAddress, request.getHeader("User-Agent"),
                     Map.of("ldap_username", username,
                             "display_name", attrs.displayName() != null ? attrs.displayName() : username,
@@ -372,7 +393,23 @@ public class OidcController {
         expiredCookie.setMaxAge(0);
         response.addCookie(expiredCookie);
         if (redirectUri != null && !redirectUri.isBlank()) {
-            return "redirect:" + redirectUri;
+            // Validate against registered post-logout redirect URIs for the client
+            String resolvedClientId = clientId;
+            if (resolvedClientId == null && idTokenHint != null) {
+                try {
+                    io.jsonwebtoken.Claims claims = oidcService.parseIdTokenHint(idTokenHint);
+                    if (claims != null && claims.getAudience() != null && !claims.getAudience().isEmpty()) {
+                        resolvedClientId = claims.getAudience().iterator().next();
+                    }
+                } catch (Exception ignored) {}
+            }
+            if (resolvedClientId != null) {
+                boolean allowed = applicationRepository.findByClientId(resolvedClientId)
+                        .map(app -> app.getPostLogoutRedirectUris() != null
+                                && Arrays.asList(app.getPostLogoutRedirectUris()).contains(redirectUri))
+                        .orElse(false);
+                if (allowed) return "redirect:" + redirectUri;
+            }
         }
         return "redirect:/login";
     }
@@ -408,6 +445,10 @@ public class OidcController {
             if ("ao-user".equals(c.getName()) && c.getValue() != null && !c.getValue().isBlank()) return c.getValue();
         }
         return null;
+    }
+
+    private static String nvl(String s, String fallback) {
+        return (s == null || s.isBlank()) ? fallback : s;
     }
 
     private static String escapeJson(String s) {

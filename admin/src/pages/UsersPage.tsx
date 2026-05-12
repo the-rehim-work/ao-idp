@@ -6,18 +6,18 @@ import { ConfirmModal } from '../components/ConfirmModal'
 import type { LdapUser, Application, User, AppAccess } from '../types'
 
 const C = {
-  bg: '#000',
+  bg: 'var(--bg)',
   surface: 'var(--surface-1)',
   surface2: 'var(--surface-2)',
-  border: 'var(--accent-soft)',
-  borderHover: 'var(--accent-medium)',
+  border: 'var(--border)',
+  borderHover: 'var(--border-hover)',
   green: 'var(--accent)',
   greenDim: 'var(--accent-strong)',
-  text: 'var(--accent)',
+  text: 'var(--text)',
   textDim: 'var(--text-dim)',
   textMuted: 'var(--text-muted)',
-  red: '#ff3333',
-  amber: '#ff8800',
+  red: 'var(--danger)',
+  amber: 'var(--warning)',
 }
 
 const inputStyle = {
@@ -169,7 +169,7 @@ function LdapUserRow({ user, apps }: { user: LdapUser; apps: Application[] }) {
             {user.email && <span className="text-xs" style={{ color: C.textMuted }}>{user.email}</span>}
             {user.ou && <span className="text-xs" style={{ color: C.textMuted }}>[{user.ou}]</span>}
             {user.ldap_server_name && (
-              <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(0,204,255,0.08)', color: '#00ccff', border: '1px solid rgba(0,204,255,0.2)' }}>
+              <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--accent-soft)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }}>
                 {user.ldap_server_name}
               </span>
             )}
@@ -268,7 +268,7 @@ function DirectoryTab({ apps }: { apps: Application[] }) {
             }
             return Array.from(groups.entries()).map(([serverName, users]) => (
               <div key={serverName}>
-                <div className="px-4 py-2 text-xs font-semibold tracking-widest uppercase" style={{ background: 'rgba(0,204,255,0.06)', color: '#00ccff', borderBottom: `1px solid rgba(0,204,255,0.15)` }}>
+                <div className="px-4 py-2 text-xs font-semibold tracking-widest uppercase" style={{ background: 'var(--accent-soft)', color: 'var(--accent)', borderBottom: '1px solid var(--accent-border)' }}>
                   {serverName} <span style={{ color: C.textMuted, fontWeight: 400 }}>({users.length})</span>
                 </div>
                 {users.map(user => <LdapUserRow key={user.ldap_username} user={user} apps={apps} />)}
@@ -342,7 +342,7 @@ function ActivatedTab() {
                     <span>{user.ldapUsername}</span>
                     {user.email && <span>{user.email}</span>}
                     {user.ldapServerName && (
-                      <span style={{ color: '#00ccff' }}>{user.ldapServerName}</span>
+                      <span style={{ color: 'var(--accent)' }}>{user.ldapServerName}</span>
                     )}
                     <span>Last login: {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : 'never'}</span>
                   </div>

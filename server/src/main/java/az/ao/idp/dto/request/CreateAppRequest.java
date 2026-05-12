@@ -11,5 +11,6 @@ public record CreateAppRequest(
         @NotBlank @Pattern(regexp = "^[a-z0-9-]+$", message = "Slug must be lowercase alphanumeric with hyphens") String slug,
         @JsonProperty("redirect_uris") @NotEmpty List<String> redirectUris,
         @JsonProperty("allowed_origins") List<String> allowedOrigins,
+        @JsonProperty("post_logout_redirect_uris") List<String> postLogoutRedirectUris,
         @JsonProperty("is_public_client") boolean publicClient
 ) {}

@@ -18,10 +18,11 @@ interface AppForm {
   slug: string
   redirectUris: string[]
   allowedOrigins: string[]
+  postLogoutRedirectUris: string[]
   isPublicClient: boolean
 }
 
-const emptyForm: AppForm = { name: '', slug: '', redirectUris: [], allowedOrigins: [], isPublicClient: false }
+const emptyForm: AppForm = { name: '', slug: '', redirectUris: [], allowedOrigins: [], postLogoutRedirectUris: [], isPublicClient: false }
 const toSlug = (s: string) => s.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
 
 const inputStyle = {
@@ -171,6 +172,11 @@ function AppModal({ title, form, setForm, error, onSave, onClose, saving, isEdit
           <TagInput label="allowed_origins" tags={form.allowedOrigins}
             onChange={origins => setForm(f => ({ ...f, allowedOrigins: origins }))}
             placeholder="https://app.ao.az"
+          />
+
+          <TagInput label="post_logout_redirect_uris" tags={form.postLogoutRedirectUris}
+            onChange={uris => setForm(f => ({ ...f, postLogoutRedirectUris: uris }))}
+            placeholder="https://app.ao.az/logged-out"
           />
 
           <div className="flex gap-2 justify-end pt-1">
@@ -336,11 +342,25 @@ function AppCard({ app, onEdit, onRemove, onToggleActive }: {
         </div>
 
         {app.redirect_uris?.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-3">
-            {app.redirect_uris.map(uri => (
-              <span key={uri} className="text-xs px-2 py-0.5 truncate max-w-[200px]"
-                style={{ color: CM, border: `1px solid ${BORDER}`, background: 'var(--accent-soft)' }}>{uri}</span>
-            ))}
+          <div className="mb-2">
+            <div className="text-xs mb-1" style={{ color: CB }}>redirect_uris</div>
+            <div className="flex flex-wrap gap-1.5">
+              {app.redirect_uris.map(uri => (
+                <span key={uri} className="text-xs px-2 py-0.5 truncate max-w-[200px]"
+                  style={{ color: CM, border: `1px solid ${BORDER}`, background: 'var(--accent-soft)' }}>{uri}</span>
+              ))}
+            </div>
+          </div>
+        )}
+        {app.post_logout_redirect_uris?.length > 0 && (
+          <div className="mb-3">
+            <div className="text-xs mb-1" style={{ color: CB }}>post_logout_redirect_uris</div>
+            <div className="flex flex-wrap gap-1.5">
+              {app.post_logout_redirect_uris.map(uri => (
+                <span key={uri} className="text-xs px-2 py-0.5 truncate max-w-[200px]"
+                  style={{ color: CM, border: `1px solid rgba(94,234,212,0.15)`, background: 'rgba(94,234,212,0.04)' }}>{uri}</span>
+              ))}
+            </div>
           </div>
         )}
 
@@ -395,6 +415,7 @@ export default function ApplicationsPage() {
     mutationFn: (f: AppForm) => appsApi.create({
       name: f.name, slug: f.slug,
       redirectUris: f.redirectUris, allowedOrigins: f.allowedOrigins,
+      postLogoutRedirectUris: f.postLogoutRedirectUris,
       isPublicClient: f.isPublicClient,
     }),
     onSuccess: data => {
@@ -411,6 +432,7 @@ export default function ApplicationsPage() {
     mutationFn: (f: AppForm) => appsApi.update(editApp!.id, {
       name: f.name, slug: f.slug,
       redirectUris: f.redirectUris, allowedOrigins: f.allowedOrigins,
+      postLogoutRedirectUris: f.postLogoutRedirectUris,
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['applications'] }); setEditApp(null); setForm(emptyForm) },
     onError: (e: any) => setFormError(e.response?.data?.error_description ?? 'update failed'),
@@ -437,6 +459,7 @@ export default function ApplicationsPage() {
       slug: app.slug,
       redirectUris: app.redirect_uris ?? [],
       allowedOrigins: app.allowed_origins ?? [],
+      postLogoutRedirectUris: app.post_logout_redirect_uris ?? [],
       isPublicClient: app.is_public_client ?? false,
     })
     setFormError(''); setEditApp(app)

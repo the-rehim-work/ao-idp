@@ -78,6 +78,9 @@ public class ApplicationService {
         if (request.allowedOrigins() != null) {
             app.setAllowedOrigins(request.allowedOrigins().toArray(new String[0]));
         }
+        if (request.postLogoutRedirectUris() != null) {
+            app.setPostLogoutRedirectUris(request.postLogoutRedirectUris().toArray(new String[0]));
+        }
         app.setActive(true);
 
         Application saved = applicationRepository.save(app);
@@ -100,6 +103,9 @@ public class ApplicationService {
         app.setRedirectUris(request.redirectUris().toArray(new String[0]));
         if (request.allowedOrigins() != null) {
             app.setAllowedOrigins(request.allowedOrigins().toArray(new String[0]));
+        }
+        if (request.postLogoutRedirectUris() != null) {
+            app.setPostLogoutRedirectUris(request.postLogoutRedirectUris().toArray(new String[0]));
         }
         auditService.log("admin", adminId, "app_updated", "application", id.toString(), app, null, null,
                 Map.of(
@@ -170,6 +176,7 @@ public class ApplicationService {
                 plainClientSecret,
                 app.getRedirectUris() != null ? Arrays.asList(app.getRedirectUris()) : List.of(),
                 app.getAllowedOrigins() != null ? Arrays.asList(app.getAllowedOrigins()) : List.of(),
+                app.getPostLogoutRedirectUris() != null ? Arrays.asList(app.getPostLogoutRedirectUris()) : List.of(),
                 app.isActive(), app.isPublicClient(), app.getCreatedAt()
         );
     }

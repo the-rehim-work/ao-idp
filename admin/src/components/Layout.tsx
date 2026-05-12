@@ -1,3 +1,4 @@
+import React from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 
@@ -40,6 +41,11 @@ const allNavItems = [
   { to: '/admins', label: 'admins', prefix: '/mgmt', section: 'admins', icon: (
     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  )},
+  { to: '/docs', label: 'docs', prefix: '/doc', section: 'docs', icon: (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
     </svg>
   )},
   { to: '/settings', label: 'settings', prefix: '/cfg', section: 'settings', icon: (
@@ -97,7 +103,11 @@ export default function Layout() {
           <NavItem {...profileNavItem} />
           <div className="px-4 pb-4">
             <button
-              onClick={() => { clearAuth(); navigate('/login') }}
+              onClick={async () => {
+                try { await fetch('/admin/api/v1/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${useAuthStore.getState().token}` } }) } catch { /* ignore */ }
+                clearAuth()
+                navigate('/login')
+              }}
               className="text-xs tracking-wide"
               style={{ color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
             >

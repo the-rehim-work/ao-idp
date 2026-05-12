@@ -26,6 +26,7 @@ export interface Application {
   client_secret?: string
   redirect_uris: string[]
   allowed_origins: string[]
+  post_logout_redirect_uris: string[]
   is_active: boolean
   is_public_client: boolean
   created_at: string

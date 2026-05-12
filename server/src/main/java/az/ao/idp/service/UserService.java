@@ -7,6 +7,8 @@ import az.ao.idp.exception.ResourceNotFoundException;
 import az.ao.idp.repository.ApplicationRepository;
 import az.ao.idp.repository.UserAppAccessRepository;
 import az.ao.idp.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -24,6 +26,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class UserService {
+
+    private static final Logger log = LoggerFactory.getLogger(UserService.class);
 
     private final UserRepository userRepository;
     private final UserAppAccessRepository userAppAccessRepository;
@@ -71,6 +75,7 @@ public class UserService {
         user.setDisplayName(displayName);
         user.setActive(true);
         User saved = userRepository.save(user);
+        log.info("User activated: ldapUsername={} email={} by admin={}", ldapUsername, email, adminId);
         auditService.log("admin", adminId, "user_activated", "user", saved.getId().toString(), null, null, null,
                 Map.of("user_id", saved.getId().toString(), "ldap_username", ldapUsername,
                         "display_name", displayName != null ? displayName : ldapUsername,
@@ -84,6 +89,7 @@ public class UserService {
             userAppAccessRepository.save(new UserAppAccess(userId, appId));
             String grantedAppName = applicationRepository.findById(appId).map(Application::getName).orElse(appId.toString());
             User grantedUser = userRepository.findById(userId).orElse(null);
+            log.info("App access granted: userId={} app={} by admin={}", userId, grantedAppName, adminId);
             auditService.log("admin", adminId, "app_access_granted", "application", appId.toString(), null, null, null,
                     Map.of("user_id", userId.toString(),
                             "user_display_name", grantedUser != null ? grantedUser.getDisplayName() : userId.toString(),
@@ -97,6 +103,7 @@ public class UserService {
         userAppAccessRepository.deleteByUserIdAndAppId(userId, appId);
         String revokedAppName = applicationRepository.findById(appId).map(Application::getName).orElse(appId.toString());
         User revokedUser = userRepository.findById(userId).orElse(null);
+        log.info("App access revoked: userId={} app={} by admin={}", userId, revokedAppName, adminId);
         auditService.log("admin", adminId, "app_access_revoked", "application", appId.toString(), null, null, null,
                 Map.of("user_id", userId.toString(),
                         "user_display_name", revokedUser != null ? revokedUser.getDisplayName() : userId.toString(),
@@ -133,6 +140,7 @@ public class UserService {
         User user = getById(userId);
         user.setActive(false);
         userRepository.save(user);
+        log.info("User deactivated: ldapUsername={} by admin={}", user.getLdapUsername(), adminId);
         auditService.log("admin", adminId, "user_deactivated", "user", userId.toString(), null, null, null,
                 Map.of("user_id", userId.toString(), "ldap_username", user.getLdapUsername(),
                         "display_name", user.getDisplayName()));

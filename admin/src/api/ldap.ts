@@ -40,9 +40,13 @@ export const ldapApi = {
   getOus: () =>
     apiClient.get<LdapOuInfo[]>('/ldap/ous').then(r => r.data),
 
-  getUsers: (dn?: string, search?: string) =>
+  getUsers: (dn?: string, search?: string, attr?: string) =>
     apiClient.get<LdapSearchHit[]>('/ldap/users', {
-      params: { ...(dn ? { dn } : {}), ...(search ? { search } : {}) },
+      params: {
+        ...(dn ? { dn } : {}),
+        ...(search ? { search } : {}),
+        ...(attr && attr !== 'all' ? { attr } : {}),
+      },
     }).then(r => r.data),
 
   // Returns real LDAP schema attributes for a given server (attribute name -> sample value)

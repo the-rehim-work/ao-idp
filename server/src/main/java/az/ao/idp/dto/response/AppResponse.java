@@ -15,6 +15,7 @@ public record AppResponse(
         @JsonProperty("client_secret") String clientSecret,
         @JsonProperty("redirect_uris") List<String> redirectUris,
         @JsonProperty("allowed_origins") List<String> allowedOrigins,
+        @JsonProperty("post_logout_redirect_uris") List<String> postLogoutRedirectUris,
         @JsonProperty("is_active") boolean active,
         @JsonProperty("is_public_client") boolean publicClient,
         @JsonProperty("created_at") Instant createdAt

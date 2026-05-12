@@ -38,6 +38,10 @@ public class Application {
     @JdbcTypeCode(SqlTypes.ARRAY)
     private String[] allowedOrigins;
 
+    @Column(name = "post_logout_redirect_uris", nullable = false, columnDefinition = "text[]")
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    private String[] postLogoutRedirectUris = new String[0];
+
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 
@@ -60,6 +64,8 @@ public class Application {
     public void setRedirectUris(String[] redirectUris) { this.redirectUris = redirectUris; }
     public String[] getAllowedOrigins() { return allowedOrigins; }
     public void setAllowedOrigins(String[] allowedOrigins) { this.allowedOrigins = allowedOrigins; }
+    public String[] getPostLogoutRedirectUris() { return postLogoutRedirectUris; }
+    public void setPostLogoutRedirectUris(String[] uris) { this.postLogoutRedirectUris = uris; }
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
     public boolean isPublicClient() { return publicClient; }

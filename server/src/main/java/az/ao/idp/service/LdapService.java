@@ -104,9 +104,10 @@ public class LdapService {
             String userDn = findUserDnWith(username, props, ldap.template());
             if (userDn == null) return AuthResult.failure();
             ldap.source().getContext(userDn, password).close();
+            log.info("LDAP auth success: username={} server={}", username, config.getName());
             return new AuthResult(true, config.getId());
         } catch (Exception e) {
-            log.debug("Auth failed against LDAP [{}]: {}", config.getName(), e.getMessage());
+            log.info("LDAP auth failed: username={} server={} reason={}", username, config.getName(), e.getMessage());
             return AuthResult.failure();
         }
     }
@@ -222,6 +223,10 @@ public class LdapService {
     }
 
     public List<LdapUserResponse> listUsersFromAllActive(String search) {
+        return listUsersFromAllActive(search, null);
+    }
+
+    public List<LdapUserResponse> listUsersFromAllActive(String search, String attr) {
         List<LdapServerConfig> active = ldapConfigService.getActiveAll();
         if (active.isEmpty()) throw new IllegalStateException("No active LDAP server configured");
 
@@ -229,7 +234,7 @@ public class LdapService {
         Set<String> seenUsernames = new HashSet<>();
         for (LdapServerConfig config : active) {
             try {
-                List<LdapUserResponse> users = listUsersForConfig(config, null, search);
+                List<LdapUserResponse> users = listUsersForConfig(config, null, search, attr);
                 for (LdapUserResponse u : users) {
                     if (seenUsernames.add(u.ldapUsername())) {
                         all.add(new LdapUserResponse(u.ldapUsername(), u.email(), u.displayName(),
@@ -244,6 +249,12 @@ public class LdapService {
     }
 
     private List<LdapUserResponse> listUsersForConfig(LdapServerConfig config, String baseDn, String search) {
+        return listUsersForConfig(config, baseDn, search, null);
+    }
+
+    private static final Set<String> BASIC_SEARCH_ATTRS = Set.of("name", "username", "email", "title", "all");
+
+    private List<LdapUserResponse> listUsersForConfig(LdapServerConfig config, String baseDn, String search, String attr) {
         LdapProps props = propsFrom(config);
         LdapTemplate template = forConfig(config).template();
         String searchBase = (baseDn != null && !baseDn.isBlank()) ? toRelativeDn(baseDn, props.baseDn()) : "";
@@ -256,11 +267,28 @@ public class LdapService {
         filter.and(ocFilter);
 
         if (search != null && !search.isBlank()) {
-            OrFilter searchFilter = new OrFilter();
-            searchFilter.or(new LikeFilter(props.usernameAttribute(), "*" + search + "*"));
-            searchFilter.or(new LikeFilter("displayName", "*" + search + "*"));
-            searchFilter.or(new LikeFilter("mail", "*" + search + "*"));
-            filter.and(searchFilter);
+            if (attr != null && !attr.isBlank() && !BASIC_SEARCH_ATTRS.contains(attr)) {
+                // Specific LDAP attribute search
+                filter.and(new LikeFilter(attr, "*" + search + "*"));
+            } else if ("username".equals(attr)) {
+                filter.and(new LikeFilter(props.usernameAttribute(), "*" + search + "*"));
+            } else if ("email".equals(attr)) {
+                filter.and(new LikeFilter("mail", "*" + search + "*"));
+            } else if ("name".equals(attr)) {
+                OrFilter nameFilter = new OrFilter();
+                nameFilter.or(new LikeFilter("displayName", "*" + search + "*"));
+                nameFilter.or(new LikeFilter("cn", "*" + search + "*"));
+                filter.and(nameFilter);
+            } else if ("title".equals(attr)) {
+                filter.and(new LikeFilter("title", "*" + search + "*"));
+            } else {
+                // Default: search across common fields
+                OrFilter searchFilter = new OrFilter();
+                searchFilter.or(new LikeFilter(props.usernameAttribute(), "*" + search + "*"));
+                searchFilter.or(new LikeFilter("displayName", "*" + search + "*"));
+                searchFilter.or(new LikeFilter("mail", "*" + search + "*"));
+                filter.and(searchFilter);
+            }
         }
 
         if (props.additionalFilter() != null && !props.additionalFilter().isBlank()) {

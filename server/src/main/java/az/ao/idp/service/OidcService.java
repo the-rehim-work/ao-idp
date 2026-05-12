@@ -9,6 +9,8 @@ import az.ao.idp.exception.InvalidTokenException;
 import az.ao.idp.exception.ResourceNotFoundException;
 import az.ao.idp.repository.ApplicationRepository;
 import az.ao.idp.util.SecureRandomUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +23,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class OidcService {
+
+    private static final Logger log = LoggerFactory.getLogger(OidcService.class);
 
     private final ApplicationRepository applicationRepository;
     private final UserService userService;
@@ -140,6 +144,8 @@ public class OidcService {
             throw new InvalidClientException("User is not authorized for this application");
         }
 
+        log.info("Token issued: username={} app={} scope={}", user.getLdapUsername(), app.getName(),
+                codeData.scope() != null ? codeData.scope() : "openid profile");
         auditService.log("user", user.getId().toString(), "token_exchange", "application", app.getId().toString(), app, null, null,
                 Map.of("ldap_username", user.getLdapUsername(), "display_name", user.getDisplayName() != null ? user.getDisplayName() : "",
                         "app_name", app.getName(), "client_id", app.getClientId(), "scope", codeData.scope() != null ? codeData.scope() : "openid profile"));
@@ -164,6 +170,7 @@ public class OidcService {
 
         User user = userService.getById(tokenData.userId());
 
+        log.info("Token refreshed: username={} app={}", user.getLdapUsername(), resolvedApp.getName());
         auditService.log("user", user.getId().toString(), "token_refresh", "application", resolvedApp.getId().toString(), resolvedApp, null, null,
                 Map.of("ldap_username", user.getLdapUsername(), "display_name", user.getDisplayName(),
                         "app_name", resolvedApp.getName(), "client_id", resolvedApp.getClientId()));
@@ -194,6 +201,7 @@ public class OidcService {
         if (refreshToken != null && !refreshToken.isBlank()) {
             refreshTokenService.revoke(refreshToken);
         }
+        log.info("User logout: userId={} app={}", userId != null ? userId : "unknown", clientId != null ? clientId : "direct");
         auditService.log("user", userId != null ? userId : "unknown", "logout", "application", clientId, null, null, null,
                 clientId != null ? Map.of("client_id", clientId) : null);
     }
@@ -245,6 +253,14 @@ public class OidcService {
             }
         }
         return result;
+    }
+
+    public io.jsonwebtoken.Claims parseIdTokenHint(String token) {
+        try {
+            return jwtService.validateUserToken(token);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private String computeS256Challenge(String codeVerifier) {

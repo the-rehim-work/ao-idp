@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, useReducer } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { createPortal } from 'react-dom'
+import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../api/client'
 import { usersApi } from '../api/users'
 import { appsApi } from '../api/apps'
@@ -1718,14 +1719,28 @@ function AttributePicker({
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const [activeIdx, setActiveIdx] = useState(0)
-  const wrapRef = useRef<HTMLDivElement>(null)
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0 })
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const dropRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
+
+  const openDropdown = () => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
+      setDropPos({ top: rect.bottom + 4, left: rect.left })
+    }
+    setOpen(o => !o)
+  }
 
   // Close on outside click / Esc
   useEffect(() => {
     if (!open) return
     const onClick = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
+      const target = e.target as Node
+      if (
+        buttonRef.current && !buttonRef.current.contains(target) &&
+        dropRef.current && !dropRef.current.contains(target)
+      ) setOpen(false)
     }
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
     document.addEventListener('mousedown', onClick)
@@ -1734,6 +1749,23 @@ function AttributePicker({
     return () => {
       document.removeEventListener('mousedown', onClick)
       document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  // Update position on scroll/resize
+  useEffect(() => {
+    if (!open) return
+    const update = () => {
+      if (buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect()
+        setDropPos({ top: rect.bottom + 4, left: rect.left })
+      }
+    }
+    window.addEventListener('scroll', update, true)
+    window.addEventListener('resize', update)
+    return () => {
+      window.removeEventListener('scroll', update, true)
+      window.removeEventListener('resize', update)
     }
   }, [open])
 
@@ -1747,27 +1779,105 @@ function AttributePicker({
     return Object.entries(schema)
       .filter(([k]) => !HIDDEN_ATTRS.has(k))
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([k, v]) => ({ value: k, label: k, sample: v === '[binary]' ? undefined : v }))
+      .map(([k]) => ({ value: k, label: k }))
   }, [schema])
 
   const ql = q.trim().toLowerCase()
-  const filterFn = (o: AttrOption) =>
-    !ql || o.label.toLowerCase().includes(ql) || (o.sample?.toLowerCase().includes(ql) ?? false)
+  const filterFn = (o: AttrOption) => !ql || o.label.toLowerCase().includes(ql)
   const quickFiltered = quickOptions.filter(filterFn)
   const schemaFiltered = schemaOpts.filter(filterFn)
   const flatList = [...quickFiltered, ...schemaFiltered]
 
-  // Active option helper
   const selected = quickOptions.concat(schemaOpts).find(o => o.value === value)
   const triggerLabel = selected?.label ?? value
 
   useEffect(() => { if (open) setActiveIdx(0) }, [open, ql])
 
+  const dropdown = open ? createPortal(
+    <div
+      ref={dropRef}
+      style={{
+        position: 'fixed', top: dropPos.top, left: dropPos.left, zIndex: 9999,
+        width: 280, maxHeight: 360,
+        background: C.surface,
+        border: `1px solid ${C.borderHover}`,
+        borderRadius: 6,
+        boxShadow: '0 16px 40px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04)',
+        display: 'flex', flexDirection: 'column',
+        animation: 'ldapFadeIn 0.12s ease',
+        fontFamily: FONT,
+      }}
+    >
+      {/* search */}
+      <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.borderFaint}` }}>
+        <input
+          ref={searchRef}
+          value={q}
+          onChange={e => setQ(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && flatList[activeIdx]) {
+              onChange(flatList[activeIdx].value); setOpen(false)
+            } else if (e.key === 'ArrowDown') {
+              e.preventDefault(); setActiveIdx(i => Math.min(flatList.length - 1, i + 1))
+            } else if (e.key === 'ArrowUp') {
+              e.preventDefault(); setActiveIdx(i => Math.max(0, i - 1))
+            }
+          }}
+          placeholder={`filter ${schemaOpts.length} attributes...`}
+          style={{
+            width: '100%', padding: '5px 8px',
+            background: C.bg, border: `1px solid ${C.borderFaint}`,
+            color: C.text, fontFamily: FONT, fontSize: '0.72rem',
+            outline: 'none', borderRadius: 3,
+          }}
+        />
+      </div>
+
+      {/* list */}
+      <div style={{ overflowY: 'auto', flex: 1 }}>
+        {quickFiltered.length > 0 && (
+          <>
+            <div style={{ padding: '6px 12px 3px', fontSize: '0.55rem', color: C.textMuted, letterSpacing: '0.16em', textTransform: 'uppercase' }}>
+              Quick
+            </div>
+            {quickFiltered.map((o, i) => (
+              <AttrRow key={o.value} opt={o} active={value === o.value} hover={activeIdx === i}
+                onPick={() => { onChange(o.value); setOpen(false) }}
+                onHover={() => setActiveIdx(i)}
+              />
+            ))}
+          </>
+        )}
+        {schemaFiltered.length > 0 && (
+          <>
+            <div style={{ padding: '6px 12px 3px', fontSize: '0.55rem', color: C.textMuted, letterSpacing: '0.16em', textTransform: 'uppercase' }}>
+              Server Schema · {schemaFiltered.length}
+            </div>
+            {schemaFiltered.map((o, i) => (
+              <AttrRow key={o.value} opt={o} active={value === o.value}
+                hover={activeIdx === (quickFiltered.length + i)}
+                onPick={() => { onChange(o.value); setOpen(false) }}
+                onHover={() => setActiveIdx(quickFiltered.length + i)}
+              />
+            ))}
+          </>
+        )}
+        {flatList.length === 0 && (
+          <div style={{ padding: '14px 12px', fontSize: '0.7rem', color: C.textMuted, textAlign: 'center' }}>
+            no matches
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body
+  ) : null
+
   return (
-    <div ref={wrapRef} style={{ position: 'relative', minWidth: 0 }}>
+    <div style={{ position: 'relative', minWidth: 0 }}>
       <button
-        onClick={() => setOpen(o => !o)}
-        title={selected?.sample ? `sample: ${selected.sample}` : selected?.label}
+        ref={buttonRef}
+        onClick={openDropdown}
+        title={selected?.label}
         style={{
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '4px 8px 4px 9px',
@@ -1785,82 +1895,7 @@ function AttributePicker({
           <path d="M2 4l3 3 3-3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
         </svg>
       </button>
-
-      {open && (
-        <div
-          style={{
-            position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 250,
-            width: 280, maxHeight: 360,
-            background: C.surface,
-            border: `1px solid ${C.borderHover}`,
-            borderRadius: 6,
-            boxShadow: '0 12px 28px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.04)',
-            display: 'flex', flexDirection: 'column',
-            animation: 'ldapFadeIn 0.12s ease',
-          }}
-        >
-          {/* search */}
-          <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.borderFaint}` }}>
-            <input
-              ref={searchRef}
-              value={q}
-              onChange={e => setQ(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && flatList[activeIdx]) {
-                  onChange(flatList[activeIdx].value); setOpen(false)
-                } else if (e.key === 'ArrowDown') {
-                  e.preventDefault(); setActiveIdx(i => Math.min(flatList.length - 1, i + 1))
-                } else if (e.key === 'ArrowUp') {
-                  e.preventDefault(); setActiveIdx(i => Math.max(0, i - 1))
-                }
-              }}
-              placeholder={`filter ${schemaOpts.length} attributes...`}
-              style={{
-                width: '100%', padding: '5px 8px',
-                background: C.bg, border: `1px solid ${C.borderFaint}`,
-                color: C.text, fontFamily: FONT, fontSize: '0.72rem',
-                outline: 'none', borderRadius: 3,
-              }}
-            />
-          </div>
-
-          {/* list */}
-          <div style={{ overflowY: 'auto', flex: 1 }}>
-            {quickFiltered.length > 0 && (
-              <>
-                <div style={{ padding: '6px 12px 3px', fontSize: '0.55rem', color: C.textMuted, letterSpacing: '0.16em', textTransform: 'uppercase' }}>
-                  Quick
-                </div>
-                {quickFiltered.map((o, i) => (
-                  <AttrRow key={o.value} opt={o} active={value === o.value} hover={activeIdx === i}
-                    onPick={() => { onChange(o.value); setOpen(false) }}
-                    onHover={() => setActiveIdx(i)}
-                  />
-                ))}
-              </>
-            )}
-            {schemaFiltered.length > 0 && (
-              <>
-                <div style={{ padding: '6px 12px 3px', fontSize: '0.55rem', color: C.textMuted, letterSpacing: '0.16em', textTransform: 'uppercase' }}>
-                  Server Schema · {schemaFiltered.length}
-                </div>
-                {schemaFiltered.map((o, i) => (
-                  <AttrRow key={o.value} opt={o} active={value === o.value}
-                    hover={activeIdx === (quickFiltered.length + i)}
-                    onPick={() => { onChange(o.value); setOpen(false) }}
-                    onHover={() => setActiveIdx(quickFiltered.length + i)}
-                  />
-                ))}
-              </>
-            )}
-            {flatList.length === 0 && (
-              <div style={{ padding: '14px 12px', fontSize: '0.7rem', color: C.textMuted, textAlign: 'center' }}>
-                no matches
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {dropdown}
     </div>
   )
 }
@@ -1890,7 +1925,7 @@ function AttrRow({ opt, active, hover, onPick, onHover }: {
       }}>
         {opt.label}
       </span>
-      {opt.sample && (
+      {false && opt.sample && (
         <span style={{
           color: C.textMuted, fontSize: '0.62rem',
           marginLeft: 'auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -2001,19 +2036,6 @@ function ServerSearchResults({
       </div>
     </div>
   )
-}
-
-/* ======================================================================
-   Per-config root query hook (one query per active config)
-   ====================================================================== */
-
-function useConfigRoots(config: LdapServerConfig, enabled: boolean) {
-  return useQuery({
-    queryKey: ['ldap-tree', config.id, 'root'],
-    queryFn: () => apiClient.get<TreeNode[]>('/ldap/tree', { params: { configId: config.id } }).then(r => r.data),
-    retry: false,
-    enabled,
-  })
 }
 
 /* ======================================================================
@@ -2139,25 +2161,23 @@ export default function LdapTreePage() {
   // Server-side LDAP search (only enabled when scope=server and there is a query)
   const { data: serverHits = [], isFetching: serverSearching } = useQuery({
     queryKey: ['ldap-server-search', state.debouncedSearch, searchAttr],
-    queryFn: () => {
-      // For non-default attribute, encode an LDAP filter clause in the search param
-      const q = searchAttr === 'all' || ['name', 'username', 'email', 'title'].includes(searchAttr)
-        ? state.debouncedSearch
-        : `${searchAttr}=${state.debouncedSearch}`
-      return ldapApi.getUsers(undefined, q)
-    },
+    queryFn: () => ldapApi.getUsers(
+      undefined,
+      state.debouncedSearch,
+      searchAttr !== 'all' ? searchAttr : undefined,
+    ),
     enabled: searchScope === 'server' && !!state.debouncedSearch.trim(),
     staleTime: 5_000,
   })
 
-  // ── Per-config root queries — variable count; MUST come AFTER all stable-slot hooks above.
-  // Rules-of-hooks gotcha: any hook declared after this map shifts its
-  // React state slot when activeConfigs.length changes (causing
-  // "undefined.length" type runtime errors). Don't add new hooks below this line.
-  const rootQueries = activeConfigs.map(cfg => {
-    /* eslint-disable react-hooks/rules-of-hooks */
-    return useConfigRoots(cfg, !collapsedConfigs.has(cfg.id))
-    /* eslint-enable react-hooks/rules-of-hooks */
+  // ── Per-config root queries — useQueries is Rules-of-Hooks safe for dynamic arrays.
+  const rootQueries = useQueries({
+    queries: activeConfigs.map(cfg => ({
+      queryKey: ['ldap-tree', cfg.id, 'root'] as const,
+      queryFn: () => apiClient.get<TreeNode[]>('/ldap/tree', { params: { configId: cfg.id } }).then(r => r.data),
+      retry: false,
+      enabled: !collapsedConfigs.has(cfg.id),
+    })),
   })
 
   // Roots map
