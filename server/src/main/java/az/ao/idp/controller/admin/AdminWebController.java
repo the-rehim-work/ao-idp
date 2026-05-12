@@ -356,7 +356,7 @@ public class AdminWebController {
     ) {
         try {
             adminAuthService.createAdmin(
-                    new az.ao.idp.dto.request.CreateAdminRequest(username, password, displayName, adminType),
+                    new az.ao.idp.dto.request.CreateAdminRequest(username, password, displayName, adminType, null),
                     getSessionAdminId(request)
             );
             redirectAttributes.addFlashAttribute("success", "Admin yaradıldı");

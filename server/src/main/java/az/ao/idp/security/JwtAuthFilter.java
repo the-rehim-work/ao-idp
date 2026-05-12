@@ -35,7 +35,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
         String path = request.getRequestURI();
-        if (path.startsWith("/admin/") || (!path.equals("/userinfo") && !path.startsWith("/api/"))) {
+        if (path.startsWith("/admin/") || (!path.equals("/oauth2/userinfo") && !path.startsWith("/api/"))) {
             filterChain.doFilter(request, response);
             return;
         }

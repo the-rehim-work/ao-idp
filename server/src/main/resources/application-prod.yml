@@ -2,8 +2,8 @@ spring:
   application:
     name: ao-idp
   datasource:
-    url: jdbc:postgresql://${DB_HOST:postgres}:${DB_PORT:5432}/${DB_NAME:ao_idp}
-    username: ${DB_USERNAME:ao_idp}
+    url: jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:5432}/${DB_NAME}
+    username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     hikari:
       maximum-pool-size: 20
@@ -28,30 +28,23 @@ spring:
 
 ao:
   idp:
-    issuer: ${IDP_ISSUER:https://auth.ao.az}
-    ldap:
-      url: ${LDAP_URL:}
-      base-dn: ${LDAP_BASE_DN:}
-      service-account-dn: ${LDAP_SERVICE_ACCOUNT_DN:}
-      service-account-password: ${LDAP_SERVICE_PASSWORD:}
-      username-attribute: ${LDAP_USERNAME_ATTR:sAMAccountName}
-      user-object-class: ${LDAP_USER_OBJECT_CLASS:user}
+    issuer: ${IDP_ISSUER}
     jwt:
       access-token-expiry-minutes: 15
       refresh-token-expiry-days: 7
       admin-token-expiry-minutes: 480
-      rsa-key-path: ${JWT_KEY_PATH:classpath:keys}
+      rsa-key-path: classpath:keys
     brute-force:
       max-attempts: 5
       lockout-duration-minutes: 15
       ip-rate-limit-per-minute: 20
     cookie:
-      domain: ${COOKIE_DOMAIN:.ao.az}
-      name: ${COOKIE_NAME:ao-session}
+      domain: ${COOKIE_DOMAIN}
+      name: ao-session
       max-age-seconds: 28800
 
 server:
-  port: 8080
+  port: 7000
   forward-headers-strategy: native
   servlet:
     session:

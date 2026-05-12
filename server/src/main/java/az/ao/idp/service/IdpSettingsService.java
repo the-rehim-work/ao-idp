@@ -21,6 +21,9 @@ public class IdpSettingsService {
     private static final String KEY_REFRESH_EXPIRY = "refresh_token_expiry_days";
     private static final String KEY_ADMIN_EXPIRY = "admin_token_expiry_minutes";
     private static final String KEY_CLAIM_MAPPINGS = "jwt_claim_mappings";
+    private static final String KEY_LOGIN_IDENTIFIER_TYPE = "login_identifier_type";
+    private static final String KEY_LOGIN_PAGE_TITLE = "login_page_title";
+    private static final String KEY_LOG_RETENTION_DAYS = "log_retention_days";
 
     private final IdpSettingRepository repository;
     private final ObjectMapper objectMapper;
@@ -95,10 +98,42 @@ public class IdpSettingsService {
         }
     }
 
+    public record LoginSettings(String identifierType, String pageTitle, int logRetentionDays,
+                                String usernameAttribute, String emailAttribute) {}
+
+    public LoginSettings getLoginSettings() {
+        String type = get(KEY_LOGIN_IDENTIFIER_TYPE);
+        String title = get(KEY_LOGIN_PAGE_TITLE);
+        String retention = get(KEY_LOG_RETENTION_DAYS);
+        var activeLdap = ldapConfigService.getActive();
+        String usernameAttr = activeLdap.map(az.ao.idp.entity.LdapServerConfig::getUsernameAttribute).orElse("sAMAccountName");
+        String emailAttr    = activeLdap.map(az.ao.idp.entity.LdapServerConfig::getEmailAttribute).orElse("mail");
+        return new LoginSettings(
+                type != null ? type : "any",
+                title != null ? title : "AO ID",
+                retention != null ? Integer.parseInt(retention) : 10,
+                usernameAttr,
+                emailAttr
+        );
+    }
+
+    @Transactional
+    public void setLoginSettings(String identifierType, String pageTitle, int logRetentionDays) {
+        if (identifierType != null) set(KEY_LOGIN_IDENTIFIER_TYPE, identifierType);
+        if (pageTitle != null) set(KEY_LOGIN_PAGE_TITLE, pageTitle);
+        set(KEY_LOG_RETENTION_DAYS, String.valueOf(logRetentionDays));
+    }
+
+    public int getLogRetentionDays() {
+        String val = get(KEY_LOG_RETENTION_DAYS);
+        return val != null ? Integer.parseInt(val) : 10;
+    }
+
     public Map<String, Object> getAllSettings() {
         return Map.of(
                 "tokenSettings", getTokenSettings(),
-                "claimMappings", getClaimMappings()
+                "claimMappings", getClaimMappings(),
+                "loginSettings", getLoginSettings()
         );
     }
 }

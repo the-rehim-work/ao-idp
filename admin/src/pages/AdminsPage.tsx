@@ -6,10 +6,25 @@ import { appsApi } from '../api/apps'
 const C = '#00ffff', CD = '#00d4e8', CM = '#009bb5', CB = '#006b8a'
 const BORDER = 'rgba(0,255,255,0.18)', SURFACE = '#020d10', ERR = '#ff4444'
 
+const ALL_SECTIONS = [
+  { key: 'dashboard',     label: 'Dashboard' },
+  { key: 'applications',  label: 'Applications' },
+  { key: 'users',         label: 'Users' },
+  { key: 'directory',     label: 'Directory (LDAP)' },
+  { key: 'audit',         label: 'Audit Logs' },
+  { key: 'logs',          label: 'System Logs' },
+  { key: 'database',      label: 'Database Browser' },
+  { key: 'admins',        label: 'Admin Management' },
+  { key: 'settings',      label: 'Settings' },
+]
+
+const IDP_ADMIN_SECTIONS = ALL_SECTIONS.map(s => s.key)
+const DEFAULT_APP_ADMIN_SECTIONS = ['dashboard', 'applications', 'users']
+
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '1rem' }}>
-      <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, width: '100%', maxWidth: 480, padding: '1.75rem', boxShadow: `0 0 40px rgba(0,255,255,0.1)` }}>
+      <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', padding: '1.75rem', boxShadow: `0 0 40px rgba(0,255,255,0.1)` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 700, color: C, letterSpacing: '0.15em', textTransform: 'uppercase' }}>{title}</div>
           <button onClick={onClose} style={{ color: CB, background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem' }}>✕</button>
@@ -29,6 +44,25 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
+function PermissionPicker({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+  const toggle = (key: string) => {
+    onChange(value.includes(key) ? value.filter(k => k !== key) : [...value, key])
+  }
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
+      {ALL_SECTIONS.map(s => {
+        const on = value.includes(s.key)
+        return (
+          <label key={s.key} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.5rem', border: `1px solid ${on ? 'rgba(0,255,255,0.35)' : 'rgba(0,255,255,0.1)'}`, background: on ? 'rgba(0,255,255,0.05)' : 'transparent', cursor: 'pointer', fontSize: '0.7rem', color: on ? C : CB, transition: 'all 0.12s' }}>
+            <input type="checkbox" checked={on} onChange={() => toggle(s.key)} style={{ accentColor: C, width: 12, height: 12 }} />
+            {s.label}
+          </label>
+        )
+      })}
+    </div>
+  )
+}
+
 const inputStyle: React.CSSProperties = { width: '100%', padding: '0.5rem 0.75rem', background: '#000', border: `1px solid ${BORDER}`, color: C, fontFamily: 'inherit', fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box' }
 const btnPrimary: React.CSSProperties = { padding: '0.6rem 1.25rem', background: 'transparent', border: `1px solid ${C}`, color: C, fontFamily: 'inherit', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }
 const btnSecondary: React.CSSProperties = { ...btnPrimary, border: `1px solid ${CB}`, color: CB }
@@ -42,20 +76,21 @@ export default function AdminsPage() {
   const [editTarget, setEditTarget] = useState<AdminUser | null>(null)
   const [pwdTarget, setPwdTarget] = useState<AdminUser | null>(null)
   const [scopeTarget, setScopeTarget] = useState<AdminUser | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null)
   const [error, setError] = useState('')
 
-  const [form, setForm] = useState({ username: '', displayName: '', password: '', adminType: 'app_admin' })
-  const [editForm, setEditForm] = useState({ displayName: '', adminType: 'app_admin' })
+  const [form, setForm] = useState({ username: '', displayName: '', password: '', adminType: 'app_admin', permissions: DEFAULT_APP_ADMIN_SECTIONS as string[] })
+  const [editForm, setEditForm] = useState({ displayName: '', adminType: 'app_admin', permissions: DEFAULT_APP_ADMIN_SECTIONS as string[] })
   const [pwdForm, setPwdForm] = useState({ newPassword: '', confirm: '' })
 
   const createMut = useMutation({
-    mutationFn: () => adminsApi.create({ username: form.username, displayName: form.displayName, password: form.password, adminType: form.adminType }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admins'] }); setCreateOpen(false); setForm({ username: '', displayName: '', password: '', adminType: 'app_admin' }); setError('') },
-    onError: (e: any) => setError(e.response?.data?.error_description ?? 'Failed to create admin'),
+    mutationFn: () => adminsApi.create({ username: form.username, displayName: form.displayName, password: form.password, adminType: form.adminType, permissions: form.permissions }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admins'] }); setCreateOpen(false); setForm({ username: '', displayName: '', password: '', adminType: 'app_admin', permissions: DEFAULT_APP_ADMIN_SECTIONS }); setError('') },
+    onError: (e: any) => setError(e.response?.data?.error_description ?? e.response?.data?.error ?? 'Failed to create admin'),
   })
 
   const updateMut = useMutation({
-    mutationFn: () => adminsApi.update(editTarget!.id, { displayName: editForm.displayName, adminType: editForm.adminType }),
+    mutationFn: () => adminsApi.update(editTarget!.id, { displayName: editForm.displayName, adminType: editForm.adminType, permissions: editForm.permissions }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admins'] }); setEditTarget(null); setError('') },
     onError: (e: any) => setError(e.response?.data?.error_description ?? 'Failed to update'),
   })
@@ -74,6 +109,12 @@ export default function AdminsPage() {
   const deactivateMut = useMutation({
     mutationFn: (id: string) => adminsApi.deactivate(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admins'] }),
+  })
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => adminsApi.delete(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admins'] }); setDeleteTarget(null) },
+    onError: (e: any) => setError(e.response?.data?.error_description ?? 'Failed to delete admin'),
   })
 
   const { data: currentScopes = [], refetch: refetchScopes } = useQuery({
@@ -96,6 +137,12 @@ export default function AdminsPage() {
 
   const activeApps = apps.filter(a => a.is_active)
 
+  const onTypeChange = (type: string, isCreate: boolean) => {
+    const perms = type === 'idp_admin' ? IDP_ADMIN_SECTIONS : DEFAULT_APP_ADMIN_SECTIONS
+    if (isCreate) setForm(f => ({ ...f, adminType: type, permissions: perms }))
+    else setEditForm(f => ({ ...f, adminType: type, permissions: perms }))
+  }
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem' }}>
@@ -113,7 +160,7 @@ export default function AdminsPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                {['Username', 'Display Name', 'Type', 'Status', 'Created', 'Actions'].map(h => (
+                {['Username', 'Display Name', 'Type', 'Permissions', 'Status', 'Created', 'Actions'].map(h => (
                   <th key={h} style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.625rem', color: CB, letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: 400 }}>{h}</th>
                 ))}
               </tr>
@@ -128,6 +175,12 @@ export default function AdminsPage() {
                       {admin.adminType === 'idp_admin' ? 'IDP Admin' : 'App Admin'}
                     </span>
                   </td>
+                  <td style={{ padding: '0.75rem 1rem', color: CB, fontSize: '0.7rem' }}>
+                    {admin.adminType === 'idp_admin'
+                      ? <span style={{ color: CM }}>all sections</span>
+                      : (admin.permissions ?? []).join(', ') || '—'
+                    }
+                  </td>
                   <td style={{ padding: '0.75rem 1rem' }}>
                     <span style={{ fontSize: '0.625rem', color: admin.active ? C : ERR }}>{admin.active ? 'active' : 'inactive'}</span>
                   </td>
@@ -137,7 +190,7 @@ export default function AdminsPage() {
                   <td style={{ padding: '0.75rem 1rem' }}>
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                       <button style={{ ...btnSecondary, padding: '0.25rem 0.6rem', fontSize: '0.625rem' }}
-                        onClick={() => { setEditTarget(admin); setEditForm({ displayName: admin.displayName, adminType: admin.adminType }); setError('') }}>
+                        onClick={() => { setEditTarget(admin); setEditForm({ displayName: admin.displayName, adminType: admin.adminType, permissions: admin.permissions ?? [] }); setError('') }}>
                         edit
                       </button>
                       <button style={{ ...btnSecondary, padding: '0.25rem 0.6rem', fontSize: '0.625rem' }}
@@ -161,6 +214,10 @@ export default function AdminsPage() {
                           enable
                         </button>
                       )}
+                      <button style={{ ...btnSecondary, padding: '0.25rem 0.6rem', fontSize: '0.625rem', borderColor: ERR, color: ERR }}
+                        onClick={() => { setDeleteTarget(admin); setError('') }}>
+                        delete
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -177,10 +234,13 @@ export default function AdminsPage() {
           <Field label="Display Name"><input style={inputStyle} value={form.displayName} onChange={e => setForm(f => ({ ...f, displayName: e.target.value }))} placeholder="Full Name" /></Field>
           <Field label="Password"><input style={inputStyle} type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} autoComplete="new-password" /></Field>
           <Field label="Type">
-            <select style={{ ...inputStyle, cursor: 'pointer' }} value={form.adminType} onChange={e => setForm(f => ({ ...f, adminType: e.target.value }))}>
+            <select style={{ ...inputStyle, cursor: 'pointer' }} value={form.adminType} onChange={e => onTypeChange(e.target.value, true)}>
               <option value="app_admin">App Admin</option>
               <option value="idp_admin">IDP Admin</option>
             </select>
+          </Field>
+          <Field label="Section Permissions">
+            <PermissionPicker value={form.permissions} onChange={perms => setForm(f => ({ ...f, permissions: perms }))} />
           </Field>
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
             <button style={btnSecondary} onClick={() => { setCreateOpen(false); setError('') }}>cancel</button>
@@ -196,10 +256,13 @@ export default function AdminsPage() {
           {error && <div style={{ color: ERR, fontSize: '0.75rem', marginBottom: '1rem', padding: '0.5rem 0.75rem', border: '1px solid rgba(255,68,68,0.3)' }}>[ERR] {error}</div>}
           <Field label="Display Name"><input style={inputStyle} value={editForm.displayName} onChange={e => setEditForm(f => ({ ...f, displayName: e.target.value }))} /></Field>
           <Field label="Type">
-            <select style={{ ...inputStyle, cursor: 'pointer' }} value={editForm.adminType} onChange={e => setEditForm(f => ({ ...f, adminType: e.target.value }))}>
+            <select style={{ ...inputStyle, cursor: 'pointer' }} value={editForm.adminType} onChange={e => onTypeChange(e.target.value, false)}>
               <option value="app_admin">App Admin</option>
               <option value="idp_admin">IDP Admin</option>
             </select>
+          </Field>
+          <Field label="Section Permissions">
+            <PermissionPicker value={editForm.permissions} onChange={perms => setEditForm(f => ({ ...f, permissions: perms }))} />
           </Field>
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
             <button style={btnSecondary} onClick={() => { setEditTarget(null); setError('') }}>cancel</button>
@@ -223,6 +286,22 @@ export default function AdminsPage() {
             <button style={btnPrimary} onClick={() => pwdMut.mutate()}
               disabled={pwdMut.isPending || !pwdForm.newPassword || pwdForm.newPassword !== pwdForm.confirm}>
               {pwdMut.isPending ? 'resetting...' : '> reset password'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {deleteTarget && (
+        <Modal title={`Delete — ${deleteTarget.username}`} onClose={() => { setDeleteTarget(null); setError('') }}>
+          {error && <div style={{ color: ERR, fontSize: '0.75rem', marginBottom: '1rem', padding: '0.5rem 0.75rem', border: '1px solid rgba(255,68,68,0.3)' }}>[ERR] {error}</div>}
+          <div style={{ fontSize: '0.8rem', color: CD, marginBottom: '1.5rem', lineHeight: 1.6 }}>
+            Permanently delete <span style={{ color: C, fontWeight: 700 }}>{deleteTarget.username}</span>?<br />
+            <span style={{ color: CB, fontSize: '0.7rem' }}>This action cannot be undone. All app scopes will also be removed.</span>
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+            <button style={btnSecondary} onClick={() => { setDeleteTarget(null); setError('') }}>cancel</button>
+            <button style={{ ...btnPrimary, borderColor: ERR, color: ERR }} onClick={() => deleteMut.mutate(deleteTarget.id)} disabled={deleteMut.isPending}>
+              {deleteMut.isPending ? 'deleting...' : '> confirm delete'}
             </button>
           </div>
         </Modal>

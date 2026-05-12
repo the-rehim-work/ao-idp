@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usersApi } from '../api/users'
 import { appsApi } from '../api/apps'
@@ -192,11 +192,17 @@ function LdapUserRow({ user, apps }: { user: LdapUser; apps: Application[] }) {
 
 function DirectoryTab({ apps }: { apps: Application[] }) {
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [filterActivated, setFilterActivated] = useState<'all' | 'activated' | 'not_activated'>('all')
 
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 400)
+    return () => clearTimeout(t)
+  }, [search])
+
   const { data: allUsers = [], isLoading, error } = useQuery({
-    queryKey: ['ldap-users', search],
-    queryFn: () => usersApi.listLdap(search || undefined),
+    queryKey: ['ldap-users', debouncedSearch],
+    queryFn: () => usersApi.listLdap(debouncedSearch || undefined),
     retry: false,
   })
 
@@ -278,12 +284,18 @@ function DirectoryTab({ apps }: { apps: Application[] }) {
 function ActivatedTab() {
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [confirmUser, setConfirmUser] = useState<User | null>(null)
   const [expandedUser, setExpandedUser] = useState<string | null>(null)
 
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 400)
+    return () => clearTimeout(t)
+  }, [search])
+
   const { data, isLoading } = useQuery({
-    queryKey: ['users', search],
-    queryFn: () => usersApi.list({ search: search || undefined }),
+    queryKey: ['users', debouncedSearch],
+    queryFn: () => usersApi.list({ search: debouncedSearch || undefined }),
   })
 
   const blockMutation = useMutation({

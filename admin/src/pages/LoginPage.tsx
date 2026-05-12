@@ -25,7 +25,7 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const { data } = await apiClient.post('/auth/login', { username, password })
-      setAuth(data.access_token, data.admin_type, data.display_name)
+      setAuth(data.access_token, data.admin_type, data.display_name, data.permissions ?? [])
       if ('credentials' in navigator) {
         try {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

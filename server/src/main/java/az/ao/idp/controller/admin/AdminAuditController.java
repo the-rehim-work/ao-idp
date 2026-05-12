@@ -2,7 +2,6 @@ package az.ao.idp.controller.admin;
 
 import az.ao.idp.dto.response.AuditLogResponse;
 import az.ao.idp.dto.response.PageResponse;
-import az.ao.idp.entity.AuditLog;
 import az.ao.idp.service.AuditService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -42,18 +41,9 @@ public class AdminAuditController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size
     ) {
-        Page<AuditLog> logs = auditService.search(action, actorId, appId, from, to, page, size);
-        List<AuditLogResponse> content = logs.getContent().stream().map(l ->
-                new AuditLogResponse(
-                        l.getId(), l.getActorType(), l.getActorId(), l.getAction(),
-                        l.getTargetType(), l.getTargetId(),
-                        l.getApplication() != null ? l.getApplication().getId() : null,
-                        l.getIpAddress(), l.getUserAgent(), l.getDetails(), l.getCreatedAt()
-                )
-        ).toList();
-
+        Page<AuditLogResponse> logs = auditService.search(action, actorId, appId, from, to, page, size);
         return ResponseEntity.ok(new PageResponse<>(
-                content, page, size, logs.getTotalElements(), logs.getTotalPages(), logs.isLast()
+                logs.getContent(), page, size, logs.getTotalElements(), logs.getTotalPages(), logs.isLast()
         ));
     }
 }

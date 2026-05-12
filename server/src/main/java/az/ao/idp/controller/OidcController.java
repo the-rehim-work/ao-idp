@@ -8,6 +8,8 @@ import az.ao.idp.entity.User;
 import az.ao.idp.exception.InvalidTokenException;
 import az.ao.idp.repository.ApplicationRepository;
 import az.ao.idp.service.*;
+import az.ao.idp.service.IdpSettingsService;
+import az.ao.idp.service.LdapConfigService;
 import io.jsonwebtoken.Claims;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
 
@@ -40,6 +43,8 @@ public class OidcController {
     private final AuditService auditService;
     private final IdpProperties idpProperties;
     private final ApplicationRepository applicationRepository;
+    private final IdpSettingsService idpSettingsService;
+    private final LdapConfigService ldapConfigService;
 
     public OidcController(
             OidcService oidcService,
@@ -49,7 +54,9 @@ public class OidcController {
             BruteForceService bruteForceService,
             AuditService auditService,
             IdpProperties idpProperties,
-            ApplicationRepository applicationRepository
+            ApplicationRepository applicationRepository,
+            IdpSettingsService idpSettingsService,
+            LdapConfigService ldapConfigService
     ) {
         this.oidcService = oidcService;
         this.sessionService = sessionService;
@@ -59,6 +66,8 @@ public class OidcController {
         this.auditService = auditService;
         this.idpProperties = idpProperties;
         this.applicationRepository = applicationRepository;
+        this.idpSettingsService = idpSettingsService;
+        this.ldapConfigService = ldapConfigService;
     }
 
     @GetMapping("/login")
@@ -93,6 +102,18 @@ public class OidcController {
             applicationRepository.findByClientId(clientId)
                     .ifPresent(a -> model.addAttribute("appName", a.getName()));
         }
+        String continueAsJson = getUserProfileCookie(request);
+        if (continueAsJson != null) {
+            try {
+                String decoded = new String(Base64.getUrlDecoder().decode(continueAsJson), StandardCharsets.UTF_8);
+                model.addAttribute("continueAsJson", decoded);
+            } catch (Exception ignored) {}
+        }
+        boolean ldapActive = ldapConfigService.getActive().isPresent();
+        IdpSettingsService.LoginSettings loginSettings = idpSettingsService.getLoginSettings();
+        String identifierType = ldapActive ? loginSettings.identifierType() : "username";
+        model.addAttribute("identifierType", identifierType);
+        model.addAttribute("ldapActive", ldapActive);
         return "login";
     }
 
@@ -101,7 +122,7 @@ public class OidcController {
         return "redirect:/admin/";
     }
 
-    @GetMapping("/authorize")
+    @GetMapping("/oauth2/authorize")
     @Operation(summary = "Authorization endpoint", description = "Initiates Authorization Code flow. Redirects to login if no active session. Supports PKCE (code_challenge / S256).")
     public String authorize(
             @RequestParam("client_id") String clientId,
@@ -138,8 +159,9 @@ public class OidcController {
 
     @PostMapping("/login")
     public String login(
-            @RequestParam("username") String username,
+            @RequestParam("username") String identifier,
             @RequestParam("password") String password,
+            @RequestParam(value = "identifier_mode", defaultValue = "username") String identifierMode,
             @RequestParam(value = "client_id", required = false) String clientId,
             @RequestParam(value = "redirect_uri", required = false) String redirectUri,
             @RequestParam(value = "state", required = false) String state,
@@ -152,15 +174,26 @@ public class OidcController {
         String ipAddress = getClientIp(request);
 
         try {
-            bruteForceService.checkAndThrowIfLocked(username, ipAddress);
+            bruteForceService.checkAndThrowIfLocked(identifier, ipAddress);
 
-            User existingUser = userService.findByLdapUsername(username).orElse(null);
+            boolean byEmail = "email".equals(identifierMode)
+                    || ("any".equals(identifierMode) && identifier.contains("@"));
+
+            User existingUser;
+            String username;
+            if (byEmail) {
+                existingUser = userService.findByEmail(identifier).orElse(null);
+                username = existingUser != null ? existingUser.getLdapUsername() : identifier;
+            } else {
+                existingUser = userService.findByLdapUsername(identifier).orElse(null);
+                username = identifier;
+            }
             UUID knownLdapServerId = existingUser != null ? existingUser.getLdapServerId() : null;
 
             LdapService.AuthResult authResult = ldapService.authenticate(username, password, knownLdapServerId);
             if (!authResult.success()) {
-                bruteForceService.recordFailedAttempt(username, ipAddress);
-                int remaining = bruteForceService.getRemainingAttempts(username, ipAddress);
+                bruteForceService.recordFailedAttempt(identifier, ipAddress);
+                int remaining = bruteForceService.getRemainingAttempts(identifier, ipAddress);
                 auditService.log("user", username, "login_failed", null, null, null, ipAddress, request.getHeader("User-Agent"),
                         Map.of("reason", "invalid_credentials", "ldap_username", username, "remaining_attempts", remaining,
                                 "app_client_id", clientId != null ? clientId : "none", "app_name", "none"));
@@ -178,7 +211,7 @@ public class OidcController {
             User user = existingUser;
             userService.updateLastLogin(user.getId());
             userService.updateLdapServerId(user.getId(), authResult.ldapServerId());
-            bruteForceService.recordSuccessfulAttempt(username, ipAddress);
+            bruteForceService.recordSuccessfulAttempt(identifier, ipAddress);
 
             if (clientId != null && redirectUri != null) {
                 Application loginApp = applicationRepository.findByClientId(clientId).orElse(null);
@@ -205,6 +238,25 @@ public class OidcController {
             String sessionId = sessionService.createSession(user.getId(), username);
             Cookie sessionCookie = buildSessionCookie(sessionId);
             response.addCookie(sessionCookie);
+
+            String displayName = attrs.displayName() != null ? attrs.displayName() : username;
+            String profileJson = "{\"u\":\"" + escapeJson(username) + "\",\"n\":\"" + escapeJson(displayName) + "\"}";
+            Cookie profileCookie = new Cookie("ao-user",
+                    Base64.getUrlEncoder().withoutPadding().encodeToString(profileJson.getBytes(StandardCharsets.UTF_8)));
+            profileCookie.setHttpOnly(false);
+            profileCookie.setSecure(idpProperties.issuer().startsWith("https"));
+            profileCookie.setPath("/");
+            profileCookie.setMaxAge(30 * 24 * 60 * 60);
+            String profileCookieDomain = idpProperties.cookie().domain();
+            if (profileCookieDomain != null && profileCookieDomain.startsWith(".")) {
+                profileCookieDomain = profileCookieDomain.substring(1);
+            }
+            if (profileCookieDomain != null) profileCookie.setDomain(profileCookieDomain);
+            response.addCookie(profileCookie);
+
+            if (clientId == null || clientId.isBlank() || redirectUri == null || redirectUri.isBlank()) {
+                return "redirect:/admin/";
+            }
 
             String code = oidcService.generateAndStoreAuthCode(user.getId(), clientId, redirectUri, scope, codeChallenge);
             return "redirect:" + redirectUri + "?code=" + code + "&state=" + state;
@@ -235,7 +287,7 @@ public class OidcController {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
-    @PostMapping(value = "/token", consumes = "application/x-www-form-urlencoded")
+    @PostMapping(value = "/oauth2/token", consumes = "application/x-www-form-urlencoded")
     @ResponseBody
     @Operation(summary = "Token endpoint", description = "Exchange authorization code for tokens (grant_type=authorization_code) or refresh an access token (grant_type=refresh_token). RFC 6749 §4.1.3 and §6.")
     public ResponseEntity<TokenResponse> token(
@@ -258,7 +310,7 @@ public class OidcController {
         };
     }
 
-    @GetMapping("/userinfo")
+    @GetMapping("/oauth2/userinfo")
     @ResponseBody
     @Operation(summary = "UserInfo endpoint", description = "Returns identity claims for the authenticated user (OIDC Core §5.3). Requires Bearer token.")
     @SecurityRequirement(name = "BearerAuth")
@@ -274,7 +326,7 @@ public class OidcController {
         return ResponseEntity.ok(oidcService.getUserInfo(userId, clientId));
     }
 
-    @PostMapping(value = "/token/revoke", consumes = "application/x-www-form-urlencoded")
+    @PostMapping(value = "/oauth2/token/revoke", consumes = "application/x-www-form-urlencoded")
     @ResponseBody
     @Operation(summary = "Token revocation (RFC 7009)", description = "Revokes a refresh_token. Returns 200 even if the token is invalid (RFC 7009 §2.2). Client must authenticate.")
     public ResponseEntity<Void> revokeToken(
@@ -287,9 +339,9 @@ public class OidcController {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping(value = "/logout", consumes = "application/x-www-form-urlencoded")
+    @PostMapping(value = "/oauth2/logout")
     @ResponseBody
-    @Operation(summary = "Logout / end session", description = "Invalidates the SSO session and refresh token. Clears the session cookie.")
+    @Operation(summary = "Logout / end session (POST)", description = "Invalidates the SSO session and refresh token. Clears the session cookie.")
     public ResponseEntity<Void> logout(
             @RequestParam(value = "refresh_token", required = false) String refreshToken,
             @RequestParam(value = "client_id", required = false) String clientId,
@@ -299,12 +351,30 @@ public class OidcController {
     ) {
         String sessionId = getSessionCookie(request);
         oidcService.logout(refreshToken, sessionId, clientId);
-
         Cookie expiredCookie = buildSessionCookie("");
         expiredCookie.setMaxAge(0);
         response.addCookie(expiredCookie);
-
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping(value = "/oauth2/logout")
+    @Operation(summary = "Logout / end session (GET)", description = "RP-initiated logout via browser redirect (OIDC Session Management). Clears session cookie and redirects to post_logout_redirect_uri if provided.")
+    public String logoutGet(
+            @RequestParam(value = "id_token_hint", required = false) String idTokenHint,
+            @RequestParam(value = "post_logout_redirect_uri", required = false) String redirectUri,
+            @RequestParam(value = "client_id", required = false) String clientId,
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        String sessionId = getSessionCookie(request);
+        oidcService.logout(null, sessionId, clientId);
+        Cookie expiredCookie = buildSessionCookie("");
+        expiredCookie.setMaxAge(0);
+        response.addCookie(expiredCookie);
+        if (redirectUri != null && !redirectUri.isBlank()) {
+            return "redirect:" + redirectUri;
+        }
+        return "redirect:/login";
     }
 
     private Cookie buildSessionCookie(String value) {
@@ -329,6 +399,20 @@ public class OidcController {
             if (cookieName.equals(c.getName())) return c.getValue();
         }
         return null;
+    }
+
+    private String getUserProfileCookie(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) return null;
+        for (Cookie c : cookies) {
+            if ("ao-user".equals(c.getName()) && c.getValue() != null && !c.getValue().isBlank()) return c.getValue();
+        }
+        return null;
+    }
+
+    private static String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     private String getClientIp(HttpServletRequest request) {

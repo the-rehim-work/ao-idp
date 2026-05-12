@@ -1,10 +1,14 @@
-import { useState } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useCallback, useReducer } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../api/client'
 import { usersApi } from '../api/users'
 import { appsApi } from '../api/apps'
 import { settingsApi, LdapServerConfig } from '../api/settings'
 import type { Application } from '../types'
+
+/* ======================================================================
+   Type definitions
+   ====================================================================== */
 
 interface TreeNode {
   dn: string
@@ -17,61 +21,457 @@ interface TreeNode {
   has_children: boolean
   is_activated: boolean
   groups?: string[]
-  children?: TreeNode[]
 }
+
+interface FlatNode {
+  node: TreeNode
+  depth: number
+  configId: string
+  isLast: boolean
+  parentDepthFlags: boolean[]
+  kind: 'node' | 'skeleton' | 'empty' | 'config'
+  configRef?: LdapServerConfig
+}
+
+interface Selection {
+  configId: string
+  node: TreeNode
+}
+
+interface PinnedRef {
+  node: TreeNode
+  configId: string
+}
+
+interface RecentRef {
+  node: TreeNode
+  configId: string
+  ts: number
+}
+
+/* ======================================================================
+   Color palette / fonts
+   ====================================================================== */
 
 const C = {
   bg: '#000',
   surface: '#020d10',
   surface2: '#041520',
+  surface3: '#06202c',
   border: 'rgba(0,255,255,0.15)',
   borderHover: 'rgba(0,255,255,0.35)',
-  green: '#00ffff',
-  greenDim: '#00d4e8',
-  greenMuted: 'rgba(0,255,255,0.1)',
+  borderFaint: 'rgba(0,255,255,0.08)',
+  cyan: '#00ffff',
+  cyanDim: '#00d4e8',
   text: '#00ffff',
   textDim: '#009bb5',
   textMuted: '#006b8a',
   blue: '#00ccff',
+  ouGold: '#f0b429',
+  containerBlue: '#60a5fa',
   purple: '#aa88ff',
   amber: '#ff8800',
   red: '#ff3333',
+  green: '#00ff88',
+  slate: '#8aa1b0',
 }
 
-function NodeIcon({ type, expanded }: { type: string; expanded?: boolean }) {
-  if (type === 'ou') return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" style={{ color: C.blue, flexShrink: 0 }}>
-      {expanded
-        ? <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"/>
-        : <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1H8a3 3 0 00-3 3v1.5a1.5 1.5 0 01-3 0V6z" clipRule="evenodd"/>
+const FONT = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
+const ROW_H = 26
+const INDENT = 16
+const LINE_COLOR = 'rgba(0,255,255,0.08)'
+const OVERSCAN = 5
+
+const LS_PINNED = 'ldap-pinned'
+const LS_FAVORITES = 'ldap-favorites'
+const LS_RECENT = 'ldap-recent'
+const LS_PANEL_WIDTH = 'ldap-panel-width'
+
+/* ======================================================================
+   Icons
+   ====================================================================== */
+
+function Spinner({ size = 12, color = C.cyan }: { size?: number; color?: string }) {
+  const [angle, setAngle] = useState(0)
+  const ref = useRef<number | null>(null)
+  useEffect(() => {
+    const tick = () => {
+      setAngle(a => (a + 6) % 360)
+      ref.current = requestAnimationFrame(tick)
+    }
+    ref.current = requestAnimationFrame(tick)
+    return () => { if (ref.current) cancelAnimationFrame(ref.current) }
+  }, [])
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" style={{ flexShrink: 0, transform: `rotate(${angle}deg)` }}>
+      <circle cx="12" cy="12" r="10" fill="none" stroke={C.borderFaint} strokeWidth="2.5" />
+      <path d="M12 2 A10 10 0 0 1 22 12" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function DomainIcon({ size = 14, color = C.cyan }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke={color} strokeWidth="1.4" style={{ flexShrink: 0 }}>
+      <circle cx="10" cy="10" r="7.5" />
+      <ellipse cx="10" cy="10" rx="3.5" ry="7.5" />
+      <line x1="2.5" y1="10" x2="17.5" y2="10" />
+      <line x1="10" y1="2.5" x2="10" y2="17.5" />
+    </svg>
+  )
+}
+
+function OuFolderIcon({ expanded, size = 14 }: { expanded: boolean; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" style={{ flexShrink: 0 }}>
+      {expanded ? (
+        <>
+          <path d="M2 5.5a1.5 1.5 0 011.5-1.5h4l1.6 1.7H16a1.5 1.5 0 011.5 1.5v.8H4.5a1.5 1.5 0 00-1.45 1.1L2 12.5V5.5z" fill={C.ouGold} opacity="0.55" />
+          <path d="M3.2 9.2a1.2 1.2 0 011.16-.9h13.5a1 1 0 01.97 1.27l-1.6 5.7A1.5 1.5 0 0115.78 16.4H3.5A1.5 1.5 0 012 14.9V14L3.2 9.2z" fill={C.ouGold} />
+          <path d="M3.2 9.2a1.2 1.2 0 011.16-.9h13.5a1 1 0 01.97 1.27l-1.6 5.7A1.5 1.5 0 0115.78 16.4H3.5A1.5 1.5 0 012 14.9V14L3.2 9.2z" fill="none" stroke="#a87a0a" strokeWidth="0.5" opacity="0.4" />
+        </>
+      ) : (
+        <>
+          <path d="M2 5.5a1.5 1.5 0 011.5-1.5h4.586a1 1 0 01.707.293l1.414 1.414a1 1 0 00.707.293H16a1.5 1.5 0 011.5 1.5V14.5A1.5 1.5 0 0116 16H3.5A1.5 1.5 0 012 14.5V5.5z" fill={C.ouGold} />
+          <path d="M2 7.4h15.5V8.1H2z" fill="#a87a0a" opacity="0.5" />
+        </>
+      )}
+    </svg>
+  )
+}
+
+function ContainerIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke={C.containerBlue} strokeWidth="1.4" style={{ flexShrink: 0 }}>
+      <rect x="3" y="5" width="14" height="11" rx="1" />
+      <line x1="3" y1="9" x2="17" y2="9" />
+      <circle cx="6" cy="7" r="0.5" fill={C.containerBlue} />
+      <circle cx="8" cy="7" r="0.5" fill={C.containerBlue} />
+    </svg>
+  )
+}
+
+function UserIcon({ activated, size = 13 }: { activated: boolean; size?: number }) {
+  const color = activated ? C.cyan : C.textMuted
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" style={{ flexShrink: 0 }}>
+      <circle cx="10" cy="6.5" r="3" fill="none" stroke={color} strokeWidth="1.4" />
+      <path d="M3.5 17.5c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5" fill="none" stroke={color} strokeWidth="1.4" strokeLinecap="round" />
+      {activated && <circle cx="15.5" cy="14.5" r="2.6" fill={C.bg} stroke={C.green} strokeWidth="1.2" />}
+      {activated && <path d="M14.2 14.5l1 1 1.6-1.7" fill="none" stroke={C.green} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />}
+    </svg>
+  )
+}
+
+function GroupShieldIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" style={{ flexShrink: 0 }}>
+      <path d="M10 1.5l6 2.2v5.1c0 3.6-2.5 7-6 8.2-3.5-1.2-6-4.6-6-8.2V3.7L10 1.5z" fill="none" stroke={C.purple} strokeWidth="1.3" />
+      <circle cx="10" cy="8" r="1.8" fill={C.purple} opacity="0.85" />
+      <path d="M6.8 13.2c.6-1.5 1.9-2.4 3.2-2.4s2.6.9 3.2 2.4" fill="none" stroke={C.purple} strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function OtherIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke={C.textMuted} strokeWidth="1.4" style={{ flexShrink: 0 }}>
+      <rect x="4" y="4" width="12" height="12" rx="1" />
+      <line x1="4" y1="8" x2="16" y2="8" />
+    </svg>
+  )
+}
+
+function ComputerIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke={C.slate} strokeWidth="1.3" style={{ flexShrink: 0 }}>
+      <rect x="2.5" y="3.5" width="15" height="10" rx="1" />
+      <line x1="2.5" y1="11.5" x2="17.5" y2="11.5" />
+      <path d="M7.5 16.5h5M10 13.5v3" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function GPOIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke={C.blue} strokeWidth="1.3" style={{ flexShrink: 0 }}>
+      <path d="M4 2.5h8l4 4v11a1 1 0 01-1 1H4a1 1 0 01-1-1V3.5a1 1 0 011-1z" />
+      <path d="M12 2.5v4h4" />
+      <circle cx="10" cy="13" r="2" />
+      <path d="M10 10v1.5M10 14.5V16M7 13h1.5M11.5 13H13" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function ServiceAccountIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke={C.amber} strokeWidth="1.3" style={{ flexShrink: 0 }}>
+      <circle cx="8" cy="6.5" r="2.5" />
+      <path d="M2.5 16c0-3 2.5-5.5 5.5-5.5s5.5 2.5 5.5 5.5" strokeLinecap="round" />
+      <circle cx="15" cy="14" r="2.5" fill={C.bg} />
+      <path d="M15 12.5v.5M15 15v.5M13.5 14h.5M16 14h.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function DNSIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke={C.green} strokeWidth="1.3" style={{ flexShrink: 0 }}>
+      <circle cx="10" cy="10" r="7" />
+      <path d="M3 10h14M10 3c2 2 3 4.5 3 7s-1 5-3 7c-2-2-3-4.5-3-7s1-5 3-7z" />
+    </svg>
+  )
+}
+
+function Chevron({ expanded, size = 10 }: { expanded: boolean; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="currentColor"
+      style={{ color: C.textMuted, flexShrink: 0, transition: 'transform 0.15s ease', transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>
+      <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+    </svg>
+  )
+}
+
+function SearchIcon({ size = 12 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" style={{ flexShrink: 0 }}>
+      <circle cx="9" cy="9" r="5" />
+      <line x1="13" y1="13" x2="17" y2="17" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function StarIcon({ filled, size = 11 }: { filled: boolean; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" style={{ flexShrink: 0 }}>
+      <path
+        d="M10 1.5l2.6 5.4 5.9.8-4.3 4.1 1.1 5.9L10 14.9 4.7 17.7l1.1-5.9L1.5 7.7l5.9-.8L10 1.5z"
+        fill={filled ? C.amber : 'none'}
+        stroke={filled ? C.amber : C.textMuted}
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function PinIcon({ size = 11, color = C.cyan }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke={color} strokeWidth="1.4" style={{ flexShrink: 0 }}>
+      <path d="M10 13v5M6 8h8v-2l-2-3H8L6 6v2zM6 8l-1 4h10l-1-4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/* ======================================================================
+   Helpers
+   ====================================================================== */
+
+function deriveDomain(baseDn: string): string {
+  if (!baseDn) return ''
+  const parts = baseDn.split(',').map(p => p.trim())
+  const dcs = parts.filter(p => p.toLowerCase().startsWith('dc=')).map(p => p.slice(3))
+  if (dcs.length > 0) return dcs.join('.')
+  return baseDn
+}
+
+function nowStamp(): string {
+  const d = new Date()
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
+function classifyOther(node: TreeNode): 'computer' | 'gpo' | 'service' | 'dns' | 'container' | 'other' {
+  const rdn = node.rdn.toLowerCase()
+  const name = node.name.toLowerCase()
+  if (rdn.includes('cn=computers') || name.includes('computer')) return 'computer'
+  if (rdn.includes('cn=policies') || name.includes('polic')) return 'gpo'
+  if (name.includes('service') || name.includes('svc')) return 'service'
+  if (name.includes('dns') || rdn.includes('dns')) return 'dns'
+  if (rdn.startsWith('cn=system') || rdn.startsWith('cn=builtin') || rdn.startsWith('cn=')) return 'container'
+  return 'other'
+}
+
+function readLS<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return fallback
+    return JSON.parse(raw) as T
+  } catch {
+    return fallback
+  }
+}
+
+function writeLS(key: string, value: unknown): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch {
+    /* ignore quota errors */
+  }
+}
+
+function dnAncestors(dn: string): string[] {
+  // Splits at top-level commas (no nested escaping handling, but adequate for AD)
+  const parts: string[] = []
+  let buf = ''
+  let escaped = false
+  for (let i = 0; i < dn.length; i++) {
+    const c = dn[i]
+    if (escaped) { buf += c; escaped = false; continue }
+    if (c === '\\') { buf += c; escaped = true; continue }
+    if (c === ',') { parts.push(buf.trim()); buf = ''; continue }
+    buf += c
+  }
+  if (buf) parts.push(buf.trim())
+  // Build ancestors: for parts [cn=John, ou=IT, ou=Corp, dc=corp, dc=example, dc=com],
+  // ancestors are joins of [1..], [2..], etc.
+  const ancestors: string[] = []
+  for (let i = 1; i < parts.length; i++) {
+    ancestors.push(parts.slice(i).join(','))
+  }
+  return ancestors
+}
+
+/* ======================================================================
+   Tree state reducer
+   ====================================================================== */
+
+interface TreeState {
+  expandedDns: Set<string>
+  childMap: Map<string, TreeNode[]>
+  loadingDns: Set<string>
+  searchQuery: string
+  debouncedSearch: string
+  selection: Selection | null
+  favorites: Set<string>
+  pinnedNodes: Map<string, PinnedRef>
+  recentNodes: RecentRef[]
+  multiSelected: Set<string>
+}
+
+type TreeAction =
+  | { type: 'TOGGLE_EXPAND'; dn: string }
+  | { type: 'EXPAND'; dn: string }
+  | { type: 'COLLAPSE'; dn: string }
+  | { type: 'SET_CHILDREN'; dn: string; children: TreeNode[] }
+  | { type: 'SET_LOADING'; dn: string; loading: boolean }
+  | { type: 'SET_SEARCH'; query: string }
+  | { type: 'SET_DEBOUNCED_SEARCH'; query: string }
+  | { type: 'SELECT'; configId: string; node: TreeNode }
+  | { type: 'CLEAR_SELECT' }
+  | { type: 'TOGGLE_FAVORITE'; dn: string }
+  | { type: 'PIN_NODE'; dn: string; ref: PinnedRef }
+  | { type: 'UNPIN_NODE'; dn: string }
+  | { type: 'ADD_RECENT'; node: TreeNode; configId: string }
+  | { type: 'SET_MULTISELECT'; dns: Set<string> }
+  | { type: 'TOGGLE_MULTISELECT'; dn: string }
+  | { type: 'CLEAR_MULTISELECT' }
+  | { type: 'HYDRATE_PERSIST'; favorites: Set<string>; pinned: Map<string, PinnedRef>; recent: RecentRef[] }
+
+function initState(): TreeState {
+  return {
+    expandedDns: new Set<string>(),
+    childMap: new Map<string, TreeNode[]>(),
+    loadingDns: new Set<string>(),
+    searchQuery: '',
+    debouncedSearch: '',
+    selection: null,
+    favorites: new Set<string>(),
+    pinnedNodes: new Map<string, PinnedRef>(),
+    recentNodes: [],
+    multiSelected: new Set<string>(),
+  }
+}
+
+function treeReducer(state: TreeState, action: TreeAction): TreeState {
+  switch (action.type) {
+    case 'TOGGLE_EXPAND': {
+      const next = new Set(state.expandedDns)
+      if (next.has(action.dn)) next.delete(action.dn)
+      else next.add(action.dn)
+      return { ...state, expandedDns: next }
+    }
+    case 'EXPAND': {
+      if (state.expandedDns.has(action.dn)) return state
+      const next = new Set(state.expandedDns)
+      next.add(action.dn)
+      return { ...state, expandedDns: next }
+    }
+    case 'COLLAPSE': {
+      if (!state.expandedDns.has(action.dn)) return state
+      const next = new Set(state.expandedDns)
+      next.delete(action.dn)
+      return { ...state, expandedDns: next }
+    }
+    case 'SET_CHILDREN': {
+      const m = new Map(state.childMap)
+      m.set(action.dn, action.children)
+      return { ...state, childMap: m }
+    }
+    case 'SET_LOADING': {
+      const next = new Set(state.loadingDns)
+      if (action.loading) next.add(action.dn)
+      else next.delete(action.dn)
+      return { ...state, loadingDns: next }
+    }
+    case 'SET_SEARCH':
+      return { ...state, searchQuery: action.query }
+    case 'SET_DEBOUNCED_SEARCH':
+      return { ...state, debouncedSearch: action.query }
+    case 'SELECT':
+      return { ...state, selection: { configId: action.configId, node: action.node } }
+    case 'CLEAR_SELECT':
+      return { ...state, selection: null }
+    case 'TOGGLE_FAVORITE': {
+      const next = new Set(state.favorites)
+      if (next.has(action.dn)) next.delete(action.dn)
+      else next.add(action.dn)
+      return { ...state, favorites: next }
+    }
+    case 'PIN_NODE': {
+      const m = new Map(state.pinnedNodes)
+      m.set(action.dn, action.ref)
+      return { ...state, pinnedNodes: m }
+    }
+    case 'UNPIN_NODE': {
+      const m = new Map(state.pinnedNodes)
+      m.delete(action.dn)
+      return { ...state, pinnedNodes: m }
+    }
+    case 'ADD_RECENT': {
+      const filtered = state.recentNodes.filter(r => r.node.dn !== action.node.dn)
+      const next = [{ node: action.node, configId: action.configId, ts: Date.now() }, ...filtered].slice(0, 10)
+      return { ...state, recentNodes: next }
+    }
+    case 'SET_MULTISELECT':
+      return { ...state, multiSelected: action.dns }
+    case 'TOGGLE_MULTISELECT': {
+      const next = new Set(state.multiSelected)
+      if (next.has(action.dn)) next.delete(action.dn)
+      else next.add(action.dn)
+      return { ...state, multiSelected: next }
+    }
+    case 'CLEAR_MULTISELECT':
+      return { ...state, multiSelected: new Set<string>() }
+    case 'HYDRATE_PERSIST':
+      return {
+        ...state,
+        favorites: action.favorites,
+        pinnedNodes: action.pinned,
+        recentNodes: action.recent,
       }
-    </svg>
-  )
-  if (type === 'group') return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" style={{ color: C.purple, flexShrink: 0 }}>
-      <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
-    </svg>
-  )
-  if (type === 'user') return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" style={{ color: C.green, flexShrink: 0 }}>
-      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"/>
-    </svg>
-  )
-  return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" style={{ color: C.textMuted, flexShrink: 0 }}>
-      <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd"/>
-    </svg>
-  )
+    default:
+      return state
+  }
 }
 
-function ChevronIcon({ expanded }: { expanded: boolean }) {
-  return (
-    <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"
-      style={{ color: C.textMuted, flexShrink: 0, transition: 'transform 0.15s', transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>
-      <path fillRule="evenodd" d="M7.293 4.707a1 1 0 010 1.414L3.414 10l3.879 3.879a1 1 0 01-1.414 1.414l-4.586-4.586a1 1 0 010-1.414l4.586-4.586a1 1 0 011.414 0z" clipRule="evenodd" transform="rotate(180 10 10)"/>
-    </svg>
-  )
-}
+/* ======================================================================
+   Per-config root loader (small wrapper hook used inside main page)
+   ====================================================================== */
+
+/* ======================================================================
+   Activate modal
+   ====================================================================== */
 
 function ActivateModal({ node, apps, onClose }: { node: TreeNode; apps: Application[]; onClose: () => void }) {
   const qc = useQueryClient()
@@ -85,54 +485,114 @@ function ActivateModal({ node, apps, onClose }: { node: TreeNode; apps: Applicat
       onClose()
     },
     onError: (e: { response?: { data?: { message?: string } } }) => {
-      setError(e.response?.data?.message ?? 'Activation failed')
+      setError(e.response?.data?.message ?? 'Operation failed')
     },
   })
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
-      style={{ background: 'rgba(0,0,0,0.7)' }}
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-md border rounded-lg" style={{ background: C.surface, borderColor: C.borderHover }}>
-        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: C.border }}>
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 60,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '1rem', background: 'rgba(0,0,0,0.78)',
+        backdropFilter: 'blur(2px)',
+        animation: 'ldapFadeIn 0.15s ease',
+      }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div style={{
+        width: '100%', maxWidth: 460,
+        border: `1px solid ${C.borderHover}`,
+        background: C.surface,
+        boxShadow: '0 0 0 1px rgba(0,255,255,0.08), 0 30px 80px rgba(0,255,255,0.06)',
+        fontFamily: FONT,
+      }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0.875rem 1.125rem',
+          borderBottom: `1px solid ${C.border}`,
+          background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
+        }}>
           <div>
-            <div className="text-sm font-semibold" style={{ color: C.text }}>Grant App Access</div>
-            <div className="text-xs mt-0.5" style={{ color: C.textDim }}>{node.name}</div>
+            <div style={{ fontSize: '0.625rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: C.textMuted }}>
+              modal &middot; grant_access
+            </div>
+            <div style={{ fontSize: '0.875rem', fontWeight: 700, color: C.cyan, marginTop: 2 }}>
+              {node.name}
+            </div>
           </div>
-          <button onClick={onClose} style={{ color: C.textMuted, background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', lineHeight: 1 }}>×</button>
+          <button onClick={onClose} style={{
+            background: 'none', border: `1px solid ${C.border}`, cursor: 'pointer',
+            color: C.textDim, fontSize: '0.875rem', lineHeight: 1, padding: '4px 8px',
+            fontFamily: FONT,
+          }}>×</button>
         </div>
-        <div className="px-5 py-5 space-y-4">
-          {node.email && (
-            <div className="p-3 rounded border text-xs" style={{ background: C.surface2, borderColor: C.border }}>
-              <div style={{ color: C.textMuted }}>email</div>
-              <div className="mt-0.5" style={{ color: C.textDim }}>{node.email}</div>
-              {node.title && <>
-                <div className="mt-2" style={{ color: C.textMuted }}>title</div>
-                <div className="mt-0.5" style={{ color: C.textDim }}>{node.title}</div>
-              </>}
-            </div>
-          )}
+
+        <div style={{ padding: '1.125rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+          <div style={{
+            padding: '0.625rem 0.75rem', border: `1px solid ${C.border}`,
+            background: C.bg, fontSize: '0.7rem', lineHeight: 1.7,
+          }}>
+            {node.ldap_username && <div style={{ color: C.textMuted }}>uid&nbsp;&nbsp;= <span style={{ color: C.cyan }}>{node.ldap_username}</span></div>}
+            {node.email && <div style={{ color: C.textMuted }}>mail = <span style={{ color: C.textDim }}>{node.email}</span></div>}
+            {node.title && <div style={{ color: C.textMuted }}>title = <span style={{ color: C.textDim }}>{node.title}</span></div>}
+          </div>
+
           {error && (
-            <div className="px-3 py-2 text-xs rounded border" style={{ color: C.red, borderColor: 'rgba(248,113,113,0.3)', background: 'rgba(248,113,113,0.06)' }}>
-              {error}
+            <div style={{
+              padding: '0.5rem 0.75rem', fontSize: '0.7rem',
+              border: '1px solid rgba(255,51,51,0.35)', background: 'rgba(255,51,51,0.08)',
+              color: C.red,
+            }}>
+              ! {error}
             </div>
           )}
+
           <div>
-            <label className="block text-xs mb-1.5" style={{ color: C.textDim }}>Application</label>
-            <select value={appId} onChange={e => setAppId(e.target.value)}
-              style={{ width: '100%', padding: '.5rem .75rem', border: `1px solid ${C.border}`, borderRadius: 6, background: C.surface2, color: C.text, fontFamily: 'inherit', fontSize: '.8125rem', outline: 'none' }}>
-              <option value="" style={{ background: C.surface }}>Select application...</option>
-              {apps.map(a => <option key={a.id} value={a.id} style={{ background: C.surface }}>{a.name}</option>)}
+            <label style={{ display: 'block', fontSize: '0.625rem', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6, color: C.textMuted }}>
+              target_application
+            </label>
+            <select
+              value={appId}
+              onChange={e => setAppId(e.target.value)}
+              style={{
+                width: '100%', padding: '0.5rem 0.75rem',
+                border: `1px solid ${C.border}`, background: C.bg,
+                color: C.cyan, fontFamily: FONT, fontSize: '0.8125rem', outline: 'none',
+              }}
+            >
+              <option value="" style={{ background: C.surface }}>— select application —</option>
+              {apps.map(a => (
+                <option key={a.id} value={a.id} style={{ background: C.surface }}>{a.name}</option>
+              ))}
             </select>
           </div>
-          <div className="flex gap-2 justify-end pt-1">
-            <button onClick={onClose} className="px-4 py-2 text-xs rounded"
-              style={{ color: C.textDim, border: `1px solid ${C.border}`, background: 'none', cursor: 'pointer' }}>
-              Cancel
+
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 4 }}>
+            <button
+              onClick={onClose}
+              style={{
+                padding: '0.45rem 1rem', fontSize: '0.75rem',
+                border: `1px solid ${C.border}`, background: 'none',
+                color: C.textDim, cursor: 'pointer', fontFamily: FONT,
+              }}
+            >
+              cancel
             </button>
-            <button onClick={() => mutation.mutate()} disabled={!appId || mutation.isPending} className="px-4 py-2 text-xs font-semibold rounded"
-              style={{ color: '#000', background: (!appId || mutation.isPending) ? C.greenDim : C.green, border: 'none', cursor: 'pointer' }}>
-              {mutation.isPending ? 'Granting...' : 'Grant Access'}
+            <button
+              onClick={() => mutation.mutate()}
+              disabled={!appId || mutation.isPending}
+              style={{
+                padding: '0.45rem 1rem', fontSize: '0.75rem', fontWeight: 700,
+                border: `1px solid ${(!appId || mutation.isPending) ? C.border : C.cyan}`,
+                background: (!appId || mutation.isPending) ? 'transparent' : C.cyan,
+                color: (!appId || mutation.isPending) ? C.textMuted : '#000',
+                cursor: (!appId || mutation.isPending) ? 'not-allowed' : 'pointer',
+                fontFamily: FONT,
+                letterSpacing: '0.05em',
+              }}
+            >
+              {mutation.isPending ? 'granting...' : '> grant_access'}
             </button>
           </div>
         </div>
@@ -141,177 +601,1113 @@ function ActivateModal({ node, apps, onClose }: { node: TreeNode; apps: Applicat
   )
 }
 
-function UserDetail({ node, onActivate }: { node: TreeNode; onActivate: () => void }) {
+/* ======================================================================
+   Bulk grant modal
+   ====================================================================== */
+
+function BulkGrantModal({
+  users, apps, onClose,
+}: {
+  users: TreeNode[]
+  apps: Application[]
+  onClose: () => void
+}) {
+  const qc = useQueryClient()
+  const [appId, setAppId] = useState('')
+  const [progress, setProgress] = useState<{ done: number; total: number; errors: string[] }>({ done: 0, total: 0, errors: [] })
+  const [running, setRunning] = useState(false)
+
+  const run = async () => {
+    if (!appId) return
+    setRunning(true)
+    setProgress({ done: 0, total: users.length, errors: [] })
+    for (let i = 0; i < users.length; i++) {
+      const u = users[i]
+      if (!u.ldap_username) {
+        setProgress(p => ({ ...p, done: p.done + 1, errors: [...p.errors, `${u.name}: missing uid`] }))
+        continue
+      }
+      try {
+        await usersApi.activateForApp(appId, u.ldap_username)
+        setProgress(p => ({ ...p, done: p.done + 1 }))
+      } catch (err: unknown) {
+        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'failed'
+        setProgress(p => ({ ...p, done: p.done + 1, errors: [...p.errors, `${u.name}: ${msg}`] }))
+      }
+    }
+    qc.invalidateQueries({ queryKey: ['ldap-tree'] })
+    setRunning(false)
+  }
+
+  const finished = progress.total > 0 && progress.done === progress.total
+
   return (
-    <div className="ml-7 mb-1 px-3 py-2.5 rounded border text-xs" style={{ background: C.surface, borderColor: C.border }}>
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1 min-w-0">
-          {node.ldap_username && (
-            <div className="flex items-center gap-2">
-              <span style={{ color: C.textMuted }}>uid</span>
-              <span style={{ color: C.text }}>{node.ldap_username}</span>
-            </div>
-          )}
-          {node.email && (
-            <div className="flex items-center gap-2">
-              <span style={{ color: C.textMuted }}>mail</span>
-              <span style={{ color: C.textDim }}>{node.email}</span>
-            </div>
-          )}
-          {node.title && (
-            <div className="flex items-center gap-2">
-              <span style={{ color: C.textMuted }}>title</span>
-              <span style={{ color: C.textDim }}>{node.title}</span>
-            </div>
-          )}
-          {node.groups && node.groups.length > 0 && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <span style={{ color: C.textMuted }}>groups</span>
-              {node.groups.map(g => (
-                <span key={g} className="px-1.5 py-0.5 rounded text-xs"
-                  style={{ background: 'rgba(167,139,250,0.1)', color: C.purple, border: '1px solid rgba(167,139,250,0.2)' }}>
-                  {g}
-                </span>
-              ))}
-            </div>
-          )}
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 60,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '1rem', background: 'rgba(0,0,0,0.78)',
+        backdropFilter: 'blur(2px)', animation: 'ldapFadeIn 0.15s ease',
+      }}
+      onClick={e => { if (e.target === e.currentTarget && !running) onClose() }}
+    >
+      <div style={{
+        width: '100%', maxWidth: 540,
+        border: `1px solid ${C.borderHover}`, background: C.surface,
+        boxShadow: '0 0 0 1px rgba(0,255,255,0.08), 0 30px 80px rgba(0,255,255,0.06)',
+        fontFamily: FONT,
+      }}>
+        <div style={{
+          padding: '0.875rem 1.125rem',
+          borderBottom: `1px solid ${C.border}`,
+          background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
+        }}>
+          <div style={{ fontSize: '0.625rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: C.textMuted }}>
+            modal &middot; bulk_grant_access
+          </div>
+          <div style={{ fontSize: '0.875rem', fontWeight: 700, color: C.cyan, marginTop: 2 }}>
+            {users.length} user{users.length === 1 ? '' : 's'} selected
+          </div>
         </div>
-        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-          <button onClick={onActivate} className="px-2.5 py-1 rounded text-xs"
-            style={{ color: C.green, border: `1px solid rgba(0,255,255,0.3)`, background: 'rgba(0,255,255,0.06)', cursor: 'pointer' }}>
-            + Grant access
-          </button>
+        <div style={{ padding: '1.125rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+          <div style={{
+            maxHeight: 160, overflow: 'auto',
+            border: `1px solid ${C.border}`, background: C.bg,
+          }}>
+            {users.map(u => (
+              <div key={u.dn} style={{
+                padding: '4px 10px', fontSize: '0.7rem',
+                color: C.textDim, borderBottom: `1px solid ${C.borderFaint}`,
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}>
+                <UserIcon activated={u.is_activated} size={11} />
+                <span style={{ color: C.cyan }}>{u.name}</span>
+                <span style={{ color: C.textMuted, marginLeft: 'auto' }}>{u.ldap_username ?? '—'}</span>
+              </div>
+            ))}
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.625rem', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 6, color: C.textMuted }}>
+              target_application
+            </label>
+            <select
+              value={appId}
+              onChange={e => setAppId(e.target.value)}
+              disabled={running}
+              style={{
+                width: '100%', padding: '0.5rem 0.75rem',
+                border: `1px solid ${C.border}`, background: C.bg,
+                color: C.cyan, fontFamily: FONT, fontSize: '0.8125rem', outline: 'none',
+              }}
+            >
+              <option value="" style={{ background: C.surface }}>— select application —</option>
+              {apps.map(a => (
+                <option key={a.id} value={a.id} style={{ background: C.surface }}>{a.name}</option>
+              ))}
+            </select>
+          </div>
+          {progress.total > 0 && (
+            <div style={{ border: `1px solid ${C.border}`, background: C.bg, padding: '0.5rem 0.75rem' }}>
+              <div style={{ fontSize: '0.65rem', color: C.textMuted, display: 'flex', justifyContent: 'space-between' }}>
+                <span>progress</span>
+                <span style={{ color: C.cyan, fontVariantNumeric: 'tabular-nums' }}>{progress.done} / {progress.total}</span>
+              </div>
+              <div style={{ height: 4, background: C.surface2, marginTop: 6, position: 'relative' }}>
+                <div style={{
+                  position: 'absolute', left: 0, top: 0, bottom: 0,
+                  width: `${(progress.done / progress.total) * 100}%`,
+                  background: finished && progress.errors.length === 0 ? C.green : C.cyan,
+                  transition: 'width 0.2s ease',
+                }} />
+              </div>
+              {progress.errors.length > 0 && (
+                <div style={{ marginTop: 8, fontSize: '0.65rem', color: C.red, maxHeight: 80, overflow: 'auto' }}>
+                  {progress.errors.map((e, i) => <div key={i}>! {e}</div>)}
+                </div>
+              )}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button onClick={onClose} disabled={running} style={{
+              padding: '0.45rem 1rem', fontSize: '0.75rem',
+              border: `1px solid ${C.border}`, background: 'none',
+              color: C.textDim, cursor: running ? 'not-allowed' : 'pointer', fontFamily: FONT,
+            }}>{finished ? 'close' : 'cancel'}</button>
+            {!finished && (
+              <button onClick={run} disabled={!appId || running} style={{
+                padding: '0.45rem 1rem', fontSize: '0.75rem', fontWeight: 700,
+                border: `1px solid ${(!appId || running) ? C.border : C.cyan}`,
+                background: (!appId || running) ? 'transparent' : C.cyan,
+                color: (!appId || running) ? C.textMuted : '#000',
+                cursor: (!appId || running) ? 'not-allowed' : 'pointer',
+                fontFamily: FONT, letterSpacing: '0.05em',
+              }}>{running ? 'granting...' : `> grant_to_${users.length}`}</button>
+            )}
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-function TreeNodeRow({ node, depth, apps, expandedDns, toggleNode, loadChildren, childMap, configId }: {
-  node: TreeNode; depth: number; apps: Application[]; configId: string;
-  expandedDns: Set<string>; toggleNode: (dn: string) => void;
-  loadChildren: (dn: string) => void; childMap: Map<string, TreeNode[]>;
-}) {
-  const [showDetail, setShowDetail] = useState(false)
-  const [showActivate, setShowActivate] = useState(false)
-  const isExpanded = expandedDns.has(node.dn)
-  const children = childMap.get(node.dn) ?? []
+/* ======================================================================
+   Context menu
+   ====================================================================== */
 
-  const handleClick = () => {
-    if (node.type === 'user') {
-      setShowDetail(s => !s)
-    } else if (node.has_children) {
-      if (!isExpanded) loadChildren(node.dn)
-      toggleNode(node.dn)
+interface ContextMenuItem {
+  label: string
+  onClick: () => void
+  hint?: string
+  danger?: boolean
+  disabled?: boolean
+}
+
+function ContextMenu({
+  x, y, items, onClose,
+}: {
+  x: number; y: number
+  items: ContextMenuItem[]
+  onClose: () => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose()
     }
-  }
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('mousedown', handler)
+    window.addEventListener('keydown', esc)
+    return () => {
+      window.removeEventListener('mousedown', handler)
+      window.removeEventListener('keydown', esc)
+    }
+  }, [onClose])
+
+  // Adjust position if off-screen
+  const [adj, setAdj] = useState({ x, y })
+  useEffect(() => {
+    if (!ref.current) return
+    const rect = ref.current.getBoundingClientRect()
+    let nx = x, ny = y
+    if (x + rect.width > window.innerWidth) nx = window.innerWidth - rect.width - 4
+    if (y + rect.height > window.innerHeight) ny = window.innerHeight - rect.height - 4
+    setAdj({ x: nx, y: ny })
+  }, [x, y])
 
   return (
-    <div>
-      <div className="flex items-center gap-1.5 py-1.5 px-2 rounded cursor-pointer transition-colors"
-        style={{ paddingLeft: `${depth * 16 + 8}px` }}
-        onClick={handleClick}
-        onMouseEnter={e => (e.currentTarget.style.background = C.surface2)}
-        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-        {node.has_children
-          ? <ChevronIcon expanded={isExpanded} />
-          : <span style={{ width: 12, flexShrink: 0 }} />
-        }
-        <NodeIcon type={node.type} expanded={isExpanded} />
-        <span className="text-sm truncate" style={{ color: C.text }}>
-          {node.name}
-        </span>
-        {node.type === 'ou' && <span className="text-xs ml-1 flex-shrink-0" style={{ color: C.textMuted }}>OU</span>}
-        {node.type === 'group' && <span className="text-xs ml-1 flex-shrink-0" style={{ color: C.textMuted }}>group</span>}
+    <div
+      ref={ref}
+      style={{
+        position: 'fixed', left: adj.x, top: adj.y, zIndex: 80,
+        minWidth: 200,
+        background: C.surface,
+        border: `1px solid ${C.borderHover}`,
+        boxShadow: '0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,255,255,0.08)',
+        fontFamily: FONT,
+        animation: 'ldapFadeIn 0.1s ease',
+      }}
+    >
+      <div style={{
+        padding: '4px 10px', fontSize: '0.55rem', letterSpacing: '0.18em',
+        textTransform: 'uppercase', color: C.textMuted,
+        borderBottom: `1px solid ${C.borderFaint}`, background: C.surface2,
+      }}>
+        actions
       </div>
-      {node.type === 'user' && showDetail && (
-        <UserDetail node={node} onActivate={() => { setShowDetail(false); setShowActivate(true) }} />
-      )}
-      {showActivate && <ActivateModal node={node} apps={apps} onClose={() => setShowActivate(false)} />}
-      {isExpanded && children.map(child => (
-        <TreeNodeRow key={child.dn} node={child} depth={depth + 1} apps={apps} configId={configId}
-          expandedDns={expandedDns} toggleNode={toggleNode} loadChildren={loadChildren} childMap={childMap} />
+      {items.map((it, i) => (
+        <div
+          key={i}
+          onClick={() => { if (!it.disabled) { it.onClick(); onClose() } }}
+          style={{
+            padding: '6px 10px', fontSize: '0.72rem',
+            cursor: it.disabled ? 'not-allowed' : 'pointer',
+            color: it.disabled ? C.textMuted : it.danger ? C.red : C.textDim,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            borderBottom: i === items.length - 1 ? 'none' : `1px solid ${C.borderFaint}`,
+            opacity: it.disabled ? 0.5 : 1,
+          }}
+          onMouseEnter={e => { if (!it.disabled) e.currentTarget.style.background = 'rgba(0,255,255,0.06)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+        >
+          <span>{it.label}</span>
+          {it.hint && <span style={{ color: C.textMuted, fontSize: '0.6rem', marginLeft: 12 }}>{it.hint}</span>}
+        </div>
       ))}
     </div>
   )
 }
 
-function ConfigTree({ config, apps }: { config: LdapServerConfig; apps: Application[] }) {
-  const [expanded, setExpanded] = useState(true)
-  const [expandedDns, setExpandedDns] = useState<Set<string>>(new Set())
-  const [childMap, setChildMap] = useState<Map<string, TreeNode[]>>(new Map())
-  const [loadingDns, setLoadingDns] = useState<Set<string>>(new Set())
+/* ======================================================================
+   Highlight match
+   ====================================================================== */
 
-  const { data: roots = [], isLoading, error } = useQuery({
-    queryKey: ['ldap-tree', config.id, 'root'],
-    queryFn: () => apiClient.get<TreeNode[]>('/ldap/tree', { params: { configId: config.id } }).then(r => r.data),
-    retry: false,
-    enabled: expanded,
-  })
+function Highlight({ text, query }: { text: string; query: string }) {
+  if (!query) return <>{text}</>
+  const lower = text.toLowerCase()
+  const q = query.toLowerCase()
+  const idx = lower.indexOf(q)
+  if (idx < 0) return <>{text}</>
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark style={{ background: 'rgba(0,255,255,0.25)', color: C.cyan, padding: 0 }}>
+        {text.slice(idx, idx + q.length)}
+      </mark>
+      {text.slice(idx + q.length)}
+    </>
+  )
+}
 
-  const notConfigured = (error as any)?.response?.status === 503
+/* ======================================================================
+   FlatTreeRow — memoized single row renderer
+   ====================================================================== */
 
-  function toggleNode(dn: string) {
-    setExpandedDns(prev => {
-      const next = new Set(prev)
-      if (next.has(dn)) next.delete(dn)
-      else next.add(dn)
-      return next
-    })
+interface FlatTreeRowProps {
+  flatNode: FlatNode
+  isSelected: boolean
+  isFocused: boolean
+  isMultiSelected: boolean
+  isExpanded: boolean
+  isLoading: boolean
+  isFavorite: boolean
+  isPinned: boolean
+  searchQuery: string
+  onToggle: (dn: string) => void
+  onSelect: (configId: string, node: TreeNode, e: React.MouseEvent) => void
+  onContextMenu: (configId: string, node: TreeNode, x: number, y: number) => void
+  onConfigToggle?: (configId: string) => void
+}
+
+const FlatTreeRow = React.memo(function FlatTreeRow(props: FlatTreeRowProps) {
+  const {
+    flatNode, isSelected, isFocused, isMultiSelected,
+    isExpanded, isLoading, isFavorite, isPinned, searchQuery,
+    onToggle, onSelect, onContextMenu, onConfigToggle,
+  } = props
+
+  if (flatNode.kind === 'skeleton') {
+    return (
+      <div style={{
+        height: ROW_H,
+        display: 'flex', alignItems: 'center',
+        paddingLeft: flatNode.depth * INDENT + 28,
+      }}>
+        <div style={{
+          height: 10, width: `${40 + (flatNode.depth * 17) % 40}%`,
+          background: 'rgba(0,255,255,0.08)', borderRadius: 2,
+          animation: 'ldapSkeleton 1.2s ease infinite',
+        }} />
+      </div>
+    )
   }
 
-  async function loadChildren(dn: string) {
-    if (childMap.has(dn) || loadingDns.has(dn)) return
-    setLoadingDns(prev => new Set(prev).add(dn))
-    try {
-      const res = await apiClient.get<TreeNode[]>('/ldap/tree', { params: { dn, configId: config.id } })
-      setChildMap(prev => new Map(prev).set(dn, res.data))
-    } finally {
-      setLoadingDns(prev => { const n = new Set(prev); n.delete(dn); return n })
+  if (flatNode.kind === 'empty') {
+    return (
+      <div style={{
+        paddingLeft: flatNode.depth * INDENT + 30,
+        height: ROW_H,
+        display: 'flex', alignItems: 'center',
+        fontSize: '0.65rem', color: C.textMuted, fontStyle: 'italic',
+      }}>
+        (empty)
+      </div>
+    )
+  }
+
+  if (flatNode.kind === 'config' && flatNode.configRef) {
+    const cfg = flatNode.configRef
+    return (
+      <div
+        onClick={() => onConfigToggle && onConfigToggle(cfg.id)}
+        style={{
+          height: ROW_H + 8,
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '0 10px',
+          cursor: 'pointer', userSelect: 'none',
+          borderTop: `1px solid ${C.borderFaint}`,
+          borderBottom: `1px solid ${C.borderFaint}`,
+          background: C.surface2,
+        }}
+      >
+        <Chevron expanded={isExpanded} size={11} />
+        <DomainIcon size={13} color={cfg.active ? C.cyan : C.textMuted} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontSize: '0.72rem', fontWeight: 700,
+            color: cfg.active ? C.cyan : C.textDim,
+            letterSpacing: '0.02em',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {deriveDomain(cfg.baseDn)}
+          </div>
+        </div>
+        <span style={{
+          flexShrink: 0, width: 6, height: 6, borderRadius: '50%',
+          background: cfg.active ? C.green : C.textMuted,
+          boxShadow: cfg.active ? `0 0 6px ${C.green}` : 'none',
+        }} />
+      </div>
+    )
+  }
+
+  const node = flatNode.node
+  const depth = flatNode.depth
+  const isUser = node.type === 'user'
+  const isOu = node.type === 'ou'
+  const isGroup = node.type === 'group'
+  const isExpandable = node.has_children && !isUser
+
+  const otherKind = !isOu && !isUser && !isGroup ? classifyOther(node) : 'other'
+
+  const handleClick = (e: React.MouseEvent) => {
+    onSelect(flatNode.configId, node, e)
+    if (isExpandable && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+      onToggle(node.dn)
     }
   }
 
+  const handleCtx = (e: React.MouseEvent) => {
+    e.preventDefault()
+    onContextMenu(flatNode.configId, node, e.clientX, e.clientY)
+  }
+
   return (
-    <div style={{ marginBottom: '1.25rem', border: `1px solid ${config.active ? C.green : C.border}`, borderRadius: 4, overflow: 'hidden' }}>
-      <div
-        onClick={() => setExpanded(e => !e)}
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', background: C.surface2, cursor: 'pointer', borderBottom: expanded ? `1px solid ${C.border}` : 'none' }}
-        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,255,255,0.04)')}
-        onMouseLeave={e => (e.currentTarget.style.background = C.surface2)}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-          <ChevronIcon expanded={expanded} />
-          <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" style={{ color: C.blue, flexShrink: 0 }}>
-            <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"/>
-          </svg>
-          <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: config.active ? C.green : C.text }}>{config.name}</span>
-          {config.active && (
-            <span style={{ fontSize: '0.5rem', padding: '0.1rem 0.4rem', border: `1px solid ${C.green}`, color: C.green, letterSpacing: '0.1em', textTransform: 'uppercase' }}>active</span>
-          )}
-        </div>
-        <span style={{ fontSize: '0.65rem', color: C.textMuted }}>{config.url} · {config.baseDn}</span>
+    <div
+      onClick={handleClick}
+      onContextMenu={handleCtx}
+      style={{
+        display: 'flex', alignItems: 'center',
+        cursor: 'pointer',
+        height: ROW_H,
+        position: 'relative',
+        paddingRight: 8,
+        background: isSelected
+          ? 'linear-gradient(90deg, rgba(0,255,255,0.10) 0%, rgba(0,255,255,0.03) 100%)'
+          : isMultiSelected
+          ? 'rgba(170,136,255,0.10)'
+          : isFocused
+          ? 'rgba(0,255,255,0.04)'
+          : 'transparent',
+        borderLeft: isSelected ? `2px solid ${C.cyan}`
+          : isMultiSelected ? `2px solid ${C.purple}`
+          : isFocused ? `2px solid ${C.borderHover}`
+          : '2px solid transparent',
+        transition: 'background 0.08s ease',
+      }}
+    >
+      {/* Tree guide lines for ancestor levels */}
+      {flatNode.parentDepthFlags.map((hasLine, i) => (
+        <div key={i} style={{
+          position: 'absolute',
+          left: `${i * INDENT + 12}px`,
+          top: 0, bottom: 0,
+          width: 1,
+          background: hasLine ? LINE_COLOR : 'transparent',
+          pointerEvents: 'none',
+        }} />
+      ))}
+
+      {depth > 0 && (
+        <>
+          <div style={{
+            position: 'absolute',
+            left: `${(depth - 1) * INDENT + 12}px`,
+            top: 0,
+            height: flatNode.isLast ? '50%' : '100%',
+            width: 1,
+            background: LINE_COLOR,
+            pointerEvents: 'none',
+          }} />
+          <div style={{
+            position: 'absolute',
+            left: `${(depth - 1) * INDENT + 12}px`,
+            top: '50%',
+            width: INDENT - 4,
+            height: 1,
+            background: LINE_COLOR,
+            pointerEvents: 'none',
+          }} />
+        </>
+      )}
+
+      <div style={{ width: depth * INDENT + (depth > 0 ? 10 : 4), flexShrink: 0 }} />
+
+      <div style={{ width: 14, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {isExpandable && (isLoading ? <Spinner size={10} /> : <Chevron expanded={isExpanded} />)}
       </div>
 
-      {expanded && (
-        <div style={{ background: C.surface }}>
-          {isLoading ? (
-            <div style={{ padding: '2rem', textAlign: 'center', fontSize: '0.75rem', color: C.textMuted }}>Loading directory...</div>
-          ) : notConfigured ? (
-            <div style={{ padding: '2rem', textAlign: 'center', fontSize: '0.75rem', color: C.amber }}>Connection error for this LDAP server</div>
-          ) : roots.length === 0 ? (
-            <div style={{ padding: '2rem', textAlign: 'center', fontSize: '0.75rem', color: C.textMuted }}>No entries found</div>
+      <div style={{ marginLeft: 4, marginRight: 6, display: 'flex', alignItems: 'center' }}>
+        {isOu && <OuFolderIcon expanded={isExpanded} />}
+        {isUser && <UserIcon activated={node.is_activated} />}
+        {isGroup && <GroupShieldIcon />}
+        {!isOu && !isUser && !isGroup && otherKind === 'computer' && <ComputerIcon />}
+        {!isOu && !isUser && !isGroup && otherKind === 'gpo' && <GPOIcon />}
+        {!isOu && !isUser && !isGroup && otherKind === 'service' && <ServiceAccountIcon />}
+        {!isOu && !isUser && !isGroup && otherKind === 'dns' && <DNSIcon />}
+        {!isOu && !isUser && !isGroup && otherKind === 'container' && <ContainerIcon />}
+        {!isOu && !isUser && !isGroup && otherKind === 'other' && <OtherIcon />}
+      </div>
+
+      <span style={{
+        fontSize: '0.75rem',
+        color: isSelected ? C.cyan
+          : isOu ? C.ouGold
+          : isUser ? (node.is_activated ? C.cyan : C.textDim)
+          : isGroup ? C.purple
+          : C.textDim,
+        fontWeight: isOu ? 600 : isSelected ? 600 : 400,
+        flex: 1,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+      }}>
+        <Highlight text={node.name} query={searchQuery} />
+      </span>
+
+      {isPinned && (
+        <span style={{ marginLeft: 6, flexShrink: 0, display: 'flex' }}>
+          <PinIcon size={10} color={C.cyanDim} />
+        </span>
+      )}
+      {isFavorite && (
+        <span style={{ marginLeft: 4, flexShrink: 0, display: 'flex' }}>
+          <StarIcon filled size={10} />
+        </span>
+      )}
+      {isUser && node.is_activated && (
+        <span style={{
+          marginLeft: 6, flexShrink: 0,
+          width: 6, height: 6, borderRadius: '50%',
+          background: C.green,
+          boxShadow: `0 0 6px ${C.green}`,
+        }} />
+      )}
+    </div>
+  )
+})
+
+/* ======================================================================
+   Detail panel pieces
+   ====================================================================== */
+
+function Stat({ label, value, accent }: { label: string; value: number; accent: string }) {
+  return (
+    <div style={{
+      border: `1px solid ${C.border}`,
+      background: C.surface,
+      padding: '0.75rem 0.875rem',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      <div style={{
+        position: 'absolute', top: 0, left: 0, height: 2, width: '100%',
+        background: `linear-gradient(90deg, ${accent} 0%, transparent 100%)`,
+        opacity: 0.6,
+      }} />
+      <div style={{ fontSize: '0.6rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: C.textMuted }}>
+        {label}
+      </div>
+      <div style={{ fontSize: '1.5rem', fontWeight: 700, color: accent, marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>
+        {value.toLocaleString()}
+      </div>
+    </div>
+  )
+}
+
+function Section({ label, children, action }: { label: string; children: React.ReactNode; action?: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div style={{
+        fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase',
+        color: C.textMuted, marginBottom: 6,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <span>{label}</span>
+        {action}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function Mini({ label, value, accent }: { label: string; value: number; accent: string }) {
+  return (
+    <div style={{
+      padding: '0.5rem 0.75rem',
+      border: `1px solid ${C.border}`,
+      background: C.surface,
+      minWidth: 80,
+    }}>
+      <div style={{ fontSize: '0.55rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: C.textMuted }}>{label}</div>
+      <div style={{ fontSize: '1.15rem', fontWeight: 700, color: accent, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+    </div>
+  )
+}
+
+function KV({ label, value, mono, color }: { label: string; value?: string; mono?: boolean; color?: string }) {
+  return (
+    <div style={{
+      padding: '0.625rem 0.875rem',
+      borderRight: `1px solid ${C.borderFaint}`,
+      borderBottom: `1px solid ${C.borderFaint}`,
+    }}>
+      <div style={{ fontSize: '0.55rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: C.textMuted }}>
+        {label}
+      </div>
+      <div style={{
+        fontSize: '0.8125rem', marginTop: 3,
+        color: value ? (color ?? C.textDim) : C.textMuted,
+        fontFamily: mono ? FONT : 'inherit',
+        wordBreak: 'break-word',
+      }}>
+        {value || <span style={{ color: C.textMuted, fontStyle: 'italic' }}>—</span>}
+      </div>
+    </div>
+  )
+}
+
+function ContainerDetail({ node, configId }: { node: TreeNode; configId: string }) {
+  const isOu = node.type === 'ou'
+  const isGroup = node.type === 'group'
+
+  const { data: children, isFetching } = useQuery({
+    queryKey: ['ldap-tree', configId, 'detail', node.dn],
+    queryFn: () => apiClient.get<TreeNode[]>('/ldap/tree', { params: { dn: node.dn, configId } }).then(r => r.data),
+    enabled: node.has_children,
+    retry: false,
+  })
+
+  const childOuCount = children?.filter(c => c.type === 'ou').length ?? 0
+  const childUserCount = children?.filter(c => c.type === 'user').length ?? 0
+  const childGroupCount = children?.filter(c => c.type === 'group').length ?? 0
+
+  return (
+    <div style={{ padding: '1.75rem 2rem' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 18 }}>
+        <div style={{
+          width: 52, height: 52, flexShrink: 0,
+          border: `1px solid ${isOu ? 'rgba(240,180,41,0.35)' : isGroup ? 'rgba(170,136,255,0.35)' : C.border}`,
+          background: C.surface,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          {isOu ? <OuFolderIcon expanded size={24} />
+            : isGroup ? <GroupShieldIcon size={22} />
+            : <ContainerIcon size={22} />}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '0.625rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: C.textMuted }}>
+            {isOu ? 'organizationalunit' : isGroup ? 'security_group' : 'container'}
+          </div>
+          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: isOu ? C.ouGold : isGroup ? C.purple : C.cyan, marginTop: 2, wordBreak: 'break-word' }}>
+            {node.name}
+          </div>
+        </div>
+      </div>
+
+      <Section label="distinguished_name">
+        <code style={{
+          display: 'block', padding: '0.5rem 0.75rem',
+          fontSize: '0.7rem', color: C.cyanDim, fontFamily: FONT,
+          background: C.bg, border: `1px solid ${C.border}`,
+          wordBreak: 'break-all', lineHeight: 1.6,
+        }}>
+          {node.dn}
+        </code>
+      </Section>
+
+      <Section label="rdn">
+        <div style={{ fontSize: '0.75rem', color: C.cyan }}>{node.rdn}</div>
+      </Section>
+
+      {node.has_children && (
+        <Section label="direct_members">
+          {isFetching ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.7rem', color: C.textMuted }}>
+              <Spinner size={11} /> enumerating...
+            </div>
           ) : (
-            <div style={{ padding: '0.5rem' }}>
-              {roots.map(node => (
-                <TreeNodeRow key={node.dn} node={node} depth={0} apps={apps} configId={config.id}
-                  expandedDns={expandedDns} toggleNode={toggleNode} loadChildren={loadChildren} childMap={childMap} />
-              ))}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+              <Mini label="OUs" value={childOuCount} accent={C.ouGold} />
+              <Mini label="users" value={childUserCount} accent={C.cyan} />
+              <Mini label="groups" value={childGroupCount} accent={C.purple} />
+              <Mini label="total" value={children?.length ?? 0} accent={C.textDim} />
             </div>
           )}
-        </div>
+        </Section>
       )}
     </div>
   )
 }
+
+function UserDetail({
+  node, apps, isFavorite, isPinned, onActivate, onToggleFavorite, onTogglePin,
+}: {
+  node: TreeNode
+  apps: Application[]
+  isFavorite: boolean
+  isPinned: boolean
+  onActivate: () => void
+  onToggleFavorite: () => void
+  onTogglePin: () => void
+}) {
+  return (
+    <div style={{ padding: '1.75rem 2rem' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 22 }}>
+        <div style={{
+          width: 64, height: 64, flexShrink: 0,
+          border: `1px solid ${node.is_activated ? 'rgba(0,255,255,0.4)' : C.border}`,
+          background: `linear-gradient(135deg, ${C.surface2} 0%, ${C.surface} 100%)`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          position: 'relative',
+          boxShadow: node.is_activated ? '0 0 0 1px rgba(0,255,255,0.1), 0 0 24px rgba(0,255,255,0.08)' : 'none',
+        }}>
+          <UserIcon activated={node.is_activated} size={32} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '0.625rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: C.textMuted }}>
+            user &middot; {node.is_activated ? 'activated' : 'not_activated'}
+          </div>
+          <div style={{
+            fontSize: '1.35rem', fontWeight: 700,
+            color: node.is_activated ? C.cyan : C.textDim,
+            marginTop: 2, wordBreak: 'break-word',
+          }}>
+            {node.name}
+          </div>
+          {node.title && (
+            <div style={{ fontSize: '0.75rem', color: C.textDim, marginTop: 2 }}>{node.title}</div>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+            <span style={{
+              fontSize: '0.625rem', letterSpacing: '0.12em', textTransform: 'uppercase',
+              padding: '3px 8px',
+              border: `1px solid ${node.is_activated ? C.green : C.border}`,
+              color: node.is_activated ? C.green : C.textMuted,
+              background: node.is_activated ? 'rgba(0,255,136,0.06)' : 'transparent',
+            }}>
+              {node.is_activated ? '● activated' : '○ inactive'}
+            </span>
+            {apps.length > 0 && (
+              <button
+                onClick={onActivate}
+                disabled={!node.ldap_username}
+                style={{
+                  fontSize: '0.7rem', padding: '0.4rem 0.875rem',
+                  border: `1px solid ${C.cyan}`,
+                  background: C.cyan, color: '#000',
+                  cursor: 'pointer', fontFamily: FONT, fontWeight: 700,
+                  letterSpacing: '0.04em',
+                }}
+              >
+                + grant_app_access
+              </button>
+            )}
+            <button onClick={onToggleFavorite} style={{
+              fontSize: '0.65rem', padding: '0.35rem 0.6rem',
+              border: `1px solid ${isFavorite ? C.amber : C.border}`,
+              background: 'none', color: isFavorite ? C.amber : C.textDim,
+              cursor: 'pointer', fontFamily: FONT,
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}>
+              <StarIcon filled={isFavorite} size={10} />
+              {isFavorite ? 'favorited' : 'favorite'}
+            </button>
+            <button onClick={onTogglePin} style={{
+              fontSize: '0.65rem', padding: '0.35rem 0.6rem',
+              border: `1px solid ${isPinned ? C.cyan : C.border}`,
+              background: 'none', color: isPinned ? C.cyan : C.textDim,
+              cursor: 'pointer', fontFamily: FONT,
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}>
+              <PinIcon size={10} color={isPinned ? C.cyan : C.textDim} />
+              {isPinned ? 'pinned' : 'pin'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+        gap: 0,
+        border: `1px solid ${C.border}`,
+        background: C.surface,
+        marginBottom: 18,
+      }}>
+        <KV label="uid" value={node.ldap_username} mono color={C.cyan} />
+        <KV label="mail" value={node.email} />
+        <KV label="title" value={node.title} />
+        <KV label="cn" value={node.rdn} mono />
+      </div>
+
+      <Section label="distinguished_name">
+        <code style={{
+          display: 'block', padding: '0.5rem 0.75rem',
+          fontSize: '0.7rem', color: C.cyanDim, fontFamily: FONT,
+          background: C.bg, border: `1px solid ${C.border}`,
+          wordBreak: 'break-all', lineHeight: 1.6,
+        }}>
+          {node.dn}
+        </code>
+      </Section>
+
+      {node.groups && node.groups.length > 0 && (
+        <Section label={`memberof (${node.groups.length})`}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {node.groups.map(g => (
+              <span
+                key={g}
+                title={g}
+                style={{
+                  fontSize: '0.7rem',
+                  padding: '4px 10px',
+                  border: '1px solid rgba(170,136,255,0.3)',
+                  background: 'rgba(170,136,255,0.08)',
+                  color: C.purple,
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}
+              >
+                <GroupShieldIcon size={11} />
+                {g}
+              </span>
+            ))}
+          </div>
+        </Section>
+      )}
+    </div>
+  )
+}
+
+function NoSelectionPanel({
+  totals, configs,
+  pinned, favorites, recent,
+  onJump, onUnpin, onUnfavorite,
+}: {
+  totals: { ous: number; users: number; groups: number; servers: number; activeUsers: number }
+  configs: LdapServerConfig[]
+  pinned: PinnedRef[]
+  favorites: PinnedRef[]
+  recent: RecentRef[]
+  onJump: (configId: string, node: TreeNode) => void
+  onUnpin: (dn: string) => void
+  onUnfavorite: (dn: string) => void
+}) {
+  return (
+    <div style={{ padding: '2rem 2.25rem', maxWidth: 820 }}>
+      <div style={{ fontSize: '0.625rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: C.textMuted }}>
+        directory_overview
+      </div>
+      <div style={{ fontSize: '1.5rem', fontWeight: 700, color: C.cyan, marginTop: 4, letterSpacing: '-0.01em' }}>
+        Active Directory
+      </div>
+      <div style={{ fontSize: '0.75rem', color: C.textDim, marginTop: 6, maxWidth: 540, lineHeight: 1.6 }}>
+        Browse organizational units, users and security groups across your federated LDAP servers.
+        Press <kbd style={kbdStyle}>/</kbd> to focus search,
+        <kbd style={kbdStyle}>↑</kbd>/<kbd style={kbdStyle}>↓</kbd> to navigate,
+        <kbd style={kbdStyle}>→</kbd> to expand. Right-click any object for actions.
+      </div>
+
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+        gap: 10, marginTop: 24,
+      }}>
+        <Stat label="domains" value={totals.servers} accent={C.cyan} />
+        <Stat label="org_units" value={totals.ous} accent={C.ouGold} />
+        <Stat label="users" value={totals.users} accent={C.cyan} />
+        <Stat label="groups" value={totals.groups} accent={C.purple} />
+        <Stat label="activated" value={totals.activeUsers} accent={C.green} />
+      </div>
+
+      {pinned.length > 0 && (
+        <div style={{ marginTop: 28 }}>
+          <div style={{
+            fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase',
+            color: C.cyanDim, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6,
+          }}>
+            <PinIcon size={11} /> pinned ({pinned.length})
+          </div>
+          <div style={{ border: `1px solid ${C.border}`, background: C.surface }}>
+            {pinned.map((p, i) => (
+              <NodeRefRow
+                key={p.node.dn}
+                ref_={p}
+                onJump={onJump}
+                onRemove={() => onUnpin(p.node.dn)}
+                last={i === pinned.length - 1}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {favorites.length > 0 && (
+        <div style={{ marginTop: 24 }}>
+          <div style={{
+            fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase',
+            color: C.amber, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6,
+          }}>
+            <StarIcon filled size={11} /> favorites ({favorites.length})
+          </div>
+          <div style={{ border: `1px solid ${C.border}`, background: C.surface }}>
+            {favorites.map((p, i) => (
+              <NodeRefRow
+                key={p.node.dn}
+                ref_={p}
+                onJump={onJump}
+                onRemove={() => onUnfavorite(p.node.dn)}
+                last={i === favorites.length - 1}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {recent.length > 0 && (
+        <div style={{ marginTop: 24 }}>
+          <div style={{
+            fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase',
+            color: C.textMuted, marginBottom: 8,
+          }}>
+            recently viewed ({recent.length})
+          </div>
+          <div style={{ border: `1px solid ${C.border}`, background: C.surface }}>
+            {recent.map((r, i) => (
+              <NodeRefRow
+                key={r.node.dn + r.ts}
+                ref_={r}
+                onJump={onJump}
+                last={i === recent.length - 1}
+                ts={r.ts}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div style={{
+        marginTop: 32,
+        border: `1px solid ${C.border}`,
+        background: C.surface,
+      }}>
+        <div style={{
+          padding: '0.55rem 0.875rem',
+          borderBottom: `1px solid ${C.border}`,
+          fontSize: '0.625rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: C.textMuted,
+          background: C.surface2,
+        }}>
+          configured_servers
+        </div>
+        <div>
+          {configs.map((c, i) => (
+            <div key={c.id} style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '0.625rem 0.875rem',
+              borderBottom: i === configs.length - 1 ? 'none' : `1px solid ${C.borderFaint}`,
+              fontSize: '0.75rem',
+            }}>
+              <DomainIcon size={13} color={c.active ? C.cyan : C.textMuted} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ color: c.active ? C.cyan : C.textDim, fontWeight: 600 }}>{c.name}</div>
+                <div style={{ color: C.textMuted, fontSize: '0.65rem', marginTop: 1 }}>{c.url} &middot; {c.baseDn}</div>
+              </div>
+              <span style={{
+                fontSize: '0.6rem', letterSpacing: '0.12em', textTransform: 'uppercase',
+                padding: '2px 6px',
+                border: `1px solid ${c.active ? C.cyan : C.border}`,
+                color: c.active ? C.cyan : C.textMuted,
+              }}>
+                {c.active ? 'active' : 'disabled'}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const kbdStyle: React.CSSProperties = {
+  display: 'inline-block',
+  padding: '1px 5px',
+  margin: '0 3px',
+  fontSize: '0.65rem',
+  fontFamily: FONT,
+  border: `1px solid ${C.border}`,
+  background: C.surface2,
+  color: C.cyan,
+  borderRadius: 2,
+}
+
+function NodeRefRow({
+  ref_, onJump, onRemove, last, ts,
+}: {
+  ref_: PinnedRef | RecentRef
+  onJump: (configId: string, node: TreeNode) => void
+  onRemove?: () => void
+  last: boolean
+  ts?: number
+}) {
+  const node = ref_.node
+  const isOu = node.type === 'ou'
+  const isUser = node.type === 'user'
+  const isGroup = node.type === 'group'
+  return (
+    <div
+      onClick={() => onJump(ref_.configId, node)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '0.5rem 0.875rem',
+        borderBottom: last ? 'none' : `1px solid ${C.borderFaint}`,
+        fontSize: '0.72rem', cursor: 'pointer',
+        transition: 'background 0.1s',
+      }}
+      onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,255,255,0.04)'}
+      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+    >
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        {isOu && <OuFolderIcon expanded={false} size={12} />}
+        {isUser && <UserIcon activated={node.is_activated} size={12} />}
+        {isGroup && <GroupShieldIcon size={12} />}
+        {!isOu && !isUser && !isGroup && <OtherIcon size={12} />}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          color: isOu ? C.ouGold : isGroup ? C.purple : isUser ? (node.is_activated ? C.cyan : C.textDim) : C.textDim,
+          fontWeight: 600,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {node.name}
+        </div>
+        <div style={{
+          color: C.textMuted, fontSize: '0.6rem', marginTop: 1,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {node.dn}
+        </div>
+      </div>
+      {ts !== undefined && (
+        <span style={{ color: C.textMuted, fontSize: '0.6rem', flexShrink: 0 }}>
+          {relTime(ts)}
+        </span>
+      )}
+      {onRemove && (
+        <button
+          onClick={e => { e.stopPropagation(); onRemove() }}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: C.textMuted, fontSize: '0.85rem', padding: '0 4px',
+            fontFamily: FONT,
+          }}
+          title="remove"
+        >×</button>
+      )}
+    </div>
+  )
+}
+
+function relTime(ts: number): string {
+  const diff = Date.now() - ts
+  if (diff < 60_000) return 'just now'
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m`
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h`
+  return `${Math.floor(diff / 86_400_000)}d`
+}
+
+/* ======================================================================
+   Breadcrumb
+   ====================================================================== */
+
+function Breadcrumb({
+  selection, configs, onJump, expandedDns, childMap,
+}: {
+  selection: Selection
+  configs: LdapServerConfig[]
+  onJump: (configId: string, node: TreeNode) => void
+  expandedDns: Set<string>
+  childMap: Map<string, TreeNode[]>
+}) {
+  const cfg = configs.find(c => c.id === selection.configId)
+  const domain = cfg ? deriveDomain(cfg.baseDn) : ''
+  const ancestors = useMemo(() => {
+    const list = dnAncestors(selection.node.dn)
+    // limit to within baseDn (approximate by keeping ones longer than the baseDn excluded)
+    if (cfg) {
+      const baseLower = cfg.baseDn.toLowerCase()
+      return list.filter(a => a.toLowerCase() !== baseLower && a.toLowerCase().endsWith(baseLower))
+    }
+    return list
+  }, [selection.node.dn, cfg])
+
+  // resolve nodes for ancestors from childMap
+  const allNodes = useMemo(() => {
+    const m = new Map<string, TreeNode>()
+    childMap.forEach(arr => arr.forEach(n => m.set(n.dn, n)))
+    return m
+  }, [childMap])
+
+  // ancestors in order from top → near
+  const ordered = [...ancestors].reverse()
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 6,
+      padding: '0.4rem 1rem',
+      fontSize: '0.7rem',
+      color: C.textDim,
+      borderBottom: `1px solid ${C.borderFaint}`,
+      background: C.surface,
+      flexShrink: 0,
+      minHeight: 32,
+      overflowX: 'auto',
+      whiteSpace: 'nowrap',
+    }}>
+      <span style={{ color: C.cyanDim, fontWeight: 600 }}>{domain}</span>
+      {ordered.map(dn => {
+        const n = allNodes.get(dn)
+        const label = n ? n.name : dn.split(',')[0]
+        const clickable = !!n
+        return (
+          <React.Fragment key={dn}>
+            <span style={{ color: C.textMuted }}>/</span>
+            <span
+              onClick={() => { if (n) onJump(selection.configId, n) }}
+              style={{
+                cursor: clickable ? 'pointer' : 'default',
+                color: clickable ? C.textDim : C.textMuted,
+                fontWeight: 500,
+              }}
+              onMouseEnter={e => { if (clickable) e.currentTarget.style.color = C.cyan }}
+              onMouseLeave={e => { if (clickable) e.currentTarget.style.color = C.textDim }}
+            >
+              {label}
+            </span>
+          </React.Fragment>
+        )
+      })}
+      <span style={{ color: C.textMuted }}>/</span>
+      <span style={{ color: C.cyan, fontWeight: 700 }}>{selection.node.name}</span>
+      {/* unused expandedDns kept for future highlighting */}
+      <span style={{ display: 'none' }}>{expandedDns.size}</span>
+    </div>
+  )
+}
+
+/* ======================================================================
+   Per-config root query hook (one query per active config)
+   ====================================================================== */
+
+function useConfigRoots(config: LdapServerConfig, enabled: boolean) {
+  return useQuery({
+    queryKey: ['ldap-tree', config.id, 'root'],
+    queryFn: () => apiClient.get<TreeNode[]>('/ldap/tree', { params: { configId: config.id } }).then(r => r.data),
+    retry: false,
+    enabled,
+  })
+}
+
+/* ======================================================================
+   Main page
+   ====================================================================== */
 
 export default function LdapTreePage() {
   const { data: configs = [], isLoading: configsLoading } = useQuery({
@@ -319,43 +1715,984 @@ export default function LdapTreePage() {
     queryFn: settingsApi.ldap.list,
   })
 
-  const activeConfigs = configs.filter(c => c.active)
-
   const { data: apps = [] } = useQuery({
     queryKey: ['applications'],
     queryFn: () => appsApi.list(),
   })
 
-  return (
-    <div>
-      <div className="mb-6">
-        <div className="text-xs tracking-widest uppercase mb-1" style={{ color: C.textMuted }}>ldap</div>
-        <h1 className="text-xl font-bold" style={{ color: C.green }}>Directory</h1>
-        <p className="text-xs mt-1" style={{ color: C.textMuted }}>
-          {activeConfigs.length > 1 ? `${activeConfigs.length} active LDAP servers — each shown as a separate tree.` : 'Click an OU to expand. Click a user to see details and grant access.'}
-        </p>
-      </div>
+  const activeConfigs = useMemo(() => configs.filter(c => c.active), [configs])
 
-      {configsLoading ? (
-        <div style={{ padding: '3rem', textAlign: 'center', fontSize: '0.75rem', color: C.textMuted }}>Loading...</div>
-      ) : activeConfigs.length === 0 ? (
-        <div className="rounded border p-10 text-center" style={{ background: C.surface, borderColor: C.border }}>
-          <div className="text-sm mb-2" style={{ color: C.amber }}>No active LDAP server configured</div>
-          <div className="text-xs" style={{ color: C.textMuted }}>
-            Go to <span style={{ color: C.green }}>Settings → LDAP Server</span> to add and activate an LDAP connection.
+  const [state, dispatch] = useReducer(treeReducer, undefined, initState)
+  const [showActivate, setShowActivate] = useState(false)
+  const [showBulkGrant, setShowBulkGrant] = useState(false)
+  const [stamp, setStamp] = useState(nowStamp())
+  const [collapsedConfigs, setCollapsedConfigs] = useState<Set<string>>(new Set())
+  const [focusedDn, setFocusedDn] = useState<string | null>(null)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; configId: string; node: TreeNode } | null>(null)
+  const [lastClickedDn, setLastClickedDn] = useState<string | null>(null)
+
+  // Panel width (resizable)
+  const [panelWidth, setPanelWidth] = useState<number>(() => {
+    const saved = localStorage.getItem(LS_PANEL_WIDTH)
+    if (saved) {
+      const n = parseInt(saved, 10)
+      if (!Number.isNaN(n)) return Math.max(200, Math.min(600, n))
+    }
+    return 340
+  })
+  const [isDragging, setIsDragging] = useState(false)
+
+  // Hydrate persisted state
+  useEffect(() => {
+    const fav = readLS<string[]>(LS_FAVORITES, [])
+    const pinnedArr = readLS<Array<[string, PinnedRef]>>(LS_PINNED, [])
+    const recent = readLS<RecentRef[]>(LS_RECENT, [])
+    dispatch({
+      type: 'HYDRATE_PERSIST',
+      favorites: new Set(fav),
+      pinned: new Map(pinnedArr),
+      recent,
+    })
+  }, [])
+
+  // Persist
+  useEffect(() => {
+    writeLS(LS_FAVORITES, Array.from(state.favorites))
+  }, [state.favorites])
+  useEffect(() => {
+    writeLS(LS_PINNED, Array.from(state.pinnedNodes.entries()))
+  }, [state.pinnedNodes])
+  useEffect(() => {
+    writeLS(LS_RECENT, state.recentNodes)
+  }, [state.recentNodes])
+
+  // Debounce search
+  const debounceTimer = useRef<number | null>(null)
+  useEffect(() => {
+    if (debounceTimer.current) window.clearTimeout(debounceTimer.current)
+    debounceTimer.current = window.setTimeout(() => {
+      dispatch({ type: 'SET_DEBOUNCED_SEARCH', query: state.searchQuery })
+    }, 220)
+    return () => { if (debounceTimer.current) window.clearTimeout(debounceTimer.current) }
+  }, [state.searchQuery])
+
+  // Live timestamp
+  useEffect(() => {
+    const t = setInterval(() => setStamp(nowStamp()), 1000)
+    return () => clearInterval(t)
+  }, [])
+
+  // Resize drag handlers
+  useEffect(() => {
+    if (!isDragging) return
+    const onMove = (e: MouseEvent) => {
+      const w = Math.max(200, Math.min(600, e.clientX))
+      setPanelWidth(w)
+    }
+    const onUp = () => {
+      setIsDragging(false)
+      writeLS(LS_PANEL_WIDTH, panelWidth)
+      try { localStorage.setItem(LS_PANEL_WIDTH, String(panelWidth)) } catch { /* ignore */ }
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [isDragging, panelWidth])
+
+  // Per-config root queries
+  const rootQueries = activeConfigs.map(cfg => {
+    /* eslint-disable react-hooks/rules-of-hooks */
+    return useConfigRoots(cfg, !collapsedConfigs.has(cfg.id))
+    /* eslint-enable react-hooks/rules-of-hooks */
+  })
+
+  // Roots map
+  const rootsMap = useMemo(() => {
+    const m = new Map<string, { roots: TreeNode[]; isLoading: boolean; error: unknown }>()
+    activeConfigs.forEach((cfg, i) => {
+      const q = rootQueries[i]
+      m.set(cfg.id, { roots: q.data ?? [], isLoading: q.isLoading, error: q.error })
+    })
+    return m
+  }, [activeConfigs, rootQueries])
+
+  // Counts derived from queries (for status bar / summary)
+  const counts = useMemo(() => {
+    const map: Record<string, { ous: number; users: number; groups: number; status: 'ok' | 'error' | 'loading' }> = {}
+    activeConfigs.forEach((cfg, i) => {
+      const q = rootQueries[i]
+      const roots = q.data ?? []
+      map[cfg.id] = {
+        ous: roots.filter(n => n.type === 'ou').length,
+        users: roots.filter(n => n.type === 'user').length,
+        groups: roots.filter(n => n.type === 'group').length,
+        status: q.isLoading ? 'loading' : q.error ? 'error' : 'ok',
+      }
+    })
+    return map
+  }, [activeConfigs, rootQueries])
+
+  const totals = useMemo(() => {
+    const arr = Object.values(counts)
+    return {
+      ous: arr.reduce((a, b) => a + b.ous, 0),
+      users: arr.reduce((a, b) => a + b.users, 0),
+      groups: arr.reduce((a, b) => a + b.groups, 0),
+      servers: activeConfigs.length,
+      activeUsers: 0,
+    }
+  }, [counts, activeConfigs.length])
+
+  // Load children
+  const loadChildren = useCallback(async (configId: string, dn: string) => {
+    if (state.childMap.has(dn) || state.loadingDns.has(dn)) return
+    dispatch({ type: 'SET_LOADING', dn, loading: true })
+    try {
+      const res = await apiClient.get<TreeNode[]>('/ldap/tree', { params: { dn, configId } })
+      dispatch({ type: 'SET_CHILDREN', dn, children: res.data })
+    } catch {
+      dispatch({ type: 'SET_CHILDREN', dn, children: [] })
+    } finally {
+      dispatch({ type: 'SET_LOADING', dn, loading: false })
+    }
+  }, [state.childMap, state.loadingDns])
+
+  // Build flat node list
+  const flatNodes = useMemo<FlatNode[]>(() => {
+    const out: FlatNode[] = []
+    const search = state.debouncedSearch.trim().toLowerCase()
+
+    activeConfigs.forEach(cfg => {
+      const collapsed = collapsedConfigs.has(cfg.id)
+      const cfgNode: FlatNode = {
+        node: { dn: '__cfg:' + cfg.id, rdn: '', type: 'other', name: cfg.name, has_children: true, is_activated: false },
+        depth: 0,
+        configId: cfg.id,
+        isLast: false,
+        parentDepthFlags: [],
+        kind: 'config',
+        configRef: cfg,
+      }
+      out.push(cfgNode)
+      if (collapsed) return
+
+      const rootInfo = rootsMap.get(cfg.id)
+      if (!rootInfo) return
+      const { roots, isLoading } = rootInfo
+      if (isLoading) {
+        for (let i = 0; i < 3; i++) {
+          out.push({
+            node: { dn: `__skel:${cfg.id}:${i}`, rdn: '', type: 'other', name: '', has_children: false, is_activated: false },
+            depth: 0,
+            configId: cfg.id,
+            isLast: i === 2,
+            parentDepthFlags: [],
+            kind: 'skeleton',
+          })
+        }
+        return
+      }
+      if (roots.length === 0) return
+
+      // recursive flatten via stack to support visible state
+      type Frame = { node: TreeNode; depth: number; isLast: boolean; flags: boolean[] }
+      const stack: Frame[] = []
+      // push roots reversed so first comes out on top
+      for (let i = roots.length - 1; i >= 0; i--) {
+        stack.push({ node: roots[i], depth: 0, isLast: i === roots.length - 1, flags: [] })
+      }
+      // Use iterative DFS (in-order: pop, push children if expanded)
+      const visited = new Set<string>()
+      const tempOut: FlatNode[] = []
+      const walk = (start: Frame) => {
+        const localStack: Frame[] = [start]
+        while (localStack.length > 0) {
+          const frame = localStack.pop()!
+          if (visited.has(frame.node.dn)) continue
+          visited.add(frame.node.dn)
+          tempOut.push({
+            node: frame.node,
+            depth: frame.depth,
+            configId: cfg.id,
+            isLast: frame.isLast,
+            parentDepthFlags: frame.flags,
+            kind: 'node',
+          })
+          if (state.expandedDns.has(frame.node.dn)) {
+            const children = state.childMap.get(frame.node.dn)
+            if (children === undefined && state.loadingDns.has(frame.node.dn)) {
+              // skeletons
+              for (let s = 0; s < 3; s++) {
+                tempOut.push({
+                  node: { dn: `__skel:${frame.node.dn}:${s}`, rdn: '', type: 'other', name: '', has_children: false, is_activated: false },
+                  depth: frame.depth + 1,
+                  configId: cfg.id,
+                  isLast: s === 2,
+                  parentDepthFlags: [...frame.flags, !frame.isLast],
+                  kind: 'skeleton',
+                })
+              }
+            } else if (children && children.length === 0) {
+              tempOut.push({
+                node: { dn: `__empty:${frame.node.dn}`, rdn: '', type: 'other', name: '', has_children: false, is_activated: false },
+                depth: frame.depth + 1,
+                configId: cfg.id,
+                isLast: true,
+                parentDepthFlags: [...frame.flags, !frame.isLast],
+                kind: 'empty',
+              })
+            } else if (children) {
+              const childFlags = [...frame.flags, !frame.isLast]
+              for (let i = children.length - 1; i >= 0; i--) {
+                localStack.push({
+                  node: children[i],
+                  depth: frame.depth + 1,
+                  isLast: i === children.length - 1,
+                  flags: childFlags,
+                })
+              }
+            }
+          }
+        }
+      }
+      // Process roots in original order using outer stack
+      const orderedRoots: Frame[] = []
+      for (let i = 0; i < roots.length; i++) {
+        orderedRoots.push({ node: roots[i], depth: 0, isLast: i === roots.length - 1, flags: [] })
+      }
+      orderedRoots.forEach(f => walk(f))
+
+      // Apply search filter
+      if (search) {
+        const matchSet = new Set<string>()
+        // mark direct matches
+        tempOut.forEach(fn => {
+          if (fn.kind !== 'node') return
+          const n = fn.node
+          if (
+            n.name.toLowerCase().includes(search) ||
+            (n.ldap_username?.toLowerCase().includes(search) ?? false) ||
+            (n.email?.toLowerCase().includes(search) ?? false)
+          ) {
+            matchSet.add(n.dn)
+            // include all ancestors (using DN suffix logic)
+            const ancs = dnAncestors(n.dn)
+            ancs.forEach(a => matchSet.add(a))
+          }
+        })
+        // Filter: keep matches and ancestors and skeleton/empty children of kept
+        const keptDns = new Set<string>()
+        tempOut.forEach(fn => {
+          if (fn.kind === 'node' && matchSet.has(fn.node.dn)) keptDns.add(fn.node.dn)
+        })
+        const filtered = tempOut.filter(fn => {
+          if (fn.kind === 'node') return keptDns.has(fn.node.dn)
+          // skeleton/empty: keep if their virtual parent is kept
+          // dn format: __skel:<parentDn>:<i> or __empty:<parentDn>
+          if (fn.kind === 'skeleton') {
+            const m = fn.node.dn.match(/^__skel:(.*):\d+$/)
+            return m ? keptDns.has(m[1]) : false
+          }
+          if (fn.kind === 'empty') {
+            const m = fn.node.dn.match(/^__empty:(.*)$/)
+            return m ? keptDns.has(m[1]) : false
+          }
+          return true
+        })
+        out.push(...filtered)
+      } else {
+        out.push(...tempOut)
+      }
+    })
+
+    return out
+  }, [activeConfigs, rootsMap, state.expandedDns, state.childMap, state.loadingDns, state.debouncedSearch, collapsedConfigs])
+
+  // Auto-expand search matches: trigger lazy loads for ancestors of matches when search active
+  useEffect(() => {
+    const search = state.debouncedSearch.trim().toLowerCase()
+    if (!search) return
+    // For each currently visible match, ensure ancestors are expanded.
+    // Limited to nodes already loaded in childMap to avoid storms.
+    const matchedDns: string[] = []
+    state.childMap.forEach(arr => {
+      arr.forEach(n => {
+        if (
+          n.name.toLowerCase().includes(search) ||
+          (n.ldap_username?.toLowerCase().includes(search) ?? false) ||
+          (n.email?.toLowerCase().includes(search) ?? false)
+        ) {
+          matchedDns.push(n.dn)
+        }
+      })
+    })
+    matchedDns.forEach(dn => {
+      const ancs = dnAncestors(dn)
+      ancs.forEach(a => {
+        if (state.childMap.has(a) && !state.expandedDns.has(a)) {
+          dispatch({ type: 'EXPAND', dn: a })
+        }
+      })
+    })
+  }, [state.debouncedSearch, state.childMap, state.expandedDns])
+
+  // Selection handler
+  const handleSelect = useCallback((configId: string, node: TreeNode, e: React.MouseEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      dispatch({ type: 'TOGGLE_MULTISELECT', dn: node.dn })
+      setLastClickedDn(node.dn)
+      return
+    }
+    if (e.shiftKey && lastClickedDn) {
+      // Range select within current flatNodes
+      const dns = flatNodes.filter(f => f.kind === 'node').map(f => f.node.dn)
+      const a = dns.indexOf(lastClickedDn)
+      const b = dns.indexOf(node.dn)
+      if (a >= 0 && b >= 0) {
+        const [lo, hi] = a < b ? [a, b] : [b, a]
+        const next = new Set<string>(state.multiSelected)
+        for (let i = lo; i <= hi; i++) next.add(dns[i])
+        dispatch({ type: 'SET_MULTISELECT', dns: next })
+        return
+      }
+    }
+    dispatch({ type: 'SELECT', configId, node })
+    dispatch({ type: 'CLEAR_MULTISELECT' })
+    setLastClickedDn(node.dn)
+    setFocusedDn(node.dn)
+    if (node.type !== 'ou' || !node.has_children) {
+      dispatch({ type: 'ADD_RECENT', node, configId })
+    } else {
+      dispatch({ type: 'ADD_RECENT', node, configId })
+    }
+  }, [flatNodes, lastClickedDn, state.multiSelected])
+
+  // Combined toggle that also lazy-loads
+  const handleToggleWithLoad = useCallback((dn: string) => {
+    // Find configId for this dn from flat nodes
+    const fn = flatNodes.find(f => f.kind === 'node' && f.node.dn === dn)
+    if (!fn) return
+    if (!state.expandedDns.has(dn) && !state.childMap.has(dn)) {
+      loadChildren(fn.configId, dn)
+    }
+    dispatch({ type: 'TOGGLE_EXPAND', dn })
+  }, [flatNodes, state.expandedDns, state.childMap, loadChildren])
+
+  // Context menu
+  const handleContextMenu = useCallback((configId: string, node: TreeNode, x: number, y: number) => {
+    setContextMenu({ x, y, configId, node })
+  }, [])
+
+  const handleConfigToggle = useCallback((configId: string) => {
+    setCollapsedConfigs(prev => {
+      const n = new Set(prev)
+      if (n.has(configId)) n.delete(configId)
+      else n.add(configId)
+      return n
+    })
+  }, [])
+
+  // Virtualization
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [scrollTop, setScrollTop] = useState(0)
+  const [containerHeight, setContainerHeight] = useState(600)
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const updateHeight = () => setContainerHeight(el.clientHeight)
+    updateHeight()
+    const onScroll = () => setScrollTop(el.scrollTop)
+    el.addEventListener('scroll', onScroll)
+    const ro = new ResizeObserver(updateHeight)
+    ro.observe(el)
+    return () => {
+      el.removeEventListener('scroll', onScroll)
+      ro.disconnect()
+    }
+  }, [])
+
+  const startIdx = Math.max(0, Math.floor(scrollTop / ROW_H) - OVERSCAN)
+  const endIdx = Math.min(flatNodes.length, Math.ceil((scrollTop + containerHeight) / ROW_H) + OVERSCAN)
+
+  const visibleSlice = useMemo(() => flatNodes.slice(startIdx, endIdx), [flatNodes, startIdx, endIdx])
+
+  // Selected node lookups
+  const selectedConfig = state.selection ? activeConfigs.find(c => c.id === state.selection!.configId) ?? null : null
+  const selectedNode = state.selection?.node ?? null
+  const selectedDn = state.selection?.node.dn ?? null
+
+  // Multi-selected user nodes
+  const multiSelectedUsers = useMemo<TreeNode[]>(() => {
+    if (state.multiSelected.size === 0) return []
+    const lookup = new Map<string, TreeNode>()
+    flatNodes.forEach(fn => {
+      if (fn.kind === 'node') lookup.set(fn.node.dn, fn.node)
+    })
+    const out: TreeNode[] = []
+    state.multiSelected.forEach(dn => {
+      const n = lookup.get(dn)
+      if (n && n.type === 'user') out.push(n)
+    })
+    return out
+  }, [state.multiSelected, flatNodes])
+
+  // Search input ref for "/" shortcut
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Keyboard navigation
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (!flatNodes.length) return
+    const target = e.target as HTMLElement
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA')) {
+      if (e.key === 'Escape') {
+        (target as HTMLElement).blur()
+      }
+      return
+    }
+    if (e.key === '/') {
+      e.preventDefault()
+      searchInputRef.current?.focus()
+      return
+    }
+
+    const visible = flatNodes.filter(f => f.kind === 'node' || f.kind === 'config')
+    const currentIdx = focusedDn
+      ? visible.findIndex(f => (f.kind === 'node' ? f.node.dn : '__cfg:' + f.configId) === focusedDn)
+      : -1
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      const next = visible[Math.min(visible.length - 1, currentIdx + 1)]
+      if (next) {
+        const dn = next.kind === 'node' ? next.node.dn : '__cfg:' + next.configId
+        setFocusedDn(dn)
+        // Scroll into view
+        const flatIdx = flatNodes.indexOf(next)
+        const el = scrollRef.current
+        if (el && flatIdx >= 0) {
+          const top = flatIdx * ROW_H
+          if (top + ROW_H > el.scrollTop + el.clientHeight) {
+            el.scrollTop = top - el.clientHeight + ROW_H * 2
+          }
+        }
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      const next = visible[Math.max(0, currentIdx - 1)]
+      if (next) {
+        const dn = next.kind === 'node' ? next.node.dn : '__cfg:' + next.configId
+        setFocusedDn(dn)
+        const flatIdx = flatNodes.indexOf(next)
+        const el = scrollRef.current
+        if (el && flatIdx >= 0) {
+          const top = flatIdx * ROW_H
+          if (top < el.scrollTop) el.scrollTop = top - ROW_H
+        }
+      }
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault()
+      if (focusedDn && currentIdx >= 0) {
+        const cur = visible[currentIdx]
+        if (cur.kind === 'node' && cur.node.has_children && cur.node.type !== 'user') {
+          if (!state.expandedDns.has(cur.node.dn)) {
+            handleToggleWithLoad(cur.node.dn)
+          }
+        }
+      }
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault()
+      if (focusedDn && currentIdx >= 0) {
+        const cur = visible[currentIdx]
+        if (cur.kind === 'node' && state.expandedDns.has(cur.node.dn)) {
+          dispatch({ type: 'COLLAPSE', dn: cur.node.dn })
+        }
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (focusedDn && currentIdx >= 0) {
+        const cur = visible[currentIdx]
+        if (cur.kind === 'node') {
+          dispatch({ type: 'SELECT', configId: cur.configId, node: cur.node })
+          dispatch({ type: 'ADD_RECENT', node: cur.node, configId: cur.configId })
+        }
+      }
+    } else if (e.key === 'Escape') {
+      dispatch({ type: 'CLEAR_SELECT' })
+      dispatch({ type: 'CLEAR_MULTISELECT' })
+    }
+  }, [flatNodes, focusedDn, state.expandedDns, handleToggleWithLoad])
+
+  // Jump to node (from breadcrumb / pinned / favorites / recents)
+  const handleJump = useCallback((configId: string, node: TreeNode) => {
+    dispatch({ type: 'SELECT', configId, node })
+    dispatch({ type: 'ADD_RECENT', node, configId })
+    setFocusedDn(node.dn)
+    // Expand ancestors that are loaded
+    const ancs = dnAncestors(node.dn)
+    ancs.forEach(a => {
+      if (state.childMap.has(a) && !state.expandedDns.has(a)) {
+        dispatch({ type: 'EXPAND', dn: a })
+      }
+    })
+    // Collapse the config if collapsed
+    if (collapsedConfigs.has(configId)) {
+      setCollapsedConfigs(prev => {
+        const n = new Set(prev)
+        n.delete(configId)
+        return n
+      })
+    }
+  }, [state.childMap, state.expandedDns, collapsedConfigs])
+
+  const togglePin = useCallback((configId: string, node: TreeNode) => {
+    if (state.pinnedNodes.has(node.dn)) {
+      dispatch({ type: 'UNPIN_NODE', dn: node.dn })
+    } else {
+      dispatch({ type: 'PIN_NODE', dn: node.dn, ref: { node, configId } })
+    }
+  }, [state.pinnedNodes])
+
+  const toggleFavorite = useCallback((dn: string) => {
+    dispatch({ type: 'TOGGLE_FAVORITE', dn })
+  }, [])
+
+  // Pinned/favorite refs for sidebar
+  const pinnedList = useMemo<PinnedRef[]>(() => Array.from(state.pinnedNodes.values()), [state.pinnedNodes])
+  const favoriteList = useMemo<PinnedRef[]>(() => {
+    // build from childMap + roots
+    const map = new Map<string, PinnedRef>()
+    activeConfigs.forEach((cfg, i) => {
+      const roots = rootQueries[i]?.data ?? []
+      roots.forEach(n => map.set(n.dn, { node: n, configId: cfg.id }))
+    })
+    state.childMap.forEach((arr, parentDn) => {
+      arr.forEach(n => {
+        // determine configId from parent (via existing lookup)
+        const existing = map.get(parentDn)
+        if (existing) map.set(n.dn, { node: n, configId: existing.configId })
+        else {
+          // try to derive via active configs by suffix
+          const cfg = activeConfigs.find(c => n.dn.toLowerCase().endsWith(c.baseDn.toLowerCase()))
+          if (cfg) map.set(n.dn, { node: n, configId: cfg.id })
+        }
+      })
+    })
+    const out: PinnedRef[] = []
+    state.favorites.forEach(dn => {
+      const ref = map.get(dn)
+      if (ref) out.push(ref)
+    })
+    return out
+  }, [state.favorites, state.childMap, activeConfigs, rootQueries])
+
+  const totalCount = activeConfigs.reduce((a, c) => {
+    const k = counts[c.id]
+    return a + (k ? k.ous + k.users + k.groups : 0)
+  }, 0)
+  const anyConnError = Object.values(counts).some(c => c.status === 'error')
+  const anyLoading = Object.values(counts).some(c => c.status === 'loading')
+
+  // Context menu items
+  const ctxItems = useMemo<ContextMenuItem[]>(() => {
+    if (!contextMenu) return []
+    const { node, configId } = contextMenu
+    const items: ContextMenuItem[] = []
+    items.push({
+      label: 'Copy DN',
+      hint: '⌘C',
+      onClick: () => { navigator.clipboard?.writeText(node.dn).catch(() => {}) },
+    })
+    if (node.ldap_username) {
+      items.push({
+        label: 'Copy username',
+        onClick: () => { navigator.clipboard?.writeText(node.ldap_username!).catch(() => {}) },
+      })
+    }
+    items.push({
+      label: state.pinnedNodes.has(node.dn) ? 'Unpin from top' : 'Pin to top',
+      onClick: () => togglePin(configId, node),
+    })
+    items.push({
+      label: state.favorites.has(node.dn) ? 'Remove favorite' : 'Add to favorites',
+      hint: '★',
+      onClick: () => toggleFavorite(node.dn),
+    })
+    if (node.type === 'user') {
+      items.push({
+        label: 'Grant access...',
+        disabled: !node.ldap_username || apps.length === 0,
+        onClick: () => {
+          dispatch({ type: 'SELECT', configId, node })
+          setShowActivate(true)
+        },
+      })
+    }
+    if (node.has_children && node.type !== 'user') {
+      items.push({
+        label: 'Expand all children',
+        onClick: () => {
+          dispatch({ type: 'EXPAND', dn: node.dn })
+          if (!state.childMap.has(node.dn)) loadChildren(configId, node.dn)
+          // expand one level only (recursive expand can be too expensive)
+        },
+      })
+    }
+    return items
+  }, [contextMenu, state.pinnedNodes, state.favorites, state.childMap, apps.length, togglePin, toggleFavorite, loadChildren])
+
+  return (
+    <div
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      style={{
+        display: 'flex', flexDirection: 'column',
+        height: 'calc(100vh - 4rem)', minHeight: 560,
+        fontFamily: FONT,
+        color: C.textDim,
+        background: C.bg,
+        border: `1px solid ${C.border}`,
+        overflow: 'hidden',
+        outline: 'none',
+      }}
+    >
+      <style>{`
+        @keyframes ldapFadeIn { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes ldapSlideIn { from { opacity: 0; transform: translateX(8px) } to { opacity: 1; transform: translateX(0) } }
+        @keyframes ldapPulseDot { 0%, 100% { opacity: 1 } 50% { opacity: 0.45 } }
+        @keyframes ldapSkeleton {
+          0% { opacity: 0.4 }
+          50% { opacity: 0.85 }
+          100% { opacity: 0.4 }
+        }
+      `}</style>
+
+      {/* TOP BAR */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 14,
+        padding: '0.75rem 1rem',
+        borderBottom: `1px solid ${C.border}`,
+        background: `linear-gradient(180deg, ${C.surface2} 0%, ${C.surface} 100%)`,
+        flexShrink: 0,
+        minHeight: 54,
+      }}>
+        <div style={{
+          width: 32, height: 32, flexShrink: 0,
+          border: `1px solid ${C.border}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: C.bg,
+        }}>
+          <DomainIcon size={18} />
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: '0.6rem', letterSpacing: '0.22em', textTransform: 'uppercase', color: C.textMuted }}>
+            ldap_directory_browser
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 1 }}>
+            <span style={{ fontSize: '0.95rem', fontWeight: 700, color: C.cyan, letterSpacing: '0.02em' }}>
+              ACTIVE DIRECTORY
+            </span>
+            {selectedConfig && (
+              <>
+                <span style={{ color: C.border }}>/</span>
+                <span style={{ fontSize: '0.75rem', color: C.textDim }}>{deriveDomain(selectedConfig.baseDn)}</span>
+              </>
+            )}
           </div>
         </div>
-      ) : (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: activeConfigs.length > 1 ? 'repeat(2, 1fr)' : '1fr',
-          gap: '1.25rem',
-          alignItems: 'start',
-        }}>
-          {activeConfigs.map(config => (
-            <ConfigTree key={config.id} config={config} apps={apps} />
-          ))}
+
+        <div style={{ flex: 1 }} />
+
+        {state.multiSelected.size > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{
+              padding: '4px 10px', fontSize: '0.7rem',
+              border: `1px solid ${C.purple}`, color: C.purple,
+              background: 'rgba(170,136,255,0.08)',
+              letterSpacing: '0.05em',
+            }}>
+              {state.multiSelected.size} selected
+            </span>
+            {multiSelectedUsers.length > 0 && apps.length > 0 && (
+              <button
+                onClick={() => setShowBulkGrant(true)}
+                style={{
+                  padding: '4px 12px', fontSize: '0.7rem', fontWeight: 700,
+                  border: `1px solid ${C.cyan}`, background: C.cyan, color: '#000',
+                  cursor: 'pointer', fontFamily: FONT, letterSpacing: '0.04em',
+                }}
+              >
+                + bulk_grant ({multiSelectedUsers.length})
+              </button>
+            )}
+            <button onClick={() => dispatch({ type: 'CLEAR_MULTISELECT' })} style={{
+              padding: '4px 8px', fontSize: '0.7rem',
+              border: `1px solid ${C.border}`, background: 'none', color: C.textDim,
+              cursor: 'pointer', fontFamily: FONT,
+            }}>clear</button>
+          </div>
+        )}
+
+        {/* Connection summary */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          {activeConfigs.map(c => {
+            const stat = counts[c.id]?.status ?? 'loading'
+            const color = stat === 'error' ? C.red : stat === 'loading' ? C.amber : C.green
+            return (
+              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{
+                  width: 7, height: 7, borderRadius: '50%',
+                  background: color,
+                  boxShadow: stat === 'ok' ? `0 0 8px ${color}` : 'none',
+                  animation: stat === 'loading' ? 'ldapPulseDot 1s ease-in-out infinite' : 'none',
+                }} />
+                <span style={{ fontSize: '0.7rem', color: C.textDim, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {c.url}
+                </span>
+              </div>
+            )
+          })}
+          {activeConfigs.length === 0 && (
+            <span style={{ fontSize: '0.7rem', color: C.amber }}>● no_active_configs</span>
+          )}
         </div>
+      </div>
+
+      {/* BREADCRUMB */}
+      {state.selection && (
+        <Breadcrumb
+          selection={state.selection}
+          configs={activeConfigs}
+          onJump={handleJump}
+          expandedDns={state.expandedDns}
+          childMap={state.childMap}
+        />
+      )}
+
+      {/* BODY: split pane */}
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative' }}>
+        {/* LEFT: Tree panel */}
+        <div style={{
+          width: panelWidth, flexShrink: 0,
+          display: 'flex', flexDirection: 'column',
+          borderRight: `1px solid ${C.border}`,
+          background: C.surface,
+          minHeight: 0,
+        }}>
+          {/* Search */}
+          <div style={{
+            padding: '0.625rem 0.75rem',
+            borderBottom: `1px solid ${C.border}`,
+            display: 'flex', alignItems: 'center', gap: 8,
+            background: C.surface2,
+          }}>
+            <span style={{ color: C.textMuted, display: 'flex' }}><SearchIcon size={12} /></span>
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={state.searchQuery}
+              onChange={e => dispatch({ type: 'SET_SEARCH', query: e.target.value })}
+              placeholder="filter — / to focus"
+              style={{
+                flex: 1, minWidth: 0,
+                background: 'transparent', border: 'none',
+                color: C.cyan, fontSize: '0.75rem',
+                fontFamily: FONT, outline: 'none',
+              }}
+            />
+            {state.searchQuery && (
+              <button onClick={() => dispatch({ type: 'SET_SEARCH', query: '' })} style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: C.textMuted, fontSize: '0.75rem', padding: 0,
+              }}>×</button>
+            )}
+          </div>
+
+          {/* Virtual flat list */}
+          <div
+            ref={scrollRef}
+            style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', position: 'relative' }}
+          >
+            {configsLoading ? (
+              <div style={{ padding: '2rem 1rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Spinner size={12} />
+                <span style={{ fontSize: '0.7rem', color: C.textMuted }}>loading config...</span>
+              </div>
+            ) : activeConfigs.length === 0 ? (
+              <div style={{ padding: '1.5rem 1rem' }}>
+                <div style={{ fontSize: '0.75rem', color: C.amber, marginBottom: 4 }}>! no_active_ldap</div>
+                <div style={{ fontSize: '0.7rem', color: C.textMuted, lineHeight: 1.6 }}>
+                  Add and activate an LDAP server in <span style={{ color: C.cyan }}>Settings → LDAP</span> to begin browsing the directory.
+                </div>
+              </div>
+            ) : flatNodes.length === 0 ? (
+              <div style={{ padding: '1.5rem 1rem', fontSize: '0.7rem', color: C.textMuted }}>
+                {state.debouncedSearch ? `no matches for "${state.debouncedSearch}"` : 'directory is empty'}
+              </div>
+            ) : (
+              <div style={{ height: flatNodes.length * ROW_H + 8, position: 'relative' }}>
+                {visibleSlice.map((flatNode, i) => {
+                  const idx = startIdx + i
+                  const isNode = flatNode.kind === 'node'
+                  const isConfigRow = flatNode.kind === 'config'
+                  const dnKey = isNode ? flatNode.node.dn
+                    : isConfigRow ? '__cfg:' + flatNode.configId
+                    : flatNode.node.dn
+                  const isSelected = isNode && selectedDn === flatNode.node.dn
+                  const isFocused = dnKey === focusedDn
+                  const isMultiSelected = isNode && state.multiSelected.has(flatNode.node.dn)
+                  const isExpanded = isConfigRow
+                    ? !collapsedConfigs.has(flatNode.configId)
+                    : isNode && state.expandedDns.has(flatNode.node.dn)
+                  const isLoading = isNode && state.loadingDns.has(flatNode.node.dn)
+                  const isFavorite = isNode && state.favorites.has(flatNode.node.dn)
+                  const isPinned = isNode && state.pinnedNodes.has(flatNode.node.dn)
+
+                  return (
+                    <div key={dnKey} style={{
+                      position: 'absolute', top: idx * ROW_H, left: 0, right: 0,
+                    }}>
+                      <FlatTreeRow
+                        flatNode={flatNode}
+                        isSelected={isSelected}
+                        isFocused={isFocused}
+                        isMultiSelected={isMultiSelected}
+                        isExpanded={isExpanded}
+                        isLoading={isLoading}
+                        isFavorite={isFavorite}
+                        isPinned={isPinned}
+                        searchQuery={state.debouncedSearch}
+                        onToggle={handleToggleWithLoad}
+                        onSelect={handleSelect}
+                        onContextMenu={handleContextMenu}
+                        onConfigToggle={handleConfigToggle}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Tree footer */}
+          <div style={{
+            padding: '0.5rem 0.75rem',
+            borderTop: `1px solid ${C.border}`,
+            fontSize: '0.65rem', color: C.textMuted,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            background: C.surface2, flexShrink: 0,
+          }}>
+            <span>{activeConfigs.length} server{activeConfigs.length !== 1 ? 's' : ''}</span>
+            <span>{flatNodes.filter(f => f.kind === 'node').length} visible</span>
+          </div>
+        </div>
+
+        {/* Resize handle */}
+        <div
+          onMouseDown={() => setIsDragging(true)}
+          style={{
+            position: 'absolute',
+            left: panelWidth - 2, top: 0, bottom: 0,
+            width: 5,
+            cursor: 'col-resize',
+            zIndex: 10,
+            background: isDragging ? 'rgba(0,255,255,0.3)' : 'transparent',
+            transition: 'background 0.12s',
+          }}
+          onMouseEnter={e => { if (!isDragging) e.currentTarget.style.background = 'rgba(0,255,255,0.12)' }}
+          onMouseLeave={e => { if (!isDragging) e.currentTarget.style.background = 'transparent' }}
+        />
+
+        {/* RIGHT: Detail panel */}
+        <div style={{
+          flex: 1, minWidth: 0,
+          overflowY: 'auto',
+          background: `radial-gradient(ellipse at top right, rgba(0,255,255,0.025) 0%, transparent 60%), ${C.bg}`,
+        }}>
+          <div key={state.selection?.node.dn ?? 'none'} style={{ animation: 'ldapSlideIn 0.18s ease' }}>
+            {!state.selection ? (
+              <NoSelectionPanel
+                totals={totals}
+                configs={configs}
+                pinned={pinnedList}
+                favorites={favoriteList}
+                recent={state.recentNodes}
+                onJump={handleJump}
+                onUnpin={dn => dispatch({ type: 'UNPIN_NODE', dn })}
+                onUnfavorite={dn => dispatch({ type: 'TOGGLE_FAVORITE', dn })}
+              />
+            ) : selectedNode?.type === 'user' ? (
+              <UserDetail
+                node={selectedNode}
+                apps={apps}
+                isFavorite={state.favorites.has(selectedNode.dn)}
+                isPinned={state.pinnedNodes.has(selectedNode.dn)}
+                onActivate={() => setShowActivate(true)}
+                onToggleFavorite={() => toggleFavorite(selectedNode.dn)}
+                onTogglePin={() => state.selection && togglePin(state.selection.configId, selectedNode)}
+              />
+            ) : selectedNode ? (
+              <ContainerDetail node={selectedNode} configId={state.selection.configId} />
+            ) : null}
+          </div>
+        </div>
+      </div>
+
+      {/* STATUS BAR */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 14,
+        padding: '0.4rem 1rem',
+        borderTop: `1px solid ${C.border}`,
+        background: C.surface2,
+        fontSize: '0.65rem', color: C.textMuted,
+        flexShrink: 0, minHeight: 28,
+      }}>
+        <span style={{
+          color: anyConnError ? C.red : anyLoading ? C.amber : C.green,
+          letterSpacing: '0.08em', textTransform: 'uppercase',
+        }}>
+          {anyConnError ? '● error' : anyLoading ? '● syncing' : '● online'}
+        </span>
+        <span style={{ color: C.border }}>│</span>
+        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: C.textDim, fontFamily: FONT }}>
+          {selectedNode ? selectedNode.dn : 'no_selection'}
+        </span>
+        <span style={{ color: C.border }}>│</span>
+        <span>{totalCount} obj</span>
+        <span style={{ color: C.border }}>│</span>
+        <span>LDAP</span>
+        <span style={{ color: C.border }}>│</span>
+        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{stamp}</span>
+      </div>
+
+      {/* Modals */}
+      {showActivate && selectedNode && selectedNode.type === 'user' && (
+        <ActivateModal
+          node={selectedNode}
+          apps={apps}
+          onClose={() => setShowActivate(false)}
+        />
+      )}
+
+      {showBulkGrant && multiSelectedUsers.length > 0 && (
+        <BulkGrantModal
+          users={multiSelectedUsers}
+          apps={apps}
+          onClose={() => setShowBulkGrant(false)}
+        />
+      )}
+
+      {/* Context menu */}
+      {contextMenu && ctxItems.length > 0 && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={ctxItems}
+          onClose={() => setContextMenu(null)}
+        />
       )}
     </div>
   )

@@ -8,6 +8,7 @@ export interface LdapServerConfig {
   serviceAccountDn: string
   serviceAccountPassword?: string
   usernameAttribute: string
+  emailAttribute: string
   userObjectClass: string
   additionalUserFilter?: string
   claimMappings?: string
@@ -22,7 +23,6 @@ export interface LdapConfigRequest {
   baseDn: string
   serviceAccountDn: string
   serviceAccountPassword?: string
-  usernameAttribute: string
   userObjectClass: string
   additionalUserFilter?: string
   claimMappings?: string
@@ -50,6 +50,8 @@ export const settingsApi = {
     delete: (id: string) => apiClient.delete(`/settings/ldap/${id}`),
     activate: (id: string) => apiClient.patch<LdapServerConfig>(`/settings/ldap/${id}/activate`).then(r => r.data),
     deactivate: (id: string) => apiClient.patch<LdapServerConfig>(`/settings/ldap/${id}/deactivate`).then(r => r.data),
+    updateLoginAttributes: (id: string, data: { usernameAttribute: string; emailAttribute: string }) =>
+      apiClient.patch<LdapServerConfig>(`/settings/ldap/${id}/login-attributes`, data).then(r => r.data),
     test: (data: LdapConfigRequest) => apiClient.post<{ success: boolean; message: string }>('/settings/ldap/test', data).then(r => r.data),
     testById: (id: string) => apiClient.post<{ success: boolean; message: string }>(`/settings/ldap/${id}/test`).then(r => r.data),
     attributes: () => apiClient.get<Record<string, string>>('/settings/ldap/attributes').then(r => r.data),

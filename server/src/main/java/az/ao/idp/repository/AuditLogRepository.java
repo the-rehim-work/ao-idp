@@ -3,6 +3,7 @@ package az.ao.idp.repository;
 import az.ao.idp.entity.AuditLog;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -19,4 +20,8 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, UUID>, JpaSp
 
     @Query("SELECT a.action, COUNT(a) FROM AuditLog a WHERE a.createdAt >= :since GROUP BY a.action ORDER BY COUNT(a) DESC")
     List<Object[]> countByActionSince(@Param("since") Instant since);
+
+    @Modifying
+    @Query("DELETE FROM AuditLog a WHERE a.createdAt < :before")
+    int deleteByCreatedAtBefore(@Param("before") Instant before);
 }

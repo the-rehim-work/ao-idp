@@ -53,14 +53,6 @@ public class LdapService {
         return new LdapProps(config.getUsernameAttribute(), config.getUserObjectClass(), config.getBaseDn(), config.getAdditionalUserFilter());
     }
 
-    private LdapProps fallbackProps() {
-        return new LdapProps(
-                idpProperties.ldap().usernameAttribute(),
-                idpProperties.ldap().userObjectClass(),
-                idpProperties.ldap().baseDn(),
-                null
-        );
-    }
 
     private CachedLdap forConfig(LdapServerConfig config) {
         CachedLdap existing = cache.get(config.getId());
@@ -68,7 +60,9 @@ public class LdapService {
         LdapContextSource source = LdapConfigService.buildContextSource(
                 config.getUrl(), config.getBaseDn(), config.getServiceAccountDn(), config.getServiceAccountPassword()
         );
-        CachedLdap entry = new CachedLdap(config.getUpdatedAt(), source, new LdapTemplate(source));
+        LdapTemplate ldapTemplate = new LdapTemplate(source);
+        ldapTemplate.setIgnorePartialResultException(true);
+        CachedLdap entry = new CachedLdap(config.getUpdatedAt(), source, ldapTemplate);
         cache.put(config.getId(), entry);
         return entry;
     }
@@ -76,16 +70,6 @@ public class LdapService {
     private LdapServerConfig primaryConfig() {
         return ldapConfigService.getActive()
                 .orElseThrow(() -> new IllegalStateException("No active LDAP server configured"));
-    }
-
-    private LdapTemplate primaryTemplate() {
-        return forConfig(primaryConfig()).template();
-    }
-
-    private LdapProps primaryProps() {
-        return ldapConfigService.getActive()
-                .map(this::propsFrom)
-                .orElseGet(this::fallbackProps);
     }
 
     public AuthResult authenticate(String username, String password, UUID knownLdapServerId) {
@@ -401,22 +385,135 @@ public class LdapService {
         return listLdapChildren(null, parentDn, activatedUsernames);
     }
 
+    private static final String[] TREE_ATTRS = {
+            "objectClass", "cn", "ou", "dc", "sAMAccountName", "uid",
+            "displayName", "mail", "title", "memberOf", "member", "uniqueMember",
+            "memberUid", "description", "name"
+    };
+    private static final Set<String> GROUP_CLASSES = Set.of(
+            "group", "groupofnames", "groupofuniquenames", "posixgroup", "groupofmembers"
+    );
+    private static final Set<String> OU_CLASSES = Set.of(
+            "organizationalunit", "organization", "container", "builtindomain", "domain", "dcobject"
+    );
+    private static final Set<String> USER_CLASSES = Set.of(
+            "person", "inetorgperson", "organizationalperson", "posixaccount", "user"
+    );
+
     public List<LdapTreeNode> listLdapChildren(UUID configId, String parentDn, Set<String> activatedUsernames) {
+        Set<String> normalizedActivated = activatedUsernames.stream()
+                .map(String::toLowerCase).collect(java.util.stream.Collectors.toSet());
         LdapServerConfig config = configId != null ? ldapConfigService.get(configId) : primaryConfig();
         LdapProps props = propsFrom(config);
         LdapTemplate template = forConfig(config).template();
         String searchBase = toRelativeDn(parentDn, props.baseDn());
 
+        // If expanding a specific node, check if it's a group → load by member refs
+        if (!searchBase.isEmpty()) {
+            try {
+                DirContextOperations parentCtx = template.lookupContext(searchBase);
+                String[] parentOcs = parentCtx.getStringAttributes("objectClass");
+                if (parentOcs != null) {
+                    Set<String> ocSet = new HashSet<>();
+                    for (String oc : parentOcs) ocSet.add(oc.toLowerCase());
+                    if (ocSet.stream().anyMatch(GROUP_CLASSES::contains)) {
+                        return loadGroupMembers(parentCtx, template, props, normalizedActivated);
+                    }
+                }
+            } catch (Exception e) {
+                log.debug("Could not check parent type at '{}': {}", searchBase, e.getMessage());
+            }
+        }
+
         SearchControls controls = new SearchControls();
         controls.setSearchScope(SearchControls.ONELEVEL_SCOPE);
-        controls.setReturningAttributes(new String[]{
-                "objectClass", "cn", "ou", "dc", "sAMAccountName", "uid",
-                "displayName", "mail", "title", "memberOf", "member", "uniqueMember",
-                "description", "name"
-        });
+        controls.setReturningAttributes(TREE_ATTRS);
 
-        ContextMapper<LdapTreeNode> mapper = ctx -> {
-            DirContextOperations dco = (DirContextOperations) ctx;
+        ContextMapper<LdapTreeNode> mapper = ctx -> mapDcoToNode(
+                (DirContextOperations) ctx, props, normalizedActivated);
+
+        try {
+            List<LdapTreeNode> results = template.search(searchBase, "(objectClass=*)", controls, mapper)
+                    .stream().filter(n -> n != null).toList();
+
+            // Some LDAP servers return nothing with ONELEVEL_SCOPE at root — fall back to SUBTREE direct children
+            if (results.isEmpty() && searchBase.isEmpty()) {
+                log.debug("ONELEVEL_SCOPE returned empty at root, trying SUBTREE fallback for baseDn={}", props.baseDn());
+                SearchControls subtreeControls = new SearchControls();
+                subtreeControls.setSearchScope(SearchControls.SUBTREE_SCOPE);
+                subtreeControls.setReturningAttributes(TREE_ATTRS);
+                List<LdapTreeNode> all = template.search(searchBase, "(objectClass=*)", subtreeControls, mapper)
+                        .stream().filter(n -> n != null).toList();
+                String baseDnLower = props.baseDn().toLowerCase();
+                return all.stream()
+                        .filter(n -> {
+                            String parent = parentDnOf(n.dn());
+                            return parent.equalsIgnoreCase(baseDnLower) || parent.toLowerCase().equals(baseDnLower);
+                        })
+                        .toList();
+            }
+            return results;
+        } catch (Exception e) {
+            String context = parentDn != null ? parentDn : "(root)";
+            log.error("LDAP tree search failed for dn={}: {}", context, e.getMessage());
+            throw new RuntimeException("LDAP directory search failed: " + e.getMessage(), e);
+        }
+    }
+
+    private List<LdapTreeNode> loadGroupMembers(DirContextOperations groupCtx, LdapTemplate template,
+                                                LdapProps props, Set<String> normalizedActivated) {
+        List<LdapTreeNode> members = new ArrayList<>();
+        Set<String> seenDns = new HashSet<>();
+
+        // DN-based membership (group, groupOfNames, groupOfUniqueNames)
+        for (String attr : List.of("member", "uniqueMember")) {
+            String[] memberDns = groupCtx.getStringAttributes(attr);
+            if (memberDns == null) continue;
+            for (String memberDn : memberDns) {
+                if (memberDn == null || memberDn.isBlank() || !seenDns.add(memberDn.toLowerCase())) continue;
+                // Skip RFC placeholder for empty groups
+                String rdnPart = memberDn.split(",")[0].trim().toLowerCase();
+                if (rdnPart.equals("cn=empty") || rdnPart.equals("cn=dummy")) continue;
+                try {
+                    String relDn = toRelativeDn(memberDn, props.baseDn());
+                    DirContextOperations memberCtx = template.lookupContext(
+                            relDn.isEmpty() ? memberDn : relDn);
+                    LdapTreeNode node = mapDcoToNode(memberCtx, props, normalizedActivated);
+                    if (node != null) members.add(node);
+                } catch (Exception e) {
+                    log.debug("Could not lookup group member '{}': {}", memberDn, e.getMessage());
+                }
+            }
+        }
+
+        // UID-based membership (posixGroup memberUid)
+        String[] memberUids = groupCtx.getStringAttributes("memberUid");
+        if (memberUids != null) {
+            SearchControls sc = new SearchControls();
+            sc.setSearchScope(SearchControls.SUBTREE_SCOPE);
+            sc.setReturningAttributes(TREE_ATTRS);
+            for (String uid : memberUids) {
+                if (uid == null || uid.isBlank()) continue;
+                try {
+                    ContextMapper<LdapTreeNode> uidMapper =
+                            ctx -> mapDcoToNode((DirContextOperations) ctx, props, normalizedActivated);
+                    List<LdapTreeNode> found = template.search("",
+                            "(&(objectClass=*)(|(uid=" + uid + ")(sAMAccountName=" + uid + ")))",
+                            sc, uidMapper);
+                    for (LdapTreeNode n : found) {
+                        if (n != null && seenDns.add(n.dn().toLowerCase())) members.add(n);
+                    }
+                } catch (Exception e) {
+                    log.debug("Could not lookup posixGroup memberUid '{}': {}", uid, e.getMessage());
+                }
+            }
+        }
+
+        return members;
+    }
+
+    private LdapTreeNode mapDcoToNode(DirContextOperations dco, LdapProps props, Set<String> normalizedActivated) {
+        try {
             String dn = dco.getNameInNamespace();
             String rdn = dn.contains(",") ? dn.substring(0, dn.indexOf(',')) : dn;
             String[] objectClasses = dco.getStringAttributes("objectClass");
@@ -424,32 +521,26 @@ public class LdapService {
             Set<String> ocSet = new HashSet<>();
             for (String oc : objectClasses) ocSet.add(oc.toLowerCase());
 
-            if (ocSet.contains("organizationalunit") || ocSet.contains("organization")
-                    || ocSet.contains("container") || ocSet.contains("builtindomain")
-                    || ocSet.contains("domain") || ocSet.contains("dcobject")) {
-                String ouName = dco.getStringAttribute("ou");
-                if (ouName == null) ouName = dco.getStringAttribute("o");
-                if (ouName == null) ouName = dco.getStringAttribute("dc");
-                if (ouName == null) ouName = rdnValue(rdn);
-                return LdapTreeNode.ou(dn, rdn, ouName, true);
+            if (ocSet.stream().anyMatch(OU_CLASSES::contains)) {
+                String name = dco.getStringAttribute("ou");
+                if (name == null) name = dco.getStringAttribute("o");
+                if (name == null) name = dco.getStringAttribute("dc");
+                if (name == null) name = rdnValue(rdn);
+                return LdapTreeNode.ou(dn, rdn, name, true);
             }
 
-            if (ocSet.contains("group") || ocSet.contains("groupofnames")
-                    || ocSet.contains("groupofuniquenames") || ocSet.contains("posixgroup")
-                    || ocSet.contains("groupofmembers")) {
-                String groupName = dco.getStringAttribute("cn");
-                if (groupName == null) groupName = dco.getStringAttribute("name");
-                if (groupName == null) groupName = rdnValue(rdn);
-                boolean hasMember = dco.getStringAttributes("member") != null
+            if (ocSet.stream().anyMatch(GROUP_CLASSES::contains)) {
+                String name = dco.getStringAttribute("cn");
+                if (name == null) name = dco.getStringAttribute("name");
+                if (name == null) name = rdnValue(rdn);
+                boolean hasMembers = dco.getStringAttributes("member") != null
                         || dco.getStringAttributes("uniqueMember") != null
-                        || dco.getStringAttribute("memberUid") != null;
-                return LdapTreeNode.group(dn, rdn, groupName, hasMember);
+                        || dco.getStringAttributes("memberUid") != null;
+                return LdapTreeNode.group(dn, rdn, name, hasMembers);
             }
 
             String configuredClass = props.userObjectClass().toLowerCase();
-            if (ocSet.contains(configuredClass) || ocSet.contains("person")
-                    || ocSet.contains("inetorgperson") || ocSet.contains("organizationalperson")
-                    || ocSet.contains("posixaccount") || ocSet.contains("user")) {
+            if (ocSet.contains(configuredClass) || ocSet.stream().anyMatch(USER_CLASSES::contains)) {
                 String username = dco.getStringAttribute(props.usernameAttribute());
                 if (username == null) username = dco.getStringAttribute("uid");
                 if (username == null) username = dco.getStringAttribute("sAMAccountName");
@@ -461,7 +552,7 @@ public class LdapService {
                 List<String> groups = memberOf != null
                         ? Arrays.stream(memberOf).map(this::rdnValue).toList()
                         : Collections.emptyList();
-                boolean isActivated = username != null && activatedUsernames.contains(username);
+                boolean isActivated = username != null && normalizedActivated.contains(username.toLowerCase());
                 return LdapTreeNode.user(dn, rdn, displayName, username,
                         dco.getStringAttribute("mail"), dco.getStringAttribute("title"), isActivated, groups);
             }
@@ -470,14 +561,9 @@ public class LdapService {
             if (name == null) name = dco.getStringAttribute("name");
             if (name == null) name = rdnValue(rdn);
             return LdapTreeNode.other(dn, rdn, name);
-        };
-
-        try {
-            return template.search(searchBase, "(objectClass=*)", controls, mapper)
-                    .stream().filter(n -> n != null).toList();
         } catch (Exception e) {
-            log.error("LDAP tree search failed for dn={}: {}", parentDn, e.getMessage());
-            return Collections.emptyList();
+            log.debug("Failed to map LDAP entry: {}", e.getMessage());
+            return null;
         }
     }
 

@@ -140,6 +140,10 @@ public class OidcService {
             throw new InvalidClientException("User is not authorized for this application");
         }
 
+        auditService.log("user", user.getId().toString(), "token_exchange", "application", app.getId().toString(), app, null, null,
+                Map.of("ldap_username", user.getLdapUsername(), "display_name", user.getDisplayName() != null ? user.getDisplayName() : "",
+                        "app_name", app.getName(), "client_id", app.getClientId(), "scope", codeData.scope() != null ? codeData.scope() : "openid profile"));
+
         return buildTokenResponse(user, app);
     }
 

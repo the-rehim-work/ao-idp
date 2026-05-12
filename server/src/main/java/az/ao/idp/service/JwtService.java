@@ -51,7 +51,7 @@ public class JwtService {
         return builder.compact();
     }
 
-    public String issueAdminToken(UUID adminId, String username, String adminType, String displayName, List<UUID> scopedAppIds) {
+    public String issueAdminToken(UUID adminId, String username, String adminType, String displayName, List<UUID> scopedAppIds, List<String> permissions) {
         Instant now = Instant.now();
         long expirySeconds = settingsService.getAdminTokenExpiryMinutes() * 60;
         return Jwts.builder()
@@ -65,6 +65,7 @@ public class JwtService {
                 .claim("admin_type", adminType)
                 .claim("display_name", displayName)
                 .claim("scoped_app_ids", scopedAppIds.stream().map(UUID::toString).toList())
+                .claim("permissions", permissions != null ? permissions : List.of())
                 .header().keyId(activeKeyPair.kid()).and()
                 .signWith(activeKeyPair.privateKey(), Jwts.SIG.RS256)
                 .compact();

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi, LdapServerConfig, LdapConfigRequest, TokenSettings, ClaimMapping } from '../api/settings'
+import { apiClient } from '../api/client'
 
 const C = '#00ffff', CD = '#00d4e8', CM = '#009bb5', CB = '#006b8a', ERR = '#ff4444'
 const BORDER = 'rgba(0,255,255,0.18)', SURFACE = '#020d10'
@@ -122,7 +123,7 @@ const parseClaimMappings = (raw: string | undefined): ClaimMapping[] => {
 const emptyLdapForm = (): LdapConfigRequest => ({
   name: '', url: 'ldaps://', baseDn: 'DC=ao,DC=az',
   serviceAccountDn: '', serviceAccountPassword: '',
-  usernameAttribute: 'sAMAccountName', userObjectClass: 'user',
+  userObjectClass: 'user',
   additionalUserFilter: '', claimMappings: undefined,
 })
 
@@ -140,7 +141,6 @@ function ActiveConnectionPanel({ config }: { config: LdapServerConfig }) {
           { label: 'URL', value: config.url },
           { label: 'Base DN', value: config.baseDn },
           { label: 'Service Account', value: config.serviceAccountDn },
-          { label: 'Username Attribute', value: config.usernameAttribute },
           { label: 'User Object Class', value: config.userObjectClass },
           { label: 'Additional Filter', value: config.additionalUserFilter || '—' },
         ].map(({ label, value }) => (
@@ -185,7 +185,7 @@ function LdapSection() {
     setEditTarget(c)
     setForm({
       name: c.name, url: c.url, baseDn: c.baseDn, serviceAccountDn: c.serviceAccountDn,
-      serviceAccountPassword: '', usernameAttribute: c.usernameAttribute,
+      serviceAccountPassword: '',
       userObjectClass: c.userObjectClass, additionalUserFilter: c.additionalUserFilter ?? '',
       claimMappings: undefined,
     })
@@ -283,7 +283,7 @@ function LdapSection() {
             </div>
             <div style={{ fontSize: '0.7rem', color: CB }}>{c.url} · {c.baseDn}</div>
             <div style={{ fontSize: '0.65rem', color: CB, marginTop: '0.1rem' }}>
-              {c.usernameAttribute} / {c.userObjectClass}
+              {c.userObjectClass}
               {c.claimMappings && parseClaimMappings(c.claimMappings).length > 0 && (
                 <span style={{ marginLeft: '0.75rem', color: CM }}>
                   {parseClaimMappings(c.claimMappings).filter(m => m.enabled).length} claims active
@@ -315,7 +315,6 @@ function LdapSection() {
             <Field label={isEdit ? 'Service Account Password (blank = keep)' : 'Service Account Password'}>
               <input style={inputStyle} type="password" value={form.serviceAccountPassword} onChange={f('serviceAccountPassword')} autoComplete="new-password" />
             </Field>
-            <Field label="Username Attribute"><input style={inputStyle} value={form.usernameAttribute} onChange={f('usernameAttribute')} placeholder="sAMAccountName" /></Field>
             <Field label="User Object Class"><input style={inputStyle} value={form.userObjectClass} onChange={f('userObjectClass')} placeholder="user" /></Field>
             <Field label="Additional Filter (optional)"><input style={inputStyle} value={form.additionalUserFilter ?? ''} onChange={f('additionalUserFilter')} placeholder="(department=IT)" /></Field>
           </div>
@@ -407,7 +406,7 @@ function LdapClaimsEditor({ config }: { config: LdapServerConfig }) {
     mutationFn: () => settingsApi.ldap.update(config.id, {
       name: config.name, url: config.url, baseDn: config.baseDn,
       serviceAccountDn: config.serviceAccountDn, serviceAccountPassword: undefined,
-      usernameAttribute: config.usernameAttribute, userObjectClass: config.userObjectClass,
+      userObjectClass: config.userObjectClass,
       additionalUserFilter: config.additionalUserFilter,
       claimMappings: JSON.stringify(claims),
     }),
@@ -468,13 +467,157 @@ function ClaimsSection() {
   )
 }
 
+interface LoginSettings {
+  identifierType: string
+  pageTitle: string
+  logRetentionDays: number
+  usernameAttribute: string
+  emailAttribute: string
+}
+
+function LdapAttributeRow({ config }: { config: LdapServerConfig }) {
+  const qc = useQueryClient()
+  const [usernameAttr, setUsernameAttr] = useState(config.usernameAttribute ?? 'sAMAccountName')
+  const [emailAttr, setEmailAttr] = useState(config.emailAttribute ?? 'mail')
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    setUsernameAttr(config.usernameAttribute ?? 'sAMAccountName')
+    setEmailAttr(config.emailAttribute ?? 'mail')
+  }, [config.usernameAttribute, config.emailAttribute])
+
+  const saveMut = useMutation({
+    mutationFn: () => settingsApi.ldap.updateLoginAttributes(config.id, { usernameAttribute: usernameAttr, emailAttribute: emailAttr }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ldap-configs'] }); setSaved(true); setTimeout(() => setSaved(false), 2000) },
+  })
+
+  return (
+    <div style={{ border: `1px solid ${config.active ? C : BORDER}`, background: SURFACE, padding: '0.875rem 1rem', marginBottom: '0.5rem', opacity: config.active ? 1 : 0.65 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.75rem' }}>
+        <div style={{ width: 6, height: 6, borderRadius: '50%', background: config.active ? C : CB, boxShadow: config.active ? '0 0 5px rgba(0,255,255,0.8)' : 'none', flexShrink: 0 }} />
+        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: config.active ? C : CD }}>{config.name}</span>
+        {config.active && <span style={{ fontSize: '0.5rem', padding: '0.1rem 0.35rem', border: `1px solid ${C}`, color: C, letterSpacing: '0.1em', textTransform: 'uppercase' }}>active</span>}
+        <span style={{ fontSize: '0.6rem', color: CB, marginLeft: 'auto' }}>{config.url}</span>
+        {saved && <span style={{ fontSize: '0.6rem', color: C }}>saved.</span>}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.5rem', alignItems: 'end' }}>
+        <Field label="Username Attribute">
+          <input style={inputStyle} value={usernameAttr} onChange={e => setUsernameAttr(e.target.value)} placeholder="sAMAccountName" />
+        </Field>
+        <Field label="Email Attribute">
+          <input style={inputStyle} value={emailAttr} onChange={e => setEmailAttr(e.target.value)} placeholder="mail" />
+        </Field>
+        <button style={{ ...btnPrimary, marginBottom: '0.875rem' }} onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>
+          {saveMut.isPending ? '...' : '> save'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function LoginSection() {
+  const qc = useQueryClient()
+  const { data } = useQuery({
+    queryKey: ['login-settings'],
+    queryFn: () => apiClient.get<LoginSettings>('/settings/login').then(r => r.data),
+  })
+  const { data: ldapConfigs = [] } = useQuery({ queryKey: ['ldap-configs'], queryFn: settingsApi.ldap.list })
+  const ldapActive = ldapConfigs.some((c: LdapServerConfig) => c.active)
+  const activeLdap = ldapConfigs.find((c: LdapServerConfig) => c.active)
+
+  const [form, setForm] = useState<LoginSettings>({ identifierType: 'any', pageTitle: 'AO ID', logRetentionDays: 10, usernameAttribute: 'sAMAccountName', emailAttribute: 'mail' })
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => { if (data) setForm(data) }, [data])
+
+  const saveMut = useMutation({
+    mutationFn: () => apiClient.put<LoginSettings>('/settings/login', form).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['login-settings'] }); setSaved(true); setTimeout(() => setSaved(false), 2000) },
+  })
+
+  return (
+    <div>
+      <SectionTitle>Login Page Settings</SectionTitle>
+      {saved && <div style={{ color: C, fontSize: '0.75rem', marginBottom: '1rem', padding: '0.5rem 0.75rem', border: '1px solid rgba(0,255,255,0.3)' }}>Saved.</div>}
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div style={{ background: SURFACE, border: `1px solid ${ldapActive ? BORDER : 'rgba(255,255,255,0.06)'}`, padding: '1rem', opacity: ldapActive ? 1 : 0.5 }}>
+          <Field label="Identifier Type">
+            <select
+              value={form.identifierType}
+              onChange={e => setForm(f => ({ ...f, identifierType: e.target.value }))}
+              disabled={!ldapActive}
+              style={{ ...inputStyle, cursor: ldapActive ? 'pointer' : 'not-allowed' }}
+            >
+              <option value="any">any — auto-detect by @</option>
+              <option value="username">username — LDAP: {activeLdap?.usernameAttribute ?? 'sAMAccountName'}</option>
+              <option value="email">email — LDAP: {activeLdap?.emailAttribute ?? 'mail'}</option>
+            </select>
+          </Field>
+          {ldapActive ? (
+            <div style={{ fontSize: '0.65rem', color: CB, marginTop: '0.25rem', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+              <span>active server username attr: <span style={{ color: CM, fontFamily: 'monospace' }}>{activeLdap?.usernameAttribute ?? '—'}</span></span>
+              <span>active server email attr: <span style={{ color: CM, fontFamily: 'monospace' }}>{activeLdap?.emailAttribute ?? '—'}</span></span>
+            </div>
+          ) : (
+            <div style={{ fontSize: '0.65rem', color: '#ff8844', marginTop: '0.25rem' }}>
+              Requires an active LDAP server.
+            </div>
+          )}
+        </div>
+
+        <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, padding: '1rem' }}>
+          <Field label="Login Page Title">
+            <input style={inputStyle} value={form.pageTitle} onChange={e => setForm(f => ({ ...f, pageTitle: e.target.value }))} placeholder="AO ID" />
+          </Field>
+          <div style={{ fontSize: '0.65rem', color: CB, marginTop: '0.25rem' }}>
+            Shown in the browser tab and page header of the login form.
+          </div>
+        </div>
+
+        <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, padding: '1rem' }}>
+          <Field label="Log Retention (days)">
+            <input
+              style={{ ...inputStyle, fontSize: '1.25rem', textAlign: 'center', padding: '0.75rem' }}
+              type="number" min={1} max={365} value={form.logRetentionDays}
+              onChange={e => setForm(f => ({ ...f, logRetentionDays: parseInt(e.target.value) || 10 }))}
+            />
+          </Field>
+          <div style={{ fontSize: '0.65rem', color: CB, marginTop: '0.25rem' }}>
+            Audit logs older than this many days are automatically deleted at 03:00 UTC daily.
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '2rem' }}>
+        <button style={btnPrimary} onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>
+          {saveMut.isPending ? 'saving...' : '> save login settings'}
+        </button>
+      </div>
+
+      <div style={{ fontSize: '0.625rem', color: CB, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '0.75rem' }}>LDAP Login Attributes — per server</div>
+      <div style={{ fontSize: '0.65rem', color: CB, marginBottom: '1rem', padding: '0.5rem 0.75rem', border: `1px solid rgba(0,153,181,0.25)`, background: 'rgba(0,153,181,0.04)' }}>
+        Configure which LDAP attribute is used as the username and email for login, per server. Different directories can use different attribute names.
+      </div>
+      {ldapConfigs.length === 0 ? (
+        <div style={{ border: `1px solid ${BORDER}`, padding: '1.5rem', textAlign: 'center', color: CB, fontSize: '0.8rem' }}>
+          No LDAP servers configured. Add one in the LDAP Server tab first.
+        </div>
+      ) : (
+        ldapConfigs.map((c: LdapServerConfig) => <LdapAttributeRow key={c.id} config={c} />)
+      )}
+    </div>
+  )
+}
+
 export default function SettingsPage() {
-  const [tab, setTab] = useState<'ldap' | 'tokens' | 'claims'>('ldap')
+  const [tab, setTab] = useState<'ldap' | 'tokens' | 'claims' | 'login'>('ldap')
 
   const tabs = [
     { key: 'ldap', label: 'LDAP Server' },
     { key: 'tokens', label: 'Token Expiry' },
     { key: 'claims', label: 'JWT Claims' },
+    { key: 'login', label: 'Login Settings' },
   ] as const
 
   return (
@@ -496,6 +639,7 @@ export default function SettingsPage() {
       {tab === 'ldap' && <LdapSection />}
       {tab === 'tokens' && <TokenSection />}
       {tab === 'claims' && <ClaimsSection />}
+      {tab === 'login' && <LoginSection />}
     </div>
   )
 }

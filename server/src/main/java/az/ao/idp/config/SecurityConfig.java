@@ -74,7 +74,7 @@ public class SecurityConfig {
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                         .csrfTokenRequestHandler(requestHandler)
                         .ignoringRequestMatchers(
-                                "/login", "/token", "/token/revoke", "/logout",
+                                "/login", "/oauth2/token", "/oauth2/token/revoke", "/oauth2/logout",
                                 "/api/v1/**"
                         )
                 )
@@ -83,12 +83,12 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/authorize", "/login",
+                                "/oauth2/authorize", "/login",
                                 "/.well-known/**", "/jwks",
                                 "/error", "/css/**", "/js/**", "/images/**", "/img/**",
                                 "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**"
                         ).permitAll()
-                        .requestMatchers("/userinfo").authenticated()
+                        .requestMatchers("/oauth2/userinfo").authenticated()
                         .requestMatchers("/api/v1/**").permitAll()
                         .anyRequest().permitAll()
                 )

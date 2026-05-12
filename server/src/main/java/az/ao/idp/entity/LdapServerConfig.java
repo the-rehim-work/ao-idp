@@ -30,6 +30,9 @@ public class LdapServerConfig {
     @Column(name = "username_attribute", nullable = false)
     private String usernameAttribute = "sAMAccountName";
 
+    @Column(name = "email_attribute", nullable = false)
+    private String emailAttribute = "mail";
+
     @Column(name = "user_object_class", nullable = false)
     private String userObjectClass = "user";
 
@@ -66,6 +69,8 @@ public class LdapServerConfig {
     public void setServiceAccountPassword(String serviceAccountPassword) { this.serviceAccountPassword = serviceAccountPassword; }
     public String getUsernameAttribute() { return usernameAttribute; }
     public void setUsernameAttribute(String usernameAttribute) { this.usernameAttribute = usernameAttribute; }
+    public String getEmailAttribute() { return emailAttribute; }
+    public void setEmailAttribute(String emailAttribute) { this.emailAttribute = emailAttribute; }
     public String getUserObjectClass() { return userObjectClass; }
     public void setUserObjectClass(String userObjectClass) { this.userObjectClass = userObjectClass; }
     public String getAdditionalUserFilter() { return additionalUserFilter; }

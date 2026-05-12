@@ -149,7 +149,7 @@ CREATE INDEX idx_refresh_tokens_expires ON refresh_tokens(expires_at);
 INSERT INTO admin_users (username, password_hash, display_name, admin_type, is_active)
 VALUES (
     'superadmin',
-    '$2b$12$vCeFBsqsES2FjkFru5VSEOper008ZAqfAgc1g8Mw5PUcQ09sGIDC2',
+    '$2b$12$eUZpMeV5Oiu4QASJgzR/Ie8CyHqa6MEgCiI/x4xoxCnkaFQYs32kG',
     'System Administrator',
     'idp_admin',
     true

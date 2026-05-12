@@ -48,6 +48,15 @@ public class LdapConfigService {
     }
 
     @Transactional
+    public LdapServerConfig updateLoginAttributes(UUID id, String usernameAttribute, String emailAttribute) {
+        LdapServerConfig config = get(id);
+        if (usernameAttribute != null && !usernameAttribute.isBlank()) config.setUsernameAttribute(usernameAttribute);
+        if (emailAttribute != null && !emailAttribute.isBlank()) config.setEmailAttribute(emailAttribute);
+        config.setUpdatedAt(Instant.now());
+        return repository.save(config);
+    }
+
+    @Transactional
     public void saveClaimMappings(UUID id, String claimMappingsJson) {
         LdapServerConfig config = get(id);
         config.setClaimMappings(claimMappingsJson);
@@ -103,8 +112,8 @@ public class LdapConfigService {
         LdapConfigRequest req = new LdapConfigRequest(
                 config.getName(), config.getUrl(), config.getBaseDn(),
                 config.getServiceAccountDn(), config.getServiceAccountPassword(),
-                config.getUsernameAttribute(), config.getUserObjectClass(),
-                config.getAdditionalUserFilter(), config.getClaimMappings(), config.getPriority()
+                config.getUserObjectClass(), config.getAdditionalUserFilter(),
+                config.getClaimMappings(), config.getPriority()
         );
         return testConnection(req);
     }
@@ -131,6 +140,7 @@ public class LdapConfigService {
         source.setUserDn(userDn);
         source.setPassword(password != null ? password : "");
         source.setPooled(true);
+        source.setReferral("ignore");
         source.afterPropertiesSet();
         return source;
     }
@@ -143,7 +153,6 @@ public class LdapConfigService {
         if (request.serviceAccountPassword() != null && !request.serviceAccountPassword().isBlank()) {
             config.setServiceAccountPassword(request.serviceAccountPassword());
         }
-        config.setUsernameAttribute(request.usernameAttribute());
         config.setUserObjectClass(request.userObjectClass());
         config.setAdditionalUserFilter(request.additionalUserFilter());
         if (request.claimMappings() != null) {

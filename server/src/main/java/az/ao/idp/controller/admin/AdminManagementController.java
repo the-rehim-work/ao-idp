@@ -51,7 +51,7 @@ public class AdminManagementController {
 
     @PatchMapping("/{id}")
     public ResponseEntity<AdminUser> update(@PathVariable UUID id, @Valid @RequestBody UpdateAdminRequest request) {
-        return ResponseEntity.ok(adminAuthService.updateAdmin(id, request.displayName(), request.adminType(), getAdminId().toString()));
+        return ResponseEntity.ok(adminAuthService.updateAdmin(id, request.displayName(), request.adminType(), request.permissions(), getAdminId().toString()));
     }
 
     @PatchMapping("/{id}/activate")
@@ -59,9 +59,15 @@ public class AdminManagementController {
         return ResponseEntity.ok(adminAuthService.activateAdmin(id));
     }
 
-    @DeleteMapping("/{id}")
+    @PatchMapping("/{id}/deactivate")
     public ResponseEntity<Void> deactivate(@PathVariable UUID id) {
         adminAuthService.deactivateAdmin(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        adminAuthService.deleteAdmin(id, getAdminId().toString());
         return ResponseEntity.noContent().build();
     }
 

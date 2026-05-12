@@ -5,20 +5,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "ao.idp")
 public record IdpProperties(
         String issuer,
-        LdapProperties ldap,
         JwtProperties jwt,
         BruteForceProperties bruteForce,
         CookieProperties cookie
 ) {
-
-    public record LdapProperties(
-            String url,
-            String baseDn,
-            String serviceAccountDn,
-            String serviceAccountPassword,
-            String usernameAttribute,
-            String userObjectClass
-    ) {}
 
     public record JwtProperties(
             long accessTokenExpiryMinutes,

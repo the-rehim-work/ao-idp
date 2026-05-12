@@ -1,0 +1,41 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #000;
+  color: #00ffff;
+  font-family: 'Courier New', 'Consolas', monospace;
+  font-size: 14px;
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: #000; }
+::-webkit-scrollbar-thumb { background: rgba(0,255,255,0.25); border-radius: 4px; }
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: 0.875rem;
+  background: #000;
+  color: #00ffff;
+  border: 1px solid rgba(0,255,255,0.25);
+  outline: none;
+  padding: 0.5rem 0.75rem;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: #00ffff;
+  box-shadow: 0 0 6px rgba(0,255,255,0.3);
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+pre {
+  font-family: inherit;
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

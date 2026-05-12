@@ -2,7 +2,10 @@ package az.ao.idp.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -29,6 +32,10 @@ public class AdminUser {
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "permissions", nullable = false, columnDefinition = "TEXT[]")
+    private List<String> permissions = new java.util.ArrayList<>();
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -45,5 +52,7 @@ public class AdminUser {
     public void setAdminType(String adminType) { this.adminType = adminType; }
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
+    public List<String> getPermissions() { return permissions; }
+    public void setPermissions(List<String> permissions) { this.permissions = permissions != null ? permissions : new java.util.ArrayList<>(); }
     public Instant getCreatedAt() { return createdAt; }
 }

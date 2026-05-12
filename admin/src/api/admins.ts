@@ -6,18 +6,20 @@ export interface AdminUser {
   displayName: string
   adminType: string
   active: boolean
+  permissions: string[]
   createdAt: string
 }
 
 export const adminsApi = {
   list: () => apiClient.get<AdminUser[]>('/admins').then(r => r.data),
   get: (id: string) => apiClient.get<AdminUser>(`/admins/${id}`).then(r => r.data),
-  create: (data: { username: string; displayName: string; password: string; adminType: string }) =>
+  create: (data: { username: string; displayName: string; password: string; adminType: string; permissions: string[] }) =>
     apiClient.post<AdminUser>('/admins', data).then(r => r.data),
-  update: (id: string, data: { displayName: string; adminType: string }) =>
+  update: (id: string, data: { displayName: string; adminType: string; permissions: string[] }) =>
     apiClient.patch<AdminUser>(`/admins/${id}`, data).then(r => r.data),
   activate: (id: string) => apiClient.patch<AdminUser>(`/admins/${id}/activate`).then(r => r.data),
-  deactivate: (id: string) => apiClient.delete(`/admins/${id}`),
+  deactivate: (id: string) => apiClient.patch(`/admins/${id}/deactivate`),
+  delete: (id: string) => apiClient.delete(`/admins/${id}`),
   resetPassword: (id: string, newPassword: string) =>
     apiClient.patch(`/admins/${id}/password`, { newPassword }),
   getScopes: (id: string) => apiClient.get<string[]>(`/admins/${id}/app-scopes`).then(r => r.data),

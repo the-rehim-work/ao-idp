@@ -56,6 +56,10 @@ public class UserService {
         return userRepository.findByLdapUsername(ldapUsername);
     }
 
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmailIgnoreCase(email);
+    }
+
     @Transactional
     public User activateUser(String ldapUsername, String email, String displayName, String adminId) {
         if (userRepository.existsByLdapUsername(ldapUsername)) {

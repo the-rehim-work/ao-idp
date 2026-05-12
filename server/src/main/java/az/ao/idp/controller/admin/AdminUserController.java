@@ -46,7 +46,11 @@ public class AdminUserController {
     @GetMapping("/ldap/tree")
     public ResponseEntity<?> ldapTree(@RequestParam(required = false) String dn, @RequestParam(required = false) UUID configId) {
         if (!ldapConfigService.isConfigured()) return ResponseEntity.status(503).body(LDAP_NOT_CONFIGURED);
-        return ResponseEntity.ok(ldapService.listLdapChildren(configId, dn, userService.getAllActivatedLdapUsernames()));
+        try {
+            return ResponseEntity.ok(ldapService.listLdapChildren(configId, dn, userService.getAllActivatedLdapUsernames()));
+        } catch (Exception e) {
+            return ResponseEntity.status(503).body(Map.of("error", "ldap_search_failed", "message", e.getMessage()));
+        }
     }
 
     @GetMapping("/ldap/ous")
@@ -60,7 +64,8 @@ public class AdminUserController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String dn) {
         if (!ldapConfigService.isConfigured()) return ResponseEntity.status(503).body(LDAP_NOT_CONFIGURED);
-        Set<String> activatedUsernames = userService.getAllActivatedLdapUsernames();
+        Set<String> activatedUsernames = userService.getAllActivatedLdapUsernames()
+                .stream().map(String::toLowerCase).collect(java.util.stream.Collectors.toSet());
         return ResponseEntity.ok(ldapService.listUsersFromAllActive(search).stream().map(u ->
                 new LdapUserResponse(u.ldapUsername(), u.email(), u.displayName(),
                         activatedUsernames.contains(u.ldapUsername().toLowerCase()),

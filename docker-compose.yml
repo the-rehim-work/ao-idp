@@ -1,120 +1,18 @@
 services:
-  openldap:
-    image: osixia/openldap:1.4.0
-    ports:
-      - "389:389"
-    environment:
-      LDAP_ORGANISATION: AO
-      LDAP_DOMAIN: ao.az
-      LDAP_ADMIN_PASSWORD: adminpassword
-      LDAP_CONFIG_PASSWORD: configpassword
-      LDAP_TLS: "false"
-    command: ["--copy-service"]
-    volumes:
-      - ./docker/ldap:/container/service/slapd/assets/config/bootstrap/ldif/custom
-      - ldap_data:/var/lib/ldap
-      - ldap_config:/etc/ldap/slapd.d
-    healthcheck:
-      test: ["CMD", "ldapsearch", "-x", "-H", "ldap://localhost",
-             "-b", "dc=ao,dc=az", "-D", "cn=admin,dc=ao,dc=az",
-             "-w", "adminpassword", "-LLL", "(ou=Personnel)"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-    restart: unless-stopped
-    networks:
-      - idp
-
-  postgres:
-    image: postgres:16-alpine
-    ports:
-      - "5432:5432"
-    volumes:
-      - pg_data:/var/lib/postgresql/data
-    environment:
-      POSTGRES_DB: ${DB_NAME:-ao_idp}
-      POSTGRES_USER: ${DB_USERNAME:-ao_idp}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-dev_password}
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-ao_idp}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-    networks:
-      - idp
-
-  idp-server:
+  idp:
     build: .
+    image: ao-images/ao-idp-server:latest
+    pull_policy: never
+    container_name: ao-idp
     ports:
-      - "8080:8080"
-    depends_on:
-      postgres:
-        condition: service_healthy
+      - "7000:7000"
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-ao_idp}
-      DB_USERNAME: ${DB_USERNAME:-ao_idp}
-      DB_PASSWORD: ${DB_PASSWORD:-dev_password}
-      IDP_ISSUER: ${IDP_ISSUER:-https://auth.ao.az}
-      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-.ao.az}
-    restart: unless-stopped
-    networks:
-      - idp
-
-  cert-init:
-    image: alpine
-    environment:
-      DOMAIN: ${DOMAIN:-auth.ao.az}
-    entrypoint: ["sh", "-c"]
-    command:
-      - |
-        apk add --no-cache openssl
-        mkdir -p /certs
-        [ -f /certs/server.crt ] && exit 0
-        openssl req -x509 -nodes -newkey rsa:2048 -days 3650 \
-          -keyout /certs/server.key \
-          -out /certs/server.crt \
-          -subj "/CN=$$DOMAIN" \
-          -addext "subjectAltName=DNS:$$DOMAIN"
+      DB_NAME: ${DB_NAME}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      IDP_ISSUER: ${IDP_ISSUER}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN}
     volumes:
-      - certs:/certs
-    networks:
-      - idp
-
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      DOMAIN: ${DOMAIN:-auth.ao.az}
-    entrypoint: ["sh", "-c"]
-    command:
-      - |
-        envsubst '$${DOMAIN}' < /etc/nginx/templates/nginx.conf.template > /etc/nginx/nginx.conf
-        exec nginx -g 'daemon off;'
-    volumes:
-      - ./docker/nginx/nginx.conf:/etc/nginx/templates/nginx.conf.template:ro
-      - certs:/etc/nginx/certs:ro
-    depends_on:
-      cert-init:
-        condition: service_completed_successfully
-      idp-server:
-        condition: service_healthy
+      - /var/lib/docker/ao-idp-postgres:/var/lib/postgresql/data
     restart: unless-stopped
-    networks:
-      - idp
-
-volumes:
-  pg_data:
-  ldap_data:
-  ldap_config:
-  certs:
-
-networks:
-  idp:
-    driver: bridge

@@ -15,4 +15,8 @@ public interface AdminAppScopeRepository extends JpaRepository<AdminAppScope, Ad
     List<UUID> findApplicationIdsByAdminUserId(@Param("adminId") UUID adminId);
 
     void deleteById_AdminUserIdAndId_ApplicationId(UUID adminUserId, UUID applicationId);
+
+    @Query("DELETE FROM AdminAppScope s WHERE s.adminUser.id = :adminId")
+    @org.springframework.data.jpa.repository.Modifying
+    void deleteByAdminUserId(@Param("adminId") UUID adminId);
 }

@@ -23,21 +23,28 @@ public class CorsConfig implements WebMvcConfigurer {
                 .allowCredentials(false)
                 .maxAge(3600);
 
-        registry.addMapping("/token")
+        registry.addMapping("/oauth2/token")
+                .allowedOriginPatterns("*")
+                .allowedMethods("POST", "OPTIONS")
+                .allowedHeaders("*")
+                .allowCredentials(false)
+                .maxAge(3600);
+
+        registry.addMapping("/oauth2/token/revoke")
+                .allowedOriginPatterns("*")
+                .allowedMethods("POST", "OPTIONS")
+                .allowedHeaders("*")
+                .allowCredentials(false)
+                .maxAge(3600);
+
+        registry.addMapping("/oauth2/logout")
                 .allowedOriginPatterns("*")
                 .allowedMethods("POST", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true)
                 .maxAge(3600);
 
-        registry.addMapping("/logout")
-                .allowedOriginPatterns("*")
-                .allowedMethods("POST", "OPTIONS")
-                .allowedHeaders("*")
-                .allowCredentials(true)
-                .maxAge(3600);
-
-        registry.addMapping("/userinfo")
+        registry.addMapping("/oauth2/userinfo")
                 .allowedOriginPatterns("*")
                 .allowedMethods("GET", "POST", "OPTIONS")
                 .allowedHeaders("*")

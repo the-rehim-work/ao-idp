@@ -70,6 +70,11 @@ public class AdminLdapConfigController {
         return ResponseEntity.ok(ldapConfigService.setInactive(id));
     }
 
+    @PatchMapping("/{id}/login-attributes")
+    public ResponseEntity<LdapServerConfig> updateLoginAttributes(@PathVariable UUID id, @RequestBody Map<String, String> body) {
+        return ResponseEntity.ok(ldapConfigService.updateLoginAttributes(id, body.get("usernameAttribute"), body.get("emailAttribute")));
+    }
+
     @PostMapping("/test")
     public ResponseEntity<Map<String, Object>> testConnection(@Valid @RequestBody LdapConfigRequest request) {
         return ResponseEntity.ok(ldapConfigService.testConnection(request));

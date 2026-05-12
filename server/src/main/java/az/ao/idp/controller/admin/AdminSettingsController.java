@@ -54,4 +54,19 @@ public class AdminSettingsController {
         settingsService.setClaimMappings(mappings);
         return ResponseEntity.ok(settingsService.getClaimMappings());
     }
+
+    @GetMapping("/login")
+    public ResponseEntity<IdpSettingsService.LoginSettings> getLoginSettings() {
+        return ResponseEntity.ok(settingsService.getLoginSettings());
+    }
+
+    @PutMapping("/login")
+    public ResponseEntity<IdpSettingsService.LoginSettings> updateLoginSettings(@RequestBody Map<String, Object> body) {
+        String identifierType = (String) body.get("identifierType");
+        String pageTitle = (String) body.get("pageTitle");
+        int logRetentionDays = body.containsKey("logRetentionDays")
+                ? ((Number) body.get("logRetentionDays")).intValue() : 10;
+        settingsService.setLoginSettings(identifierType, pageTitle, logRetentionDays);
+        return ResponseEntity.ok(settingsService.getLoginSettings());
+    }
 }

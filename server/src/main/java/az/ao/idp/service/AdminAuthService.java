@@ -57,12 +57,13 @@ public class AdminAuthService {
         }
 
         List<UUID> scopedAppIds = getScopedAppIds(admin);
-        String token = jwtService.issueAdminToken(admin.getId(), username, admin.getAdminType(), admin.getDisplayName(), scopedAppIds);
+        List<String> permissions = admin.getPermissions();
+        String token = jwtService.issueAdminToken(admin.getId(), username, admin.getAdminType(), admin.getDisplayName(), scopedAppIds, permissions);
 
         auditService.log("admin", admin.getId().toString(), "admin_login", null, null, null, ipAddress, null,
                 Map.of("admin_username", username, "admin_type", admin.getAdminType(), "display_name", admin.getDisplayName()));
 
-        return new AdminTokenResponse(token, admin.getAdminType(), admin.getDisplayName(), 1800);
+        return new AdminTokenResponse(token, admin.getAdminType(), admin.getDisplayName(), 1800, permissions);
     }
 
     @Transactional
@@ -76,6 +77,7 @@ public class AdminAuthService {
         admin.setDisplayName(request.displayName());
         admin.setAdminType(request.adminType());
         admin.setActive(true);
+        admin.setPermissions(request.permissions() != null ? request.permissions() : defaultPermissions(request.adminType()));
         AdminUser saved = adminUserRepository.save(admin);
         auditService.log("admin", createdByAdminId, "admin_created", "admin", saved.getId().toString(), null, null, null,
                 Map.of("admin_username", saved.getUsername(), "admin_type", saved.getAdminType(),
@@ -132,14 +134,32 @@ public class AdminAuthService {
     }
 
     @Transactional
-    public AdminUser updateAdmin(UUID adminId, String displayName, String adminType, String updatedByAdminId) {
+    public AdminUser updateAdmin(UUID adminId, String displayName, String adminType, List<String> permissions, String updatedByAdminId) {
         AdminUser admin = getAdmin(adminId);
         admin.setDisplayName(displayName);
         admin.setAdminType(adminType);
+        admin.setPermissions(permissions != null ? permissions : defaultPermissions(adminType));
         AdminUser saved = adminUserRepository.save(admin);
         auditService.log("admin", updatedByAdminId, "admin_updated", "admin", adminId.toString(), null, null, null,
                 Map.of("admin_username", admin.getUsername(), "new_type", adminType, "new_display_name", displayName));
         return saved;
+    }
+
+    @Transactional
+    public void deleteAdmin(UUID adminId, String deletedByAdminId) {
+        AdminUser admin = getAdmin(adminId);
+        String username = admin.getUsername();
+        adminAppScopeRepository.deleteByAdminUserId(adminId);
+        adminUserRepository.delete(admin);
+        auditService.log("admin", deletedByAdminId, "admin_deleted", "admin", adminId.toString(), null, null, null,
+                Map.of("admin_username", username));
+    }
+
+    private List<String> defaultPermissions(String adminType) {
+        if ("idp_admin".equals(adminType)) {
+            return List.of("dashboard", "applications", "users", "directory", "audit", "logs", "database", "admins", "settings");
+        }
+        return List.of("dashboard", "applications", "users");
     }
 
     @Transactional

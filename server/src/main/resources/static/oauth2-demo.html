@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OAuth2 / OIDC Demo — AO IDP</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --cyan: #00ffff;
+      --cyan-dim: #009bb5;
+      --cyan-dark: #006b8a;
+      --bg: #000;
+      --surface: #07181c;
+      --border: rgba(0,255,255,0.18);
+      --green: #00ffaa;
+      --red: #ff5555;
+      --yellow: #ffcc44;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--cyan);
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container { max-width: 760px; margin: 0 auto; }
+
+    /* Header */
+    .header { margin-bottom: 2.5rem; }
+    .header-badge {
+      display: inline-block;
+      font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--cyan-dark); border: 1px solid var(--border);
+      padding: 0.25rem 0.6rem; margin-bottom: 0.75rem;
+    }
+    .header h1 {
+      font-size: 1.5rem; font-weight: 700; color: var(--cyan);
+      text-shadow: 0 0 20px rgba(0,255,255,0.4);
+      letter-spacing: 0.05em;
+    }
+    .header p { font-size: 0.82rem; color: var(--cyan-dim); margin-top: 0.4rem; line-height: 1.6; }
+
+    /* Card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .card-title {
+      font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--cyan-dark); margin-bottom: 1rem;
+    }
+
+    /* Form */
+    .field { margin-bottom: 1rem; }
+    .field label { display: block; font-size: 0.72rem; color: var(--cyan-dim); margin-bottom: 0.3rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.5rem 0.75rem;
+      background: rgba(0,0,0,0.4); border: 1px solid var(--border);
+      color: var(--cyan); font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;
+      outline: none;
+    }
+    .field input:focus, .field select:focus { border-color: rgba(0,255,255,0.5); }
+    .field .hint { font-size: 0.65rem; color: var(--cyan-dark); margin-top: 0.25rem; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
+    @media (max-width: 540px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    .scopes { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+    .scope-chip {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      padding: 0.25rem 0.6rem; border: 1px solid var(--border);
+      cursor: pointer; font-size: 0.72rem; color: var(--cyan-dim);
+      user-select: none; transition: all 0.12s;
+    }
+    .scope-chip.active { border-color: var(--cyan); color: var(--cyan); background: rgba(0,255,255,0.08); }
+    .scope-chip input { width: auto; }
+
+    /* Buttons */
+    .btn {
+      padding: 0.6rem 1.5rem; font-family: inherit; font-size: 0.8rem; font-weight: 600;
+      letter-spacing: 0.08em; cursor: pointer; border-radius: 2px; transition: all 0.12s;
+    }
+    .btn-primary { background: transparent; border: 1px solid var(--cyan); color: var(--cyan); }
+    .btn-primary:hover { background: rgba(0,255,255,0.08); box-shadow: 0 0 12px rgba(0,255,255,0.2); }
+    .btn-secondary { background: transparent; border: 1px solid var(--cyan-dark); color: var(--cyan-dim); }
+    .btn-secondary:hover { border-color: var(--cyan-dim); }
+    .btn-danger { background: transparent; border: 1px solid var(--red); color: var(--red); }
+
+    /* Code / pre */
+    .code-block {
+      background: rgba(0,0,0,0.5); border: 1px solid var(--border);
+      padding: 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.76rem;
+      color: #00c4d8; overflow-x: auto; white-space: pre-wrap; word-break: break-all;
+      line-height: 1.6; max-height: 320px; overflow-y: auto;
+    }
+
+    /* Status */
+    .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.4rem; }
+    .status-dot.ok { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-dot.err { background: var(--red); box-shadow: 0 0 6px var(--red); }
+    .status-dot.pending { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); animation: pulse 1s infinite; }
+
+    @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.4 } }
+
+    .flow-step {
+      display: flex; gap: 1rem; align-items: flex-start;
+      padding: 0.6rem 0; border-bottom: 1px solid rgba(0,255,255,0.06);
+    }
+    .flow-step:last-child { border-bottom: none; }
+    .step-num {
+      width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.65rem; color: var(--cyan-dim); flex-shrink: 0; margin-top: 1px;
+    }
+    .step-num.active { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 8px rgba(0,255,255,0.3); }
+    .step-num.done { border-color: var(--green); color: var(--green); background: rgba(0,255,170,0.08); }
+    .step-label { font-size: 0.78rem; color: var(--cyan-dim); }
+    .step-label.active { color: var(--cyan); font-weight: 600; }
+    .step-label.done { color: var(--green); }
+
+    .tag { display: inline-block; padding: 0.1rem 0.4rem; font-size: 0.62rem; letter-spacing: 0.08em; }
+    .tag-get { background: rgba(0,255,170,0.1); border: 1px solid rgba(0,255,170,0.3); color: var(--green); }
+    .tag-post { background: rgba(0,200,255,0.08); border: 1px solid rgba(0,200,255,0.25); color: var(--cyan); }
+
+    table.info-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    table.info-table td { padding: 0.35rem 0; border-bottom: 1px solid rgba(0,255,255,0.06); }
+    table.info-table td:first-child { color: var(--cyan-dark); width: 140px; font-size: 0.7rem; }
+    table.info-table td:last-child { color: #00c4d8; font-family: 'JetBrains Mono', monospace; word-break: break-all; }
+
+    #result-section { display: none; }
+    #token-section { display: none; }
+    #userinfo-section { display: none; }
+    .hidden { display: none !important; }
+    .row-btns { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="header-badge">AO Identity Provider</div>
+    <h1>OAuth2 / OIDC Demo</h1>
+    <p>Test the Authorization Code flow interactively. Configure your registered application below, then start the flow to get tokens.</p>
+  </div>
+
+  <!-- Flow diagram -->
+  <div class="card">
+    <div class="card-title">flow overview</div>
+    <div id="flow-steps">
+      <div class="flow-step">
+        <div class="step-num active" id="step1-num">1</div>
+        <div>
+          <div class="step-label active" id="step1-lbl">Configure & Start</div>
+          <div style="font-size:0.7rem;color:var(--cyan-dark);margin-top:0.2rem;">Enter your application credentials and click Start Authorization Flow</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num" id="step2-num">2</div>
+        <div>
+          <div class="step-label" id="step2-lbl">Authorization</div>
+          <div style="font-size:0.7rem;color:var(--cyan-dark);margin-top:0.2rem;">User logs in at the IDP — browser redirects back with <code style="color:var(--cyan)">code</code></div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num" id="step3-num">3</div>
+        <div>
+          <div class="step-label" id="step3-lbl">Token Exchange</div>
+          <div style="font-size:0.7rem;color:var(--cyan-dark);margin-top:0.2rem;"><span class="tag tag-post">POST</span> <code style="color:var(--cyan);">/oauth2/token</code> — exchange code for tokens</div>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num" id="step4-num">4</div>
+        <div>
+          <div class="step-label" id="step4-lbl">UserInfo</div>
+          <div style="font-size:0.7rem;color:var(--cyan-dark);margin-top:0.2rem;"><span class="tag tag-get">GET</span> <code style="color:var(--cyan);">/oauth2/userinfo</code> — fetch user profile with access token</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Config -->
+  <div class="card" id="config-card">
+    <div class="card-title">application configuration</div>
+    <div class="grid-2">
+      <div class="field">
+        <label>IDP Base URL</label>
+        <input type="text" id="idp-url" placeholder="http://localhost:7000" />
+        <div class="hint">Base URL of this AO IDP instance</div>
+      </div>
+      <div class="field">
+        <label>Client ID</label>
+        <input type="text" id="client-id" placeholder="my-app-client-id" />
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="field">
+        <label>Client Secret</label>
+        <input type="password" id="client-secret" placeholder="••••••••" />
+      </div>
+      <div class="field">
+        <label>Redirect URI</label>
+        <input type="text" id="redirect-uri" />
+        <div class="hint">Must be registered in the IDP application settings</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Scopes</label>
+      <div class="scopes" id="scope-chips">
+        <label class="scope-chip active"><input type="checkbox" value="openid" checked /> openid</label>
+        <label class="scope-chip active"><input type="checkbox" value="profile" checked /> profile</label>
+        <label class="scope-chip active"><input type="checkbox" value="email" checked /> email</label>
+        <label class="scope-chip"><input type="checkbox" value="offline_access" /> offline_access</label>
+      </div>
+    </div>
+
+    <div class="row-btns">
+      <button class="btn btn-primary" onclick="startFlow()">▶ Start Authorization Flow</button>
+      <button class="btn btn-secondary" onclick="showEndpoints()">endpoints reference</button>
+    </div>
+  </div>
+
+  <!-- Callback result -->
+  <div id="result-section">
+    <div class="card">
+      <div class="card-title">
+        <span class="status-dot ok"></span>authorization code received
+      </div>
+      <table class="info-table" id="callback-table"></table>
+      <div class="row-btns">
+        <button class="btn btn-primary" onclick="exchangeToken()">▶ Exchange Code for Tokens</button>
+        <button class="btn btn-secondary" onclick="resetFlow()">start over</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Token result -->
+  <div id="token-section">
+    <div class="card">
+      <div class="card-title">
+        <span class="status-dot ok"></span>token response
+      </div>
+      <div class="code-block" id="token-display"></div>
+      <div class="row-btns">
+        <button class="btn btn-primary" onclick="fetchUserInfo()">▶ Fetch UserInfo</button>
+        <button class="btn btn-secondary" onclick="decodeJwt()">decode JWT claims</button>
+        <button class="btn btn-danger" onclick="resetFlow()">start over</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JWT claims -->
+  <div id="jwt-section" style="display:none;">
+    <div class="card">
+      <div class="card-title">decoded JWT claims</div>
+      <div class="code-block" id="jwt-display"></div>
+    </div>
+  </div>
+
+  <!-- UserInfo -->
+  <div id="userinfo-section">
+    <div class="card">
+      <div class="card-title">
+        <span class="status-dot ok"></span>userinfo response
+      </div>
+      <div class="code-block" id="userinfo-display"></div>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div id="error-section" style="display:none;">
+    <div class="card" style="border-color:rgba(255,85,85,0.3);">
+      <div class="card-title" style="color:var(--red);">
+        <span class="status-dot err"></span>error
+      </div>
+      <div class="code-block" id="error-display" style="color:var(--red);border-color:rgba(255,85,85,0.2);"></div>
+      <div class="row-btns">
+        <button class="btn btn-danger" onclick="resetFlow()">start over</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Endpoints reference (hidden by default) -->
+  <div id="endpoints-card" style="display:none;">
+    <div class="card">
+      <div class="card-title">endpoints reference</div>
+      <table class="info-table">
+        <tr><td>Discovery</td><td id="ep-discovery"></td></tr>
+        <tr><td>Authorization</td><td id="ep-auth"></td></tr>
+        <tr><td>Token</td><td id="ep-token"></td></tr>
+        <tr><td>UserInfo</td><td id="ep-userinfo"></td></tr>
+        <tr><td>JWKS</td><td id="ep-jwks"></td></tr>
+        <tr><td>Revoke</td><td id="ep-revoke"></td></tr>
+      </table>
+      <div class="row-btns">
+        <button class="btn btn-secondary" onclick="document.getElementById('endpoints-card').style.display='none'">close</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ─── State ──────────────────────────────────────────────────────────────────
+  let state = {
+    code: null,
+    codeVerifier: null,
+    tokenResponse: null,
+    accessToken: null,
+  }
+
+  // ─── Init ───────────────────────────────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', () => {
+    const base = window.location.origin
+    document.getElementById('idp-url').value = base
+    document.getElementById('redirect-uri').value = window.location.origin + window.location.pathname
+
+    // Style scope chips
+    document.querySelectorAll('.scope-chip input').forEach(cb => {
+      cb.addEventListener('change', () => {
+        cb.parentElement.classList.toggle('active', cb.checked)
+      })
+    })
+
+    // Check for callback code
+    const params = new URLSearchParams(window.location.search)
+    const code = params.get('code')
+    const error = params.get('error')
+
+    if (error) {
+      showError(error + ': ' + (params.get('error_description') ?? ''))
+      return
+    }
+
+    if (code) {
+      // Load saved config
+      const saved = sessionStorage.getItem('ao_demo_config')
+      if (saved) {
+        const cfg = JSON.parse(saved)
+        document.getElementById('idp-url').value = cfg.idpUrl ?? ''
+        document.getElementById('client-id').value = cfg.clientId ?? ''
+        document.getElementById('client-secret').value = cfg.clientSecret ?? ''
+        document.getElementById('redirect-uri').value = cfg.redirectUri ?? ''
+      }
+
+      state.code = code
+      // Clean URL
+      history.replaceState({}, '', window.location.pathname)
+
+      setStep(3)
+      document.getElementById('config-card').style.display = 'none'
+      document.getElementById('result-section').style.display = 'block'
+
+      const table = document.getElementById('callback-table')
+      table.innerHTML = `
+        <tr><td>code</td><td>${escHtml(code)}</td></tr>
+        <tr><td>state</td><td>${escHtml(params.get('state') ?? '—')}</td></tr>
+        <tr><td>session_state</td><td>${escHtml(params.get('session_state') ?? '—')}</td></tr>
+      `
+    }
+  })
+
+  // ─── Start flow ─────────────────────────────────────────────────────────────
+  function startFlow() {
+    const idpUrl = document.getElementById('idp-url').value.trim().replace(/\/$/, '')
+    const clientId = document.getElementById('client-id').value.trim()
+    const clientSecret = document.getElementById('client-secret').value
+    const redirectUri = document.getElementById('redirect-uri').value.trim()
+
+    if (!idpUrl || !clientId) { alert('IDP URL and Client ID are required.'); return }
+
+    const scopes = Array.from(document.querySelectorAll('.scope-chip input:checked')).map(e => e.value)
+    const scope = scopes.join(' ') || 'openid'
+    const nonce = randomStr(16)
+    const stateVal = randomStr(16)
+
+    sessionStorage.setItem('ao_demo_config', JSON.stringify({ idpUrl, clientId, clientSecret, redirectUri }))
+    sessionStorage.setItem('ao_demo_state', stateVal)
+    sessionStorage.setItem('ao_demo_nonce', nonce)
+
+    const authUrl = new URL(idpUrl + '/oauth2/authorize')
+    authUrl.searchParams.set('response_type', 'code')
+    authUrl.searchParams.set('client_id', clientId)
+    authUrl.searchParams.set('redirect_uri', redirectUri)
+    authUrl.searchParams.set('scope', scope)
+    authUrl.searchParams.set('state', stateVal)
+    authUrl.searchParams.set('nonce', nonce)
+
+    setStep(2)
+    window.location.href = authUrl.toString()
+  }
+
+  // ─── Token exchange ──────────────────────────────────────────────────────────
+  async function exchangeToken() {
+    const cfg = JSON.parse(sessionStorage.getItem('ao_demo_config') ?? '{}')
+    const { idpUrl, clientId, clientSecret, redirectUri } = cfg
+
+    const body = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code: state.code,
+      redirect_uri: redirectUri,
+      client_id: clientId,
+      client_secret: clientSecret,
+    })
+
+    try {
+      const res = await fetch(idpUrl + '/oauth2/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(JSON.stringify(data, null, 2))
+
+      state.tokenResponse = data
+      state.accessToken = data.access_token
+
+      setStep(4)
+      document.getElementById('result-section').style.display = 'none'
+      document.getElementById('token-section').style.display = 'block'
+      document.getElementById('token-display').textContent = JSON.stringify(data, null, 2)
+    } catch (e) {
+      showError('Token exchange failed:\n\n' + e.message)
+    }
+  }
+
+  // ─── UserInfo ────────────────────────────────────────────────────────────────
+  async function fetchUserInfo() {
+    const cfg = JSON.parse(sessionStorage.getItem('ao_demo_config') ?? '{}')
+    try {
+      const res = await fetch(cfg.idpUrl + '/oauth2/userinfo', {
+        headers: { Authorization: 'Bearer ' + state.accessToken },
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(JSON.stringify(data, null, 2))
+
+      document.getElementById('userinfo-section').style.display = 'block'
+      document.getElementById('userinfo-display').textContent = JSON.stringify(data, null, 2)
+    } catch (e) {
+      showError('UserInfo request failed:\n\n' + e.message)
+    }
+  }
+
+  // ─── Decode JWT ──────────────────────────────────────────────────────────────
+  function decodeJwt() {
+    try {
+      const token = state.tokenResponse?.access_token ?? state.tokenResponse?.id_token
+      if (!token) throw new Error('no token available')
+      const parts = token.split('.')
+      if (parts.length < 2) throw new Error('not a JWT')
+      const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
+      const header = JSON.parse(atob(parts[0].replace(/-/g, '+').replace(/_/g, '/')))
+
+      const jwtSec = document.getElementById('jwt-section')
+      jwtSec.style.display = 'block'
+      document.getElementById('jwt-display').textContent =
+        '// HEADER\n' + JSON.stringify(header, null, 2) + '\n\n// PAYLOAD\n' + JSON.stringify(payload, null, 2)
+    } catch (e) {
+      showError('JWT decode failed: ' + e.message)
+    }
+  }
+
+  // ─── Endpoints ───────────────────────────────────────────────────────────────
+  function showEndpoints() {
+    const idpUrl = document.getElementById('idp-url').value.trim().replace(/\/$/, '') || window.location.origin
+    document.getElementById('ep-discovery').textContent = idpUrl + '/.well-known/openid-configuration'
+    document.getElementById('ep-auth').textContent = idpUrl + '/oauth2/authorize'
+    document.getElementById('ep-token').textContent = idpUrl + '/oauth2/token'
+    document.getElementById('ep-userinfo').textContent = idpUrl + '/oauth2/userinfo'
+    document.getElementById('ep-jwks').textContent = idpUrl + '/oauth2/jwks'
+    document.getElementById('ep-revoke').textContent = idpUrl + '/oauth2/revoke'
+    document.getElementById('endpoints-card').style.display = 'block'
+  }
+
+  // ─── Helpers ─────────────────────────────────────────────────────────────────
+  function setStep(active) {
+    for (let i = 1; i <= 4; i++) {
+      const num = document.getElementById('step' + i + '-num')
+      const lbl = document.getElementById('step' + i + '-lbl')
+      if (i < active) {
+        num.className = 'step-num done'; num.textContent = '✓'
+        lbl.className = 'step-label done'
+      } else if (i === active) {
+        num.className = 'step-num active'; num.textContent = i
+        lbl.className = 'step-label active'
+      } else {
+        num.className = 'step-num'; num.textContent = i
+        lbl.className = 'step-label'
+      }
+    }
+  }
+
+  function showError(msg) {
+    document.getElementById('error-section').style.display = 'block'
+    document.getElementById('error-display').textContent = msg
+  }
+
+  function resetFlow() {
+    state = { code: null, tokenResponse: null, accessToken: null }
+    sessionStorage.removeItem('ao_demo_config')
+    sessionStorage.removeItem('ao_demo_state')
+    sessionStorage.removeItem('ao_demo_nonce')
+    history.replaceState({}, '', window.location.pathname)
+    location.reload()
+  }
+
+  function randomStr(len) {
+    const arr = new Uint8Array(len)
+    crypto.getRandomValues(arr)
+    return Array.from(arr, b => b.toString(16).padStart(2, '0')).join('')
+  }
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  }
+</script>
+</body>
+</html>

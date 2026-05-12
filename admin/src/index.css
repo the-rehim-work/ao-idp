@@ -1,19 +1,46 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   * { box-sizing: border-box; }
+
   body {
     @apply m-0 bg-black text-cyan-400;
-    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
+
   a { @apply no-underline; }
-  input, textarea, select, button {
+
+  input, select, button {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  textarea {
     font-family: 'JetBrains Mono', 'Courier New', monospace;
   }
+
+  /* Hide number spinners */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+
+  /* Custom scrollbars */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(0,255,255,0.18);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0,255,255,0.35);
+  }
+  ::-webkit-scrollbar-corner { background: transparent; }
 }
 
 @layer utilities {
@@ -27,5 +54,8 @@
   }
   .neon-glow {
     box-shadow: 0 0 8px rgba(0,255,255,0.6), 0 0 20px rgba(0,255,255,0.3);
+  }
+  .font-mono {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
   }
 }

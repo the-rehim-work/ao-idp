@@ -4,10 +4,22 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title th:text="${appName != null ? appName + ' — AO ID' : 'AO ID — Daxil ol'}">AO ID — Daxil ol</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com"/>
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
     <style>
+        @font-face {
+            font-family: 'JetBrains Mono';
+            font-style: normal;
+            font-weight: 400;
+            font-display: swap;
+            src: url('/fonts/jbm-400.woff2') format('woff2');
+        }
+        @font-face {
+            font-family: 'JetBrains Mono';
+            font-style: normal;
+            font-weight: 600 700;
+            font-display: swap;
+            src: url('/fonts/jbm-600.woff2') format('woff2');
+        }
+
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         :root {
@@ -237,6 +249,56 @@
             display: inline-block;
         }
 
+        /* ── Continue As ── */
+        .continue-panel {
+            margin-bottom: 0.75rem;
+            border-left: 2px solid var(--c);
+            background: var(--s);
+            border-top: 1px solid rgba(0,255,255,0.15);
+            border-right: 1px solid rgba(0,255,255,0.15);
+            border-bottom: 1px solid rgba(0,255,255,0.15);
+        }
+        .continue-as {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            padding: 0.85rem 1rem;
+            width: 100%;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            transition: background 0.15s;
+            text-align: left;
+        }
+        .continue-as:hover { background: rgba(0,255,255,0.06); }
+        .continue-avatar {
+            width: 34px; height: 34px;
+            border: 1px solid rgba(0,255,255,0.5);
+            background: var(--s2);
+            box-shadow: 0 0 6px rgba(0,255,255,0.2);
+            display: flex; align-items: center; justify-content: center;
+            font-family: var(--font);
+            font-weight: 700; font-size: 0.85rem; color: var(--c); flex-shrink: 0;
+        }
+        .continue-info { flex: 1; min-width: 0; }
+        .continue-name { font-size: 0.825rem; font-weight: 700; color: var(--c); font-family: var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .continue-hint { font-size: 0.575rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--cb); margin-bottom: 0.15rem; font-family: var(--font); }
+        .continue-chevron { color: var(--cm); flex-shrink: 0; }
+        .continue-sep {
+            display: flex; align-items: center; gap: 0.6rem;
+            font-size: 0.575rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--cb);
+            font-family: var(--font);
+            padding: 0 1rem 0.7rem;
+        }
+        .continue-sep::before, .continue-sep::after { content: ''; flex: 1; height: 1px; background: rgba(0,255,255,0.08); }
+
+        .divider {
+            display: flex; align-items: center; gap: 0.75rem;
+            font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--cb);
+            margin-bottom: 1rem;
+        }
+        .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: rgba(0,255,255,0.1); }
+
         /* ── Bottom ── */
         .bottom {
             text-align: center;
@@ -271,6 +333,20 @@
         <span><strong th:text="${appName != null ? appName : clientId}">tətbiq</strong> hesabınıza giriş tələb edir</span>
     </div>
 
+    <div id="continue-as-section" style="display:none;" class="continue-panel">
+        <button type="button" id="continue-as-btn" class="continue-as" onclick="continueAsUser()">
+            <div class="continue-avatar" id="continue-avatar">?</div>
+            <div class="continue-info">
+                <div class="continue-hint">sessiya davam etdir</div>
+                <div class="continue-name" id="continue-name">...</div>
+            </div>
+            <svg class="continue-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"/>
+            </svg>
+        </button>
+        <div class="continue-sep">başqa hesabla daxil ol</div>
+    </div>
+
     <div class="card">
         <div class="card-label">auth.ao.az</div>
         <div class="card-prompt">&gt; authenticate</div>
@@ -288,12 +364,17 @@
             <input type="hidden" name="scope"                 th:value="${scope}"/>
             <input type="hidden" name="code_challenge"        th:value="${codeChallenge}"/>
             <input type="hidden" name="code_challenge_method" th:value="${codeChallengeMethod}"/>
+            <input type="hidden" name="identifier_mode" id="identifier_mode"
+                   th:value="${identifierType == 'email' ? 'email' : (identifierType == 'any' ? 'any' : 'username')}"/>
 
             <div class="field">
-                <label for="username"># istifadəçi adı</label>
-                <input type="text" id="username" name="username"
-                       autocomplete="username" autofocus required
-                       placeholder="username"/>
+                <label for="username" id="username-label"
+                       th:text="${identifierType == 'email' ? '# e-poçt' : '# istifadəçi adı'}"># istifadəçi adı</label>
+                <input th:type="${identifierType == 'email' ? 'email' : 'text'}"
+                       id="username" name="username"
+                       th:autocomplete="${identifierType == 'email' ? 'email' : 'username'}"
+                       autofocus required
+                       th:placeholder="${identifierType == 'email' ? 'user@example.com' : (identifierType == 'any' ? 'username və ya e-poçt' : 'username')}"/>
             </div>
 
             <div class="field">
@@ -316,5 +397,62 @@
     <div class="bottom">AO Identity Provider · TLS qorunur · 2026</div>
 </div>
 
+<script>
+(function() {
+    var modeField = document.getElementById('identifier_mode');
+    if (!modeField || modeField.value !== 'any') return;
+    var input = document.getElementById('username');
+    var label = document.getElementById('username-label');
+    if (!input || !label) return;
+    input.addEventListener('input', function() {
+        var isEmail = input.value.indexOf('@') !== -1;
+        label.textContent = isEmail ? '# e-poçt' : '# istifadəçi adı';
+    });
+})();
+
+(function() {
+    function getCookie(name) {
+        var m = document.cookie.match('(?:^|; )' + name + '=([^;]*)');
+        return m ? decodeURIComponent(m[1]) : null;
+    }
+    function b64DecodeUnicode(str) {
+        try {
+            return decodeURIComponent(atob(str.replace(/-/g,'+').replace(/_/g,'/')).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+        } catch(e) { return null; }
+    }
+    var raw = getCookie('ao-user');
+    if (raw) {
+        var json = b64DecodeUnicode(raw);
+        if (json) {
+            try {
+                var profile = JSON.parse(json);
+                if (profile.u) {
+                    var section = document.getElementById('continue-as-section');
+                    var nameEl = document.getElementById('continue-name');
+                    var avatarEl = document.getElementById('continue-avatar');
+                    if (section && nameEl && avatarEl) {
+                        nameEl.textContent = profile.n || profile.u;
+                        avatarEl.textContent = (profile.n || profile.u).charAt(0).toUpperCase();
+                        section.style.display = '';
+                        window._continueAsUser = profile.u;
+                    }
+                }
+            } catch(e) {}
+        }
+    }
+})();
+
+function continueAsUser() {
+    var u = window._continueAsUser;
+    if (!u) return;
+    var usernameInput = document.getElementById('username');
+    var passwordInput = document.getElementById('password');
+    if (usernameInput) { usernameInput.value = u; }
+    if (passwordInput) { passwordInput.focus(); }
+    document.getElementById('continue-as-section').style.display = 'none';
+}
+</script>
 </body>
 </html>

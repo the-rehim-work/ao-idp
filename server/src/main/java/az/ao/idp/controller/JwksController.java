@@ -35,12 +35,12 @@ public class JwksController {
     public ResponseEntity<OidcDiscoveryResponse> discovery() {
         return ResponseEntity.ok(new OidcDiscoveryResponse(
                 issuer,
-                issuer + "/authorize",
-                issuer + "/token",
-                issuer + "/userinfo",
+                issuer + "/oauth2/authorize",
+                issuer + "/oauth2/token",
+                issuer + "/oauth2/userinfo",
                 issuer + "/jwks",
-                issuer + "/logout",
-                issuer + "/token/revoke",
+                issuer + "/oauth2/logout",
+                issuer + "/oauth2/token/revoke",
                 List.of("code"),
                 List.of("public"),
                 List.of("RS256"),

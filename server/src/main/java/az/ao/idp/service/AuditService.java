@@ -1,7 +1,9 @@
 package az.ao.idp.service;
 
+import az.ao.idp.dto.response.AuditLogResponse;
 import az.ao.idp.entity.Application;
 import az.ao.idp.entity.AuditLog;
+import az.ao.idp.repository.ApplicationRepository;
 import az.ao.idp.repository.AuditLogRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -9,6 +11,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -19,9 +22,11 @@ import java.util.UUID;
 public class AuditService {
 
     private final AuditLogRepository auditLogRepository;
+    private final ApplicationRepository applicationRepository;
 
-    public AuditService(AuditLogRepository auditLogRepository) {
+    public AuditService(AuditLogRepository auditLogRepository, ApplicationRepository applicationRepository) {
         this.auditLogRepository = auditLogRepository;
+        this.applicationRepository = applicationRepository;
     }
 
     @Async
@@ -36,24 +41,30 @@ public class AuditService {
             String userAgent,
             Map<String, Object> details
     ) {
-        AuditLog log = new AuditLog();
-        log.setActorType(actorType);
-        log.setActorId(actorId);
-        log.setAction(action);
-        log.setTargetType(targetType);
-        log.setTargetId(targetId);
-        log.setApplication(application);
-        log.setIpAddress(ipAddress);
-        log.setUserAgent(userAgent);
-        log.setDetails(details);
-        auditLogRepository.save(log);
+        AuditLog entry = new AuditLog();
+        entry.setActorType(actorType);
+        entry.setActorId(actorId);
+        entry.setAction(action);
+        entry.setTargetType(targetType);
+        entry.setTargetId(targetId);
+        entry.setIpAddress(ipAddress);
+        entry.setUserAgent(userAgent);
+        entry.setDetails(details);
+
+        // Verify the application still exists before creating the FK reference (async race condition)
+        if (application != null && applicationRepository.existsById(application.getId())) {
+            entry.setApplication(application);
+        }
+
+        auditLogRepository.save(entry);
     }
 
     public List<String> getDistinctActions() {
         return auditLogRepository.findDistinctActions();
     }
 
-    public Page<AuditLog> search(
+    @Transactional(readOnly = true)
+    public Page<AuditLogResponse> search(
             String action, String actorId, UUID appId,
             Instant from, Instant to, int page, int size
     ) {
@@ -76,6 +87,7 @@ public class AuditService {
         }
 
         return auditLogRepository.findAll(spec,
-                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")))
+                .map(AuditLogResponse::from);
     }
 }

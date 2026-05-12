@@ -17,3 +17,5 @@ docker/certs/*.pem
 
 
 oauth2-demo/node_modules/
+
+pgdata/

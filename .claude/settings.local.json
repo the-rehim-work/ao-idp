@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Recurse -Force)",
+      "Bash(Select-Object FullName)",
+      "Bash(htpasswd -bnBC 12 \"\" \"admin123!\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\samid.sixaliyev\\\\Desktop\\\\Workspace\\\\ao-idp\\\\admin\\\\src\" -Recurse -Force)",
+      "Bash(Select-Object FullName, PSIsContainer)",
+      "Bash(Format-Table -AutoSize)",
+      "Bash(public\")",
+      "Bash(bash scripts/build-export.sh)",
+      "Bash(nginx -v)",
+      "Bash(rm docker-compose.dev.yml)",
+      "Bash(rm -rf export/deploy)",
+      "Bash(Get-Content *)"
+    ]
+  }
+}

@@ -15,6 +15,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     Optional<User> findByLdapUsername(String ldapUsername);
 
+    Optional<User> findByEmailIgnoreCase(String email);
+
     boolean existsByLdapUsername(String ldapUsername);
 
     long countByActiveTrue();
