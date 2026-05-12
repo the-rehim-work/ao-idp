@@ -101,9 +101,9 @@ function RowModal({
 
   const inputStyle = (disabled: boolean): React.CSSProperties => ({
     width: '100%', padding: '0.4rem 0.6rem',
-    background: disabled ? 'rgba(94,234,212,0.03)' : '#0f141b',
-    border: `1px solid ${disabled ? 'rgba(94,234,212,0.08)' : 'rgba(94,234,212,0.25)'}`,
-    color: disabled ? '#64748b' : '#2dd4bf',
+    background: disabled ? 'var(--accent-soft)' : 'var(--surface-1)',
+    border: `1px solid ${disabled ? 'var(--accent-soft)' : 'var(--accent-medium)'}`,
+    color: disabled ? 'var(--text-muted)' : 'var(--accent-strong)',
     fontFamily: "'JetBrains Mono', monospace", fontSize: '0.78rem',
     outline: 'none', borderRadius: 2,
   })
@@ -120,7 +120,7 @@ function RowModal({
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
     }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div style={{
-        background: '#181c25', border: '1px solid rgba(94,234,212,0.2)',
+        background: 'var(--surface-1)', border: '1px solid rgba(94,234,212,0.2)',
         width: '90%', maxWidth: 680, maxHeight: '85vh',
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
       }}>
@@ -130,38 +130,38 @@ function RowModal({
           padding: '0.85rem 1.25rem', borderBottom: '1px solid rgba(94,234,212,0.1)',
         }}>
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.65rem', color: '#64748b', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
               {mode === 'add' ? 'insert row' : isEdit ? 'edit row' : 'row detail'}
             </span>
-            <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontFamily: "'JetBrains Mono', monospace" }}>{table}</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', fontFamily: "'JetBrains Mono', monospace" }}>{table}</span>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             {mode !== 'add' && (
-              <button onClick={copyRow} style={btnStyle(copied ? '#86efac' : '#94a3b8')}>
+              <button onClick={copyRow} style={btnStyle(copied ? 'var(--success)' : 'var(--text-dim)')}>
                 {copied ? 'copied!' : 'copy json'}
               </button>
             )}
             {mode === 'view' && !isEdit && (
-              <button onClick={() => setIsEdit(true)} style={btnStyle('#5eead4')}>edit</button>
+              <button onClick={() => setIsEdit(true)} style={btnStyle('var(--accent)')}>edit</button>
             )}
             {mode !== 'add' && !isEdit && !confirmDelete && (
-              <button onClick={() => setConfirmDelete(true)} style={btnStyle('#ff4444', 'rgba(255,68,68,0.15)')}>delete</button>
+              <button onClick={() => setConfirmDelete(true)} style={btnStyle('var(--danger)', 'rgba(255,68,68,0.15)')}>delete</button>
             )}
             {confirmDelete && (
               <>
-                <span style={{ fontSize: '0.72rem', color: '#ff4444' }}>confirm?</span>
-                <button onClick={() => deleteMutation.mutate()} style={btnStyle('#ff4444', 'rgba(255,68,68,0.2)')}>yes, delete</button>
-                <button onClick={() => setConfirmDelete(false)} style={btnStyle('#64748b')}>cancel</button>
+                <span style={{ fontSize: '0.72rem', color: 'var(--danger)' }}>confirm?</span>
+                <button onClick={() => deleteMutation.mutate()} style={btnStyle('var(--danger)', 'rgba(255,68,68,0.2)')}>yes, delete</button>
+                <button onClick={() => setConfirmDelete(false)} style={btnStyle('var(--text-muted)')}>cancel</button>
               </>
             )}
-            <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '1.1rem', cursor: 'pointer', padding: '0 0.25rem' }}>✕</button>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1.1rem', cursor: 'pointer', padding: '0 0.25rem' }}>✕</button>
           </div>
         </div>
 
         {/* Body */}
         <div style={{ overflowY: 'auto', padding: '1rem 1.25rem', flex: 1 }}>
           {saveMutation.isError && (
-            <div style={{ padding: '0.5rem 0.75rem', background: 'rgba(255,68,68,0.08)', border: '1px solid rgba(255,68,68,0.3)', color: '#ff4444', fontSize: '0.78rem', marginBottom: '1rem', fontFamily: "'JetBrains Mono', monospace" }}>
+            <div style={{ padding: '0.5rem 0.75rem', background: 'rgba(255,68,68,0.08)', border: '1px solid rgba(255,68,68,0.3)', color: 'var(--danger)', fontSize: '0.78rem', marginBottom: '1rem', fontFamily: "'JetBrains Mono', monospace" }}>
               {(saveMutation.error as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Save failed'}
             </div>
           )}
@@ -175,13 +175,13 @@ function RowModal({
               return (
                 <React.Fragment key={col.column_name}>
                   <div style={{ padding: '0.45rem 0', fontSize: '0.72rem' }}>
-                    <div style={{ color: '#94a3b8', fontFamily: "'JetBrains Mono', monospace", display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                    <div style={{ color: 'var(--text-dim)', fontFamily: "'JetBrains Mono', monospace", display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
                       {col.column_name}
                       {required && <span style={{ color: '#ff6644', fontSize: '0.65rem' }}>*</span>}
-                      {isAuto && <span style={{ color: '#64748b', fontSize: '0.6rem', letterSpacing: '0.05em' }}>auto</span>}
-                      {isId && <span style={{ color: '#64748b', fontSize: '0.6rem', letterSpacing: '0.05em' }}>pk</span>}
+                      {isAuto && <span style={{ color: 'var(--text-muted)', fontSize: '0.6rem', letterSpacing: '0.05em' }}>auto</span>}
+                      {isId && <span style={{ color: 'var(--text-muted)', fontSize: '0.6rem', letterSpacing: '0.05em' }}>pk</span>}
                     </div>
-                    <div style={{ color: '#64748b', fontSize: '0.63rem', marginTop: '0.1rem' }}>{col.data_type} · {col.is_nullable === 'YES' ? 'nullable' : 'not null'}</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.63rem', marginTop: '0.1rem' }}>{col.data_type} · {col.is_nullable === 'YES' ? 'nullable' : 'not null'}</div>
                   </div>
                   <div>
                     {isBoolean(col) && isEdit && !disabled ? (
@@ -241,11 +241,11 @@ function RowModal({
         {/* Footer */}
         {isEdit && (
           <div style={{ padding: '0.85rem 1.25rem', borderTop: '1px solid rgba(94,234,212,0.1)', display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-            <button onClick={onClose} style={btnStyle('#64748b')}>cancel</button>
+            <button onClick={onClose} style={btnStyle('var(--text-muted)')}>cancel</button>
             <button
               onClick={() => saveMutation.mutate()}
               disabled={saveMutation.isPending}
-              style={btnStyle('#5eead4')}
+              style={btnStyle('var(--accent)')}
             >
               {saveMutation.isPending ? 'saving…' : mode === 'add' ? 'insert row' : 'save changes'}
             </button>
@@ -310,13 +310,13 @@ function TableBrowser({ table, columns }: { table: string; columns: ColumnInfo[]
 
       {/* Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
-        <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600, fontFamily: "'JetBrains Mono', monospace" }}>{table}</span>
-        {data && <span style={{ fontSize: '0.72rem', color: '#64748b' }}>{data.total.toLocaleString()} rows</span>}
-        {isFetching && <span style={{ fontSize: '0.65rem', color: '#64748b', letterSpacing: '0.08em' }}>loading…</span>}
+        <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)', fontWeight: 600, fontFamily: "'JetBrains Mono', monospace" }}>{table}</span>
+        {data && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{data.total.toLocaleString()} rows</span>}
+        {isFetching && <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: '0.08em' }}>loading…</span>}
         <div style={{ flex: 1 }} />
         <button
           onClick={() => setModal({ mode: 'add', row: emptyRow })}
-          style={btnStyle('#86efac')}
+          style={btnStyle('var(--success)')}
         >
           + add row
         </button>
@@ -325,7 +325,7 @@ function TableBrowser({ table, columns }: { table: string; columns: ColumnInfo[]
       {/* Table */}
       <div style={{ flex: 1, overflowX: 'auto', overflowY: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
-          <thead style={{ position: 'sticky', top: 0, background: '#11171f', zIndex: 1 }}>
+          <thead style={{ position: 'sticky', top: 0, background: 'var(--surface-2)', zIndex: 1 }}>
             <tr style={{ borderBottom: '1px solid rgba(94,234,212,0.2)' }}>
               {cols.map(col => (
                 <th
@@ -333,7 +333,7 @@ function TableBrowser({ table, columns }: { table: string; columns: ColumnInfo[]
                   onClick={() => handleSort(col)}
                   style={{
                     padding: '0.45rem 0.75rem', textAlign: 'left',
-                    color: orderBy === col ? '#5eead4' : '#64748b',
+                    color: orderBy === col ? 'var(--accent)' : 'var(--text-muted)',
                     fontWeight: 600, fontSize: '0.65rem', letterSpacing: '0.1em',
                     textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap',
                     userSelect: 'none', fontFamily: "'JetBrains Mono', monospace",
@@ -351,7 +351,7 @@ function TableBrowser({ table, columns }: { table: string; columns: ColumnInfo[]
                 key={i}
                 style={{ borderBottom: '1px solid rgba(94,234,212,0.05)', cursor: 'pointer' }}
                 onClick={() => setModal({ mode: 'view', row })}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(94,234,212,0.04)')}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--accent-soft)')}
                 onMouseLeave={e => (e.currentTarget.style.background = '')}
               >
                 {cols.map(col => {
@@ -365,7 +365,7 @@ function TableBrowser({ table, columns }: { table: string; columns: ColumnInfo[]
                       title={str}
                       style={{
                         padding: '0.35rem 0.75rem',
-                        color: isNull ? '#333' : isBool ? (val ? '#86efac' : '#ff6644') : '#5eead4',
+                        color: isNull ? '#333' : isBool ? (val ? 'var(--success)' : '#ff6644') : 'var(--accent)',
                         maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                         fontFamily: "'JetBrains Mono', monospace", fontSize: '0.76rem',
                       }}
@@ -378,7 +378,7 @@ function TableBrowser({ table, columns }: { table: string; columns: ColumnInfo[]
                   {hasId && (
                     <button
                       onClick={e => { e.stopPropagation(); setModal({ mode: 'edit', row }) }}
-                      style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '0.7rem', padding: '0.1rem 0.3rem' }}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.7rem', padding: '0.1rem 0.3rem' }}
                       title="Edit row"
                     >
                       ✎
@@ -388,7 +388,7 @@ function TableBrowser({ table, columns }: { table: string; columns: ColumnInfo[]
               </tr>
             ))}
             {!data?.rows.length && (
-              <tr><td colSpan={cols.length + 1} style={{ padding: '2rem', textAlign: 'center', color: '#64748b', fontSize: '0.8rem' }}>no rows</td></tr>
+              <tr><td colSpan={cols.length + 1} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>no rows</td></tr>
             )}
           </tbody>
         </table>
@@ -399,7 +399,7 @@ function TableBrowser({ table, columns }: { table: string; columns: ColumnInfo[]
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
           <button disabled={page === 0} onClick={() => setPage(0)} style={pageBtn(page === 0)}>«</button>
           <button disabled={page === 0} onClick={() => setPage(p => p - 1)} style={pageBtn(page === 0)}>‹ prev</button>
-          <span style={{ fontSize: '0.72rem', color: '#64748b', padding: '0 0.5rem' }}>
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', padding: '0 0.5rem' }}>
             page {page + 1} of {data.totalPages} · {data.total.toLocaleString()} rows
           </span>
           <button disabled={page >= data.totalPages - 1} onClick={() => setPage(p => p + 1)} style={pageBtn(page >= data.totalPages - 1)}>next ›</button>
@@ -414,7 +414,7 @@ function pageBtn(disabled: boolean): React.CSSProperties {
   return {
     padding: '0.3rem 0.65rem', background: 'transparent',
     border: '1px solid rgba(94,234,212,0.15)',
-    color: disabled ? '#333' : '#94a3b8',
+    color: disabled ? '#333' : 'var(--text-dim)',
     fontFamily: 'inherit', fontSize: '0.72rem', cursor: disabled ? 'default' : 'pointer',
     borderRadius: 2,
   }
@@ -497,8 +497,8 @@ function SqlEditor({
         spellCheck={false}
         style={{
           width: '100%', padding: '0.75rem',
-          background: '#11171f', border: '1px solid rgba(94,234,212,0.18)',
-          color: '#2dd4bf', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.82rem',
+          background: 'var(--surface-2)', border: '1px solid rgba(94,234,212,0.18)',
+          color: 'var(--accent-strong)', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.82rem',
           resize: 'vertical', outline: 'none', lineHeight: 1.6,
         }}
         placeholder="SELECT * FROM users LIMIT 20"
@@ -506,7 +506,7 @@ function SqlEditor({
       {suggestions.length > 0 && (
         <div style={{
           position: 'absolute', top: '100%', left: 0, zIndex: 200,
-          background: '#181c25', border: '1px solid rgba(94,234,212,0.25)',
+          background: 'var(--surface-1)', border: '1px solid rgba(94,234,212,0.25)',
           minWidth: 200, maxHeight: 260, overflowY: 'auto',
           boxShadow: '0 4px 24px rgba(0,0,0,0.6)',
         }}>
@@ -517,7 +517,7 @@ function SqlEditor({
               style={{
                 padding: '0.35rem 0.85rem',
                 background: i === activeSug ? 'rgba(94,234,212,0.1)' : 'transparent',
-                color: SQL_KEYWORDS.includes(s) ? '#5eead4' : '#86efac',
+                color: SQL_KEYWORDS.includes(s) ? 'var(--accent)' : 'var(--success)',
                 fontFamily: "'JetBrains Mono', monospace", fontSize: '0.8rem',
                 cursor: 'pointer', borderBottom: '1px solid rgba(94,234,212,0.04)',
               }}
@@ -525,7 +525,7 @@ function SqlEditor({
             >
               {s}
               {!SQL_KEYWORDS.includes(s) && (
-                <span style={{ marginLeft: '0.5rem', fontSize: '0.65rem', color: '#64748b' }}>table</span>
+                <span style={{ marginLeft: '0.5rem', fontSize: '0.65rem', color: 'var(--text-muted)' }}>table</span>
               )}
             </div>
           ))}
@@ -551,8 +551,8 @@ function QueryExecutor({ tables }: { tables: string[] }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', height: '100%' }}>
-      <div style={{ fontSize: '0.65rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#64748b' }}>
-        SELECT only · <span style={{ color: '#94a3b8' }}>Tab / Enter</span> to complete · <span style={{ color: '#94a3b8' }}>Ctrl+Enter</span> to run
+      <div style={{ fontSize: '0.65rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+        SELECT only · <span style={{ color: 'var(--text-dim)' }}>Tab / Enter</span> to complete · <span style={{ color: 'var(--text-dim)' }}>Ctrl+Enter</span> to run
       </div>
 
       <SqlEditor value={sql} onChange={setSql} onRun={handleRun} tables={tables} />
@@ -562,8 +562,8 @@ function QueryExecutor({ tables }: { tables: string[] }) {
           onClick={handleRun}
           disabled={isPending}
           style={{
-            padding: '0.5rem 1.25rem', background: isPending ? 'rgba(94,234,212,0.05)' : 'transparent',
-            border: '1px solid #5eead4', color: '#5eead4',
+            padding: '0.5rem 1.25rem', background: isPending ? 'var(--accent-soft)' : 'transparent',
+            border: '1px solid #5eead4', color: 'var(--accent)',
             fontFamily: 'inherit', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.08em',
             cursor: isPending ? 'wait' : 'pointer', borderRadius: 2,
           }}
@@ -571,12 +571,12 @@ function QueryExecutor({ tables }: { tables: string[] }) {
           {isPending ? 'running…' : '▶ run'}
         </button>
         {result && !result.error && (
-          <span style={{ fontSize: '0.72rem', color: '#64748b' }}>
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
             {result.count} row{result.count !== 1 ? 's' : ''}
           </span>
         )}
         {result && (
-          <button onClick={() => setResult(null)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '0.72rem' }}>
+          <button onClick={() => setResult(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.72rem' }}>
             clear
           </button>
         )}
@@ -595,11 +595,11 @@ function QueryExecutor({ tables }: { tables: string[] }) {
       {result && !result.error && result.columns.length > 0 && (
         <div style={{ flex: 1, overflowX: 'auto', overflowY: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
-            <thead style={{ position: 'sticky', top: 0, background: '#11171f', zIndex: 1 }}>
+            <thead style={{ position: 'sticky', top: 0, background: 'var(--surface-2)', zIndex: 1 }}>
               <tr style={{ borderBottom: '1px solid rgba(94,234,212,0.2)' }}>
                 {result.columns.map(col => (
                   <th key={col} style={{
-                    padding: '0.4rem 0.75rem', textAlign: 'left', color: '#64748b',
+                    padding: '0.4rem 0.75rem', textAlign: 'left', color: 'var(--text-muted)',
                     fontWeight: 600, fontSize: '0.65rem', letterSpacing: '0.1em',
                     textTransform: 'uppercase', whiteSpace: 'nowrap',
                     fontFamily: "'JetBrains Mono', monospace",
@@ -612,7 +612,7 @@ function QueryExecutor({ tables }: { tables: string[] }) {
             <tbody>
               {result.rows.map((row, i) => (
                 <tr key={i} style={{ borderBottom: '1px solid rgba(94,234,212,0.05)' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(94,234,212,0.03)')}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--accent-soft)')}
                   onMouseLeave={e => (e.currentTarget.style.background = '')}
                 >
                   {result.columns.map(col => {
@@ -621,7 +621,7 @@ function QueryExecutor({ tables }: { tables: string[] }) {
                     return (
                       <td key={col} title={str} style={{
                         padding: '0.35rem 0.75rem',
-                        color: val === null ? '#333' : '#5eead4',
+                        color: val === null ? '#333' : 'var(--accent)',
                         maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                         fontFamily: "'JetBrains Mono', monospace", fontSize: '0.76rem',
                       }}>
@@ -661,7 +661,7 @@ export default function DatabasePage() {
     <div style={{ display: 'flex', gap: '1.5rem', height: 'calc(100vh - 4rem)' }}>
       {/* Left: table list */}
       <div style={{ width: 188, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '0.15rem', overflowY: 'auto' }}>
-        <div style={{ fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#64748b', marginBottom: '0.5rem', padding: '0.1rem 0.25rem' }}>
+        <div style={{ fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem', padding: '0.1rem 0.25rem' }}>
           tables
         </div>
         {(tables ?? []).map(t => (
@@ -670,16 +670,16 @@ export default function DatabasePage() {
             onClick={() => { setSelectedTable(t.table_name); setTab('browse') }}
             style={{
               padding: '0.5rem 0.65rem',
-              background: selectedTable === t.table_name ? 'rgba(94,234,212,0.08)' : 'transparent',
-              border: `1px solid ${selectedTable === t.table_name ? 'rgba(94,234,212,0.28)' : 'transparent'}`,
-              color: selectedTable === t.table_name ? '#5eead4' : '#94a3b8',
+              background: selectedTable === t.table_name ? 'var(--accent-soft)' : 'transparent',
+              border: `1px solid ${selectedTable === t.table_name ? 'var(--accent-medium)' : 'transparent'}`,
+              color: selectedTable === t.table_name ? 'var(--accent)' : 'var(--text-dim)',
               fontFamily: "'JetBrains Mono', monospace", fontSize: '0.76rem',
               textAlign: 'left', cursor: 'pointer', borderRadius: 2,
               display: 'flex', justifyContent: 'space-between', gap: '0.4rem', alignItems: 'center',
             }}
           >
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.table_name}</span>
-            <span style={{ fontSize: '0.62rem', color: '#64748b', flexShrink: 0 }}>{formatBytes(Number(t.size_bytes))}</span>
+            <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', flexShrink: 0 }}>{formatBytes(Number(t.size_bytes))}</span>
           </button>
         ))}
       </div>
@@ -687,8 +687,8 @@ export default function DatabasePage() {
       {/* Right: content */}
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
         <div>
-          <div style={{ fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#64748b', marginBottom: '0.2rem' }}>database</div>
-          <h1 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#5eead4', letterSpacing: '0.08em', margin: 0 }}>DATABASE</h1>
+          <div style={{ fontSize: '0.6rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>database</div>
+          <h1 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.08em', margin: 0 }}>DATABASE</h1>
         </div>
 
         <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(94,234,212,0.12)', flexShrink: 0 }}>
@@ -698,7 +698,7 @@ export default function DatabasePage() {
               onClick={() => setTab(t)}
               style={{
                 padding: '0.45rem 1.1rem', background: 'transparent', border: 'none',
-                color: tab === t ? '#5eead4' : '#64748b',
+                color: tab === t ? 'var(--accent)' : 'var(--text-muted)',
                 fontFamily: 'inherit', fontSize: '0.72rem', fontWeight: 600,
                 letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer',
                 borderBottom: tab === t ? '2px solid #5eead4' : '2px solid transparent',
@@ -716,9 +716,9 @@ export default function DatabasePage() {
           ) : selectedTable && columns ? (
             <TableBrowser table={selectedTable} columns={columns} key={selectedTable} />
           ) : selectedTable ? (
-            <div style={{ color: '#64748b', padding: '2rem', textAlign: 'center', fontSize: '0.8rem' }}>loading columns…</div>
+            <div style={{ color: 'var(--text-muted)', padding: '2rem', textAlign: 'center', fontSize: '0.8rem' }}>loading columns…</div>
           ) : (
-            <div style={{ color: '#64748b', padding: '3rem', textAlign: 'center', fontSize: '0.8rem' }}>
+            <div style={{ color: 'var(--text-muted)', padding: '3rem', textAlign: 'center', fontSize: '0.8rem' }}>
               select a table from the left panel
             </div>
           )}

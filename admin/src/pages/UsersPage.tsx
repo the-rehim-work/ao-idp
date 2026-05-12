@@ -7,15 +7,15 @@ import type { LdapUser, Application, User, AppAccess } from '../types'
 
 const C = {
   bg: '#000',
-  surface: '#0f141b',
-  surface2: '#1a2129',
-  border: 'rgba(94,234,212,0.15)',
-  borderHover: 'rgba(94,234,212,0.35)',
-  green: '#5eead4',
-  greenDim: '#2dd4bf',
-  text: '#5eead4',
-  textDim: '#94a3b8',
-  textMuted: '#64748b',
+  surface: 'var(--surface-1)',
+  surface2: 'var(--surface-2)',
+  border: 'var(--accent-soft)',
+  borderHover: 'var(--accent-medium)',
+  green: 'var(--accent)',
+  greenDim: 'var(--accent-strong)',
+  text: 'var(--accent)',
+  textDim: 'var(--text-dim)',
+  textMuted: 'var(--text-muted)',
   red: '#ff3333',
   amber: '#ff8800',
 }
@@ -122,7 +122,7 @@ function AppAccessChips({ userId }: { userId: string }) {
       <div className="flex flex-wrap gap-1.5">
         {accesses.map(a => (
           <span key={a.appId} className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs"
-            style={{ background: 'rgba(94,234,212,0.08)', color: C.green, border: '1px solid rgba(94,234,212,0.2)' }}>
+            style={{ background: 'var(--accent-soft)', color: C.green, border: '1px solid rgba(94,234,212,0.2)' }}>
             {a.appName}
             <button onClick={() => setConfirmRevoke(a)}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.greenDim, lineHeight: 1, padding: 0, fontSize: '0.75rem' }}
@@ -158,8 +158,8 @@ function LdapUserRow({ user, apps }: { user: LdapUser; apps: Application[] }) {
             <span className="text-sm font-semibold" style={{ color: user.is_activated ? C.green : C.textDim }}>{user.display_name}</span>
             <span className="text-xs px-1.5 py-0.5 rounded-full" style={{
               color: user.is_activated ? C.green : C.textMuted,
-              background: user.is_activated ? 'rgba(94,234,212,0.1)' : 'rgba(255,255,255,0.04)',
-              border: `1px solid ${user.is_activated ? 'rgba(94,234,212,0.25)' : C.border}`,
+              background: user.is_activated ? 'rgba(94,234,212,0.1)' : 'var(--border-faint)',
+              border: `1px solid ${user.is_activated ? 'var(--accent-medium)' : C.border}`,
             }}>
               {user.is_activated ? 'activated' : 'not activated'}
             </span>
@@ -179,7 +179,7 @@ function LdapUserRow({ user, apps }: { user: LdapUser; apps: Application[] }) {
         <div className="flex gap-2 flex-shrink-0">
           <button onClick={() => setShowActivate(true)}
             className="px-3 py-1.5 text-xs rounded transition-opacity hover:opacity-80"
-            style={{ color: C.green, border: `1px solid rgba(94,234,212,0.3)`, background: 'rgba(94,234,212,0.06)', cursor: 'pointer' }}>
+            style={{ color: C.green, border: `1px solid rgba(94,234,212,0.3)`, background: 'var(--accent-soft)', cursor: 'pointer' }}>
             + Grant access
           </button>
         </div>
@@ -333,7 +333,7 @@ function ActivatedTab() {
                     <span className="text-xs px-1.5 py-0.5 rounded-full" style={{
                       color: user.active ? C.green : C.red,
                       background: user.active ? 'rgba(94,234,212,0.1)' : 'rgba(248,113,113,0.1)',
-                      border: `1px solid ${user.active ? 'rgba(94,234,212,0.25)' : 'rgba(248,113,113,0.25)'}`,
+                      border: `1px solid ${user.active ? 'var(--accent-medium)' : 'rgba(248,113,113,0.25)'}`,
                     }}>
                       {user.active ? 'active' : 'blocked'}
                     </span>

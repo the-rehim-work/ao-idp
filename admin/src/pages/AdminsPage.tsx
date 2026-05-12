@@ -3,8 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminsApi, AdminUser } from '../api/admins'
 import { appsApi } from '../api/apps'
 
-const C = '#5eead4', CD = '#2dd4bf', CM = '#94a3b8', CB = '#64748b'
-const BORDER = 'rgba(94,234,212,0.18)', SURFACE = '#0f141b', ERR = '#ff4444'
+const C = 'var(--accent)', CD = 'var(--accent-strong)', CM = 'var(--text-dim)', CB = 'var(--text-muted)'
+const BORDER = 'rgba(94,234,212,0.18)', SURFACE = 'var(--surface-1)', ERR = 'var(--danger)'
 
 const ALL_SECTIONS = [
   { key: 'dashboard',     label: 'Dashboard' },
@@ -53,7 +53,7 @@ function PermissionPicker({ value, onChange }: { value: string[]; onChange: (v: 
       {ALL_SECTIONS.map(s => {
         const on = value.includes(s.key)
         return (
-          <label key={s.key} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.5rem', border: `1px solid ${on ? 'rgba(94,234,212,0.35)' : 'rgba(94,234,212,0.1)'}`, background: on ? 'rgba(94,234,212,0.05)' : 'transparent', cursor: 'pointer', fontSize: '0.7rem', color: on ? C : CB, transition: 'all 0.12s' }}>
+          <label key={s.key} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.5rem', border: `1px solid ${on ? 'var(--accent-medium)' : 'rgba(94,234,212,0.1)'}`, background: on ? 'var(--accent-soft)' : 'transparent', cursor: 'pointer', fontSize: '0.7rem', color: on ? C : CB, transition: 'all 0.12s' }}>
             <input type="checkbox" checked={on} onChange={() => toggle(s.key)} style={{ accentColor: C, width: 12, height: 12 }} />
             {s.label}
           </label>
@@ -63,7 +63,7 @@ function PermissionPicker({ value, onChange }: { value: string[]; onChange: (v: 
   )
 }
 
-const inputStyle: React.CSSProperties = { width: '100%', padding: '0.5rem 0.75rem', background: '#000', border: `1px solid ${BORDER}`, color: C, fontFamily: 'inherit', fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box' }
+const inputStyle: React.CSSProperties = { width: '100%', padding: '0.5rem 0.75rem', background: 'var(--bg)', border: `1px solid ${BORDER}`, color: C, fontFamily: 'inherit', fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box' }
 const btnPrimary: React.CSSProperties = { padding: '0.6rem 1.25rem', background: 'transparent', border: `1px solid ${C}`, color: C, fontFamily: 'inherit', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }
 const btnSecondary: React.CSSProperties = { ...btnPrimary, border: `1px solid ${CB}`, color: CB }
 
@@ -319,7 +319,7 @@ export default function AdminsPage() {
             const granted = currentScopes.includes(app.id)
             const busy = addScopeMut.isPending || removeScopeMut.isPending
             return (
-              <div key={app.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', marginBottom: '0.25rem', border: `1px solid ${granted ? 'rgba(94,234,212,0.3)' : 'rgba(94,234,212,0.08)'}`, background: granted ? 'rgba(94,234,212,0.04)' : 'transparent' }}>
+              <div key={app.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', marginBottom: '0.25rem', border: `1px solid ${granted ? 'rgba(94,234,212,0.3)' : 'var(--accent-soft)'}`, background: granted ? 'var(--accent-soft)' : 'transparent' }}>
                 <div>
                   <div style={{ fontSize: '0.8125rem', color: granted ? C : CD }}>{app.name}</div>
                   <div style={{ fontSize: '0.6rem', color: CB }}>{app.client_id}</div>

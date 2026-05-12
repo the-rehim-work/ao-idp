@@ -4,14 +4,14 @@ import { appsApi } from '../api/apps'
 import { usersApi } from '../api/users'
 import type { Application, User } from '../types'
 
-const C = '#5eead4'
-const CD = '#2dd4bf'
-const CM = '#94a3b8'
-const CB = '#64748b'
+const C = 'var(--accent)'
+const CD = 'var(--accent-strong)'
+const CM = 'var(--text-dim)'
+const CB = 'var(--text-muted)'
 const BORDER = 'rgba(94,234,212,0.2)'
 const BORDER_H = 'rgba(94,234,212,0.4)'
-const SURFACE = '#0f141b'
-const SURFACE2 = '#1a2129'
+const SURFACE = 'var(--surface-1)'
+const SURFACE2 = 'var(--surface-2)'
 
 interface AppForm {
   name: string
@@ -71,7 +71,7 @@ function TagInput({ label, tags, onChange, placeholder, required }: {
       >
         {tags.map(tag => (
           <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 text-xs shrink-0"
-            style={{ background: 'rgba(94,234,212,0.08)', color: CD, border: `1px solid rgba(94,234,212,0.2)` }}>
+            style={{ background: 'var(--accent-soft)', color: CD, border: `1px solid rgba(94,234,212,0.2)` }}>
             <span className="truncate max-w-[220px]">{tag}</span>
             <button type="button"
               onClick={e => { e.stopPropagation(); onChange(tags.filter(t => t !== tag)) }}
@@ -98,7 +98,7 @@ function AppModal({ title, form, setForm, error, onSave, onClose, saving, isEdit
     <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
       style={{ background: 'rgba(0,0,0,0.85)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-lg max-h-[90vh] overflow-auto border" style={{ background: '#000', borderColor: BORDER_H }}>
+      <div className="w-full max-w-lg max-h-[90vh] overflow-auto border" style={{ background: 'var(--bg)', borderColor: BORDER_H }}>
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${BORDER}` }}>
           <div className="text-sm font-bold tracking-wider" style={{ color: C }}>{'> '}{title.toLowerCase()}</div>
           <button onClick={onClose} style={{ color: CM, background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem' }}>×</button>
@@ -150,7 +150,7 @@ function AppModal({ title, form, setForm, error, onSave, onClose, saving, isEdit
                     className="flex-1 px-3 py-2 text-left text-xs transition-all"
                     style={{
                       border: `1px solid ${form.isPublicClient === opt.value ? C : BORDER}`,
-                      background: form.isPublicClient === opt.value ? 'rgba(94,234,212,0.08)' : 'transparent',
+                      background: form.isPublicClient === opt.value ? 'var(--accent-soft)' : 'transparent',
                       color: form.isPublicClient === opt.value ? C : CM,
                       cursor: 'pointer',
                     }}
@@ -199,7 +199,7 @@ function DeleteConfirmModal({ app, onDeactivate, onDelete, onClose, pending }: {
     <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
       style={{ background: 'rgba(0,0,0,0.88)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-md border" style={{ background: '#000', borderColor: 'rgba(255,51,51,0.4)' }}>
+      <div className="w-full max-w-md border" style={{ background: 'var(--bg)', borderColor: 'rgba(255,51,51,0.4)' }}>
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid rgba(255,51,51,0.2)` }}>
           <div className="text-sm font-bold tracking-wider" style={{ color: '#ff3333' }}>{'> '}remove application</div>
           <button onClick={onClose} style={{ color: CM, background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem' }}>×</button>
@@ -262,7 +262,7 @@ function AppUsersSection({ appId }: { appId: string }) {
     <div className="space-y-1">
       {data.content.map((u: User) => (
         <div key={u.id} className="flex items-center justify-between px-2 py-1.5 text-xs"
-          style={{ background: 'rgba(94,234,212,0.03)', border: `1px solid rgba(94,234,212,0.1)` }}>
+          style={{ background: 'var(--accent-soft)', border: `1px solid rgba(94,234,212,0.1)` }}>
           <span style={{ color: CD }}>{u.displayName}</span>
           <span style={{ color: CM }}>{u.ldapUsername}</span>
         </div>
@@ -300,14 +300,14 @@ function AppCard({ app, onEdit, onRemove, onToggleActive }: {
             <span className="text-xs px-2 py-0.5 font-bold" style={{
               color: app.is_public_client ? '#ffaa00' : CD,
               border: `1px solid ${app.is_public_client ? 'rgba(255,170,0,0.3)' : 'rgba(0,179,204,0.3)'}`,
-              background: app.is_public_client ? 'rgba(255,170,0,0.06)' : 'rgba(94,234,212,0.06)',
+              background: app.is_public_client ? 'rgba(255,170,0,0.06)' : 'var(--accent-soft)',
             }}>
               {app.is_public_client ? 'public' : 'confidential'}
             </span>
             <span className="text-xs px-2 py-0.5 font-bold" style={{
               color: app.is_active ? C : '#ff3333',
               border: `1px solid ${app.is_active ? 'rgba(94,234,212,0.3)' : 'rgba(255,51,51,0.3)'}`,
-              background: app.is_active ? 'rgba(94,234,212,0.06)' : 'rgba(255,51,51,0.06)',
+              background: app.is_active ? 'var(--accent-soft)' : 'rgba(255,51,51,0.06)',
             }}>
               {app.is_active ? 'active' : 'inactive'}
             </span>
@@ -317,7 +317,7 @@ function AppCard({ app, onEdit, onRemove, onToggleActive }: {
         <div className="space-y-1.5 mb-4">
           <div className="flex items-center gap-2">
             <span className="text-xs w-20 shrink-0" style={{ color: CB }}>client_id</span>
-            <code className="text-xs flex-1 truncate px-2 py-1" style={{ color: CD, background: 'rgba(94,234,212,0.04)', border: `1px solid ${BORDER}` }}>{app.client_id}</code>
+            <code className="text-xs flex-1 truncate px-2 py-1" style={{ color: CD, background: 'var(--accent-soft)', border: `1px solid ${BORDER}` }}>{app.client_id}</code>
             <CopyButton text={app.client_id} />
           </div>
           {app.client_secret && (
@@ -339,7 +339,7 @@ function AppCard({ app, onEdit, onRemove, onToggleActive }: {
           <div className="flex flex-wrap gap-1.5 mb-3">
             {app.redirect_uris.map(uri => (
               <span key={uri} className="text-xs px-2 py-0.5 truncate max-w-[200px]"
-                style={{ color: CM, border: `1px solid ${BORDER}`, background: 'rgba(94,234,212,0.03)' }}>{uri}</span>
+                style={{ color: CM, border: `1px solid ${BORDER}`, background: 'var(--accent-soft)' }}>{uri}</span>
             ))}
           </div>
         )}
@@ -518,7 +518,7 @@ export default function ApplicationsPage() {
 
       {newSecret && (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0,0,0,0.9)' }}>
-          <div className="w-full max-w-md p-8 border" style={{ background: '#000', borderColor: C, boxShadow: `0 0 40px rgba(94,234,212,0.15)` }}>
+          <div className="w-full max-w-md p-8 border" style={{ background: 'var(--bg)', borderColor: C, boxShadow: `0 0 40px rgba(94,234,212,0.15)` }}>
             <div className="mb-5">
               <div className="text-xs tracking-widest uppercase mb-1" style={{ color: CB }}>application created</div>
               <div className="font-bold tracking-wider" style={{ color: C }}>save credentials now</div>

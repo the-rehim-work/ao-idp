@@ -70,6 +70,16 @@ public class AdminSettingsController {
         return ResponseEntity.ok(settingsService.getLoginSettings());
     }
 
+    @GetMapping("/login/branding")
+    public ResponseEntity<IdpSettingsService.LoginBranding> getLoginBranding() {
+        return ResponseEntity.ok(settingsService.getLoginBranding());
+    }
+
+    @PutMapping("/login/branding")
+    public ResponseEntity<IdpSettingsService.LoginBranding> updateLoginBranding(@RequestBody IdpSettingsService.LoginBranding body) {
+        return ResponseEntity.ok(settingsService.setLoginBranding(body));
+    }
+
     @GetMapping("/security")
     public ResponseEntity<IdpSettingsService.SecuritySettings> getSecurity() {
         return ResponseEntity.ok(settingsService.getSecuritySettings());

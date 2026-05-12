@@ -3,13 +3,13 @@ import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '../api/client'
 import type { AuditLog, PageResponse } from '../types'
 
-const C = '#5eead4'
-const CD = '#2dd4bf'
-const CM = '#94a3b8'
-const CB = '#64748b'
+const C = 'var(--accent)'
+const CD = 'var(--accent-strong)'
+const CM = 'var(--text-dim)'
+const CB = 'var(--text-muted)'
 const BORDER = 'rgba(94,234,212,0.2)'
-const SURFACE = '#0f141b'
-const SURFACE2 = '#1a2129'
+const SURFACE = 'var(--surface-1)'
+const SURFACE2 = 'var(--surface-2)'
 
 const ACTION_COLOR: Record<string, string> = {
   login:               C,
@@ -122,8 +122,8 @@ function DetailModal({ log, onClose }: { log: AuditLog; onClose: () => void }) {
     <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
       style={{ background: 'rgba(0,0,0,0.92)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-xl max-h-[90vh] overflow-auto border" style={{ background: '#000', borderColor: `${color}55` }}>
-        <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: `1px solid rgba(94,234,212,0.12)`, background: 'rgba(94,234,212,0.02)' }}>
+      <div className="w-full max-w-xl max-h-[90vh] overflow-auto border" style={{ background: 'var(--bg)', borderColor: `${color}55` }}>
+        <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: `1px solid rgba(94,234,212,0.12)`, background: 'var(--accent-soft)' }}>
           <div>
             <div className="text-xs tracking-widest uppercase mb-0.5" style={{ color: CB }}>[audit] event detail</div>
             <span className="text-sm font-bold px-2 py-0.5" style={{ color, border: `1px solid ${color}44`, background: `${color}0d` }}>
@@ -134,7 +134,7 @@ function DetailModal({ log, onClose }: { log: AuditLog; onClose: () => void }) {
         </div>
 
         <div className="px-5 py-5 space-y-4">
-          <div className="p-3 text-xs leading-relaxed" style={{ background: 'rgba(94,234,212,0.04)', border: `1px solid ${BORDER}`, color: CD }}>
+          <div className="p-3 text-xs leading-relaxed" style={{ background: 'var(--accent-soft)', border: `1px solid ${BORDER}`, color: CD }}>
             <span style={{ color: CB }}>{'> '}</span>{description}
           </div>
 
@@ -230,8 +230,8 @@ export default function AuditPage() {
             <select style={{ ...inputStyle, appearance: 'none' }} value={action} onChange={e => { setAction(e.target.value); setPage(0) }}
               onFocus={e => e.target.style.borderColor = C}
               onBlur={e => e.target.style.borderColor = BORDER}>
-              <option value="" style={{ background: '#000' }}>all events</option>
-              {eventTypes.map(t => <option key={t} value={t} style={{ background: '#000' }}>{t}</option>)}
+              <option value="" style={{ background: 'var(--bg)' }}>all events</option>
+              {eventTypes.map(t => <option key={t} value={t} style={{ background: 'var(--bg)' }}>{t}</option>)}
             </select>
           </div>
           <div>

@@ -24,7 +24,7 @@ export function ConfirmModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.92)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-md border" style={{ background: '#000', borderColor: 'rgba(255,51,51,0.4)' }}>
+      <div className="w-full max-w-md border" style={{ background: 'var(--bg)', borderColor: 'rgba(255,51,51,0.4)' }}>
         <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid rgba(255,51,51,0.2)', background: 'rgba(255,51,51,0.04)' }}>
           <div className="text-xs tracking-widest uppercase font-bold" style={{ color: '#ff3333' }}>
             [warn] {title.toLowerCase()}
@@ -33,7 +33,7 @@ export function ConfirmModal({
         </div>
 
         <div className="p-6">
-          <p className="text-sm mb-4 leading-relaxed" style={{ color: '#94a3b8' }}>{message}</p>
+          <p className="text-sm mb-4 leading-relaxed" style={{ color: 'var(--text-dim)' }}>{message}</p>
 
           {itemName && (
             <div className="mb-4 px-3 py-2 text-xs break-all" style={{ background: 'rgba(255,51,51,0.06)', border: '1px solid rgba(255,51,51,0.2)', color: '#ff6666', fontFamily: 'inherit' }}>
@@ -48,7 +48,7 @@ export function ConfirmModal({
           <div className="flex gap-3 justify-end">
             <button onClick={onClose}
               className="px-4 py-2 text-xs tracking-wide"
-              style={{ color: '#94a3b8', border: '1px solid rgba(94,234,212,0.2)', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ color: 'var(--text-dim)', border: '1px solid rgba(94,234,212,0.2)', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
               cancel
             </button>
             <button onClick={onConfirm} disabled={isPending}

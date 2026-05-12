@@ -54,40 +54,39 @@ interface RecentRef {
    Color palette / fonts
    ====================================================================== */
 
-// "Quanta" design system — refined dark with semantic color, not neon-monoculture.
-// Surfaces are layered warm graphite (not pure black); accents are color-coded by meaning.
+// "Quanta" design tokens — every value flows through CSS variables so the
+// runtime theme toggle (dark/light/custom palette) flips this entire page
+// without re-rendering React. Adjust tokens in :root in index.css, not here.
 const C = {
-  // Base layers — warm graphite, layered for depth (no pure black, no flat panels)
-  bg:         '#0a0c10',
-  surface:    '#12161e',
-  surface2:   '#1a1f29',
-  surface3:   '#242a36',
-  // Borders — opacity-based off white so they adapt to any background
-  border:       'rgba(255,255,255,0.08)',
-  borderHover:  'rgba(255,255,255,0.18)',
-  borderFaint:  'rgba(255,255,255,0.04)',
-  // Primary accent — soft mint (NOT neon cyan). Reserved for active state, focus, primary action.
-  cyan:     '#5eead4',
-  cyanDim:  '#2dd4bf',
+  bg:           'var(--bg)',
+  surface:      'var(--surface-1)',
+  surface2:     'var(--surface-2)',
+  surface3:     'var(--surface-3)',
+  border:       'var(--border)',
+  borderHover:  'var(--border-hover)',
+  borderFaint:  'var(--border-faint)',
+  // Primary accent — driven by user pick
+  cyan:         'var(--accent)',
+  cyanDim:      'var(--accent-strong)',
   // Text hierarchy via lightness, not hue
-  text:       '#e7ebf0',
-  textDim:    '#a3acb9',
-  textMuted:  '#6b7383',
+  text:         'var(--text)',
+  textDim:      'var(--text-dim)',
+  textMuted:    'var(--text-muted)',
   // Semantic accents — each entity class gets a distinct, refined hue
-  blue:          '#7dd3fc',  // info / sky
-  ouGold:        '#fbbf24',  // organizational unit — amber/gold
-  containerBlue: '#7dd3fc',  // container — sky
-  purple:        '#c4b5fd',  // group — lavender
-  amber:         '#fb923c',  // warning — peach
-  red:           '#fb7185',  // danger — coral
-  green:         '#34d399',  // success — emerald
-  slate:         '#94a3b8',
+  blue:          'var(--info)',
+  ouGold:        'var(--gold)',
+  containerBlue: 'var(--info)',
+  purple:        'var(--purple)',
+  amber:         'var(--warning)',
+  red:           'var(--danger)',
+  green:         'var(--success)',
+  slate:         'var(--text-dim)',
 }
 
 const FONT = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
 const ROW_H = 26
 const INDENT = 16
-const LINE_COLOR = 'rgba(255,255,255,0.05)'
+const LINE_COLOR = 'var(--border-faint)'
 const OVERSCAN = 5
 
 const LS_PINNED = 'ldap-pinned'
@@ -834,7 +833,7 @@ function ContextMenu({
             borderBottom: i === items.length - 1 ? 'none' : `1px solid ${C.borderFaint}`,
             opacity: it.disabled ? 0.5 : 1,
           }}
-          onMouseEnter={e => { if (!it.disabled) e.currentTarget.style.background = 'rgba(94,234,212,0.06)' }}
+          onMouseEnter={e => { if (!it.disabled) e.currentTarget.style.background = 'var(--accent-soft)' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
         >
           <span>{it.label}</span>
@@ -858,7 +857,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
   return (
     <>
       {text.slice(0, idx)}
-      <mark style={{ background: 'rgba(94,234,212,0.25)', color: C.cyan, padding: 0 }}>
+      <mark style={{ background: 'var(--accent-medium)', color: C.cyan, padding: 0 }}>
         {text.slice(idx, idx + q.length)}
       </mark>
       {text.slice(idx + q.length)}
@@ -902,7 +901,7 @@ const FlatTreeRow = React.memo(function FlatTreeRow(props: FlatTreeRowProps) {
       }}>
         <div style={{
           height: 10, width: `${40 + (flatNode.depth * 17) % 40}%`,
-          background: 'rgba(94,234,212,0.08)', borderRadius: 2,
+          background: 'var(--accent-soft)', borderRadius: 2,
           animation: 'ldapSkeleton 1.2s ease infinite',
         }} />
       </div>
@@ -994,7 +993,7 @@ const FlatTreeRow = React.memo(function FlatTreeRow(props: FlatTreeRowProps) {
           : isMultiSelected
           ? 'rgba(170,136,255,0.10)'
           : isFocused
-          ? 'rgba(94,234,212,0.04)'
+          ? 'var(--accent-soft)'
           : 'transparent',
         borderLeft: isSelected ? `2px solid ${C.cyan}`
           : isMultiSelected ? `2px solid ${C.purple}`
@@ -1569,7 +1568,7 @@ function NodeRefRow({
         fontSize: '0.72rem', cursor: 'pointer',
         transition: 'background 0.1s',
       }}
-      onMouseEnter={e => e.currentTarget.style.background = 'rgba(94,234,212,0.04)'}
+      onMouseEnter={e => e.currentTarget.style.background = 'var(--accent-soft)'}
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
     >
       <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -1772,8 +1771,8 @@ function AttributePicker({
         style={{
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '4px 8px 4px 9px',
-          background: value !== 'all' ? 'rgba(94,234,212,0.08)' : C.surface2,
-          border: `1px solid ${open ? C.borderHover : value !== 'all' ? 'rgba(94,234,212,0.35)' : C.border}`,
+          background: value !== 'all' ? 'var(--accent-soft)' : C.surface2,
+          border: `1px solid ${open ? C.borderHover : value !== 'all' ? 'var(--accent-medium)' : C.border}`,
           color: value !== 'all' ? C.cyan : C.textDim,
           fontFamily: FONT, fontSize: '0.7rem',
           cursor: 'pointer', borderRadius: 4,
@@ -1877,7 +1876,7 @@ function AttrRow({ opt, active, hover, onPick, onHover }: {
       style={{
         display: 'flex', alignItems: 'center', gap: 8,
         padding: '5px 12px',
-        background: hover ? 'rgba(94,234,212,0.06)' : active ? 'rgba(94,234,212,0.04)' : 'transparent',
+        background: hover ? 'var(--accent-soft)' : active ? 'var(--accent-soft)' : 'transparent',
         borderLeft: `2px solid ${active ? C.cyan : 'transparent'}`,
         cursor: 'pointer', fontSize: '0.72rem',
         transition: 'background 0.08s',
@@ -1974,7 +1973,7 @@ function ServerSearchResults({
               fontSize: '0.72rem', cursor: 'pointer',
               transition: 'background 0.1s',
             }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(94,234,212,0.04)')}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--accent-soft)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -2868,7 +2867,7 @@ export default function LdapTreePage() {
               display: 'flex', alignItems: 'center', gap: 8,
               padding: '7px 10px',
               background: C.bg,
-              border: `1px solid ${state.searchQuery ? 'rgba(94,234,212,0.35)' : C.border}`,
+              border: `1px solid ${state.searchQuery ? 'var(--accent-medium)' : C.border}`,
               borderRadius: 6,
               transition: 'border-color 0.15s',
             }}>
@@ -2888,7 +2887,7 @@ export default function LdapTreePage() {
               />
               {state.searchQuery && (
                 <button onClick={() => dispatch({ type: 'SET_SEARCH', query: '' })} style={{
-                  background: 'rgba(255,255,255,0.06)', border: 'none', cursor: 'pointer',
+                  background: 'var(--border-faint)', border: 'none', cursor: 'pointer',
                   color: C.textDim, fontSize: '0.8rem', padding: '2px 7px',
                   borderRadius: 3, lineHeight: 1,
                 }}>×</button>
@@ -2896,7 +2895,7 @@ export default function LdapTreePage() {
               <kbd style={{
                 fontSize: '0.58rem', fontFamily: FONT,
                 padding: '1px 5px', color: C.textMuted,
-                background: 'rgba(255,255,255,0.04)',
+                background: 'var(--border-faint)',
                 border: `1px solid ${C.borderFaint}`, borderRadius: 3,
               }}>/</kbd>
             </div>
@@ -2916,7 +2915,7 @@ export default function LdapTreePage() {
                   return (
                     <button key={v} onClick={() => setSearchScope(v)} title={hint} style={{
                       padding: '3px 12px', fontSize: '0.7rem',
-                      background: active ? (v === 'server' ? 'rgba(251,146,60,0.16)' : 'rgba(94,234,212,0.12)') : 'transparent',
+                      background: active ? (v === 'server' ? 'rgba(251,146,60,0.16)' : 'var(--accent-soft)') : 'transparent',
                       border: 'none',
                       color: active ? (v === 'server' ? C.amber : C.cyan) : C.textMuted,
                       fontFamily: FONT, cursor: 'pointer', letterSpacing: '0.02em',
@@ -3144,7 +3143,7 @@ export default function LdapTreePage() {
             background: isDragging ? 'rgba(94,234,212,0.3)' : 'transparent',
             transition: 'background 0.12s',
           }}
-          onMouseEnter={e => { if (!isDragging) e.currentTarget.style.background = 'rgba(94,234,212,0.12)' }}
+          onMouseEnter={e => { if (!isDragging) e.currentTarget.style.background = 'var(--accent-soft)' }}
           onMouseLeave={e => { if (!isDragging) e.currentTarget.style.background = 'transparent' }}
         />
 

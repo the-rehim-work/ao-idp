@@ -3,11 +3,11 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { adminsApi } from '../api/admins'
 import { useAuthStore } from '../store/authStore'
 
-const C = '#5eead4', CD = '#2dd4bf', CM = '#94a3b8', CB = '#64748b'
-const BORDER = 'rgba(94,234,212,0.18)', SURFACE = '#0f141b'
+const C = 'var(--accent)', CD = 'var(--accent-strong)', CM = 'var(--text-dim)', CB = 'var(--text-muted)'
+const BORDER = 'rgba(94,234,212,0.18)', SURFACE = 'var(--surface-1)'
 
 const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '0.5625rem 0.75rem', background: '#000',
+  width: '100%', padding: '0.5625rem 0.75rem', background: 'var(--bg)',
   border: `1px solid ${BORDER}`, color: C, fontFamily: 'inherit',
   fontSize: '0.875rem', outline: 'none', boxSizing: 'border-box',
 }
@@ -63,12 +63,12 @@ export default function ProfilePage() {
         <div style={{ fontSize: '0.625rem', color: CB, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '1.25rem' }}>Change Password</div>
 
         {success && (
-          <div style={{ border: '1px solid rgba(94,234,212,0.3)', background: 'rgba(94,234,212,0.05)', color: C, padding: '0.5rem 0.75rem', fontSize: '0.75rem', marginBottom: '1rem' }}>
+          <div style={{ border: '1px solid rgba(94,234,212,0.3)', background: 'var(--accent-soft)', color: C, padding: '0.5rem 0.75rem', fontSize: '0.75rem', marginBottom: '1rem' }}>
             Password changed successfully.
           </div>
         )}
         {error && (
-          <div style={{ border: '1px solid rgba(255,68,68,0.3)', background: 'rgba(255,68,68,0.06)', color: '#ff4444', padding: '0.5rem 0.75rem', fontSize: '0.75rem', marginBottom: '1rem' }}>
+          <div style={{ border: '1px solid rgba(255,68,68,0.3)', background: 'rgba(255,68,68,0.06)', color: 'var(--danger)', padding: '0.5rem 0.75rem', fontSize: '0.75rem', marginBottom: '1rem' }}>
             [ERR] {error}
           </div>
         )}
@@ -89,7 +89,7 @@ export default function ProfilePage() {
         ))}
 
         {confirm && newPwd !== confirm && (
-          <div style={{ color: '#ff4444', fontSize: '0.7rem', marginBottom: '0.75rem' }}>Passwords do not match</div>
+          <div style={{ color: 'var(--danger)', fontSize: '0.7rem', marginBottom: '0.75rem' }}>Passwords do not match</div>
         )}
         {newPwd && newPwd.length < 8 && (
           <div style={{ color: '#ff8800', fontSize: '0.7rem', marginBottom: '0.75rem' }}>Minimum 8 characters</div>

@@ -3,15 +3,15 @@ import { Link } from 'react-router-dom'
 import { apiClient } from '../api/client'
 import type { SystemStats, PageResponse, AuditLog } from '../types'
 
-const C = '#5eead4'
-const CD = '#2dd4bf'
-const CM = '#94a3b8'
-const CB = '#64748b'
+const C = 'var(--accent)'
+const CD = 'var(--accent-strong)'
+const CM = 'var(--text-dim)'
+const CB = 'var(--text-muted)'
 const BORDER = 'rgba(94,234,212,0.2)'
-const SURFACE = '#0f141b'
+const SURFACE = 'var(--surface-1)'
 
 const ACTION_STYLE: Record<string, { color: string; bg: string }> = {
-  login:            { color: C, bg: 'rgba(94,234,212,0.08)' },
+  login:            { color: C, bg: 'var(--accent-soft)' },
   login_failed:     { color: '#ff3333', bg: 'rgba(255,51,51,0.08)' },
   user_activated:   { color: CD, bg: 'rgba(0,179,204,0.08)' },
   user_deactivated: { color: '#ff8800', bg: 'rgba(255,136,0,0.08)' },
@@ -38,7 +38,7 @@ function MiniBar({ label, value, max, color }: { label: string; value: number; m
   return (
     <div className="flex items-center gap-3">
       <span className="text-xs w-32 truncate" style={{ color: CM }}>{label}</span>
-      <div className="flex-1 h-1" style={{ background: 'rgba(94,234,212,0.08)' }}>
+      <div className="flex-1 h-1" style={{ background: 'var(--accent-soft)' }}>
         <div style={{ width: `${pct}%`, height: '100%', background: color, boxShadow: `0 0 4px ${color}` }} />
       </div>
       <span className="text-xs w-8 text-right tabular-nums" style={{ color: CD }}>{value}</span>
@@ -89,7 +89,7 @@ export default function DashboardPage() {
                   { label: 'this week', value: s.logins_week, color: CD },
                   { label: 'failed week', value: s.failed_week, color: '#ff6600' },
                 ].map(item => (
-                  <div key={item.label} className="p-3" style={{ background: 'rgba(94,234,212,0.03)', border: '1px solid rgba(94,234,212,0.1)' }}>
+                  <div key={item.label} className="p-3" style={{ background: 'var(--accent-soft)', border: '1px solid rgba(94,234,212,0.1)' }}>
                     <div className="text-2xl font-bold tabular-nums" style={{ color: item.color }}>{item.value}</div>
                     <div className="text-xs mt-0.5 tracking-wide" style={{ color: CB }}>{item.label}</div>
                   </div>

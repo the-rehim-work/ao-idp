@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { settingsApi, LdapServerConfig, LdapConfigRequest, TokenSettings, ClaimMapping, SecuritySettings } from '../api/settings'
+import { settingsApi, LdapServerConfig, LdapConfigRequest, TokenSettings, ClaimMapping, SecuritySettings, LoginBranding } from '../api/settings'
 import { apiClient } from '../api/client'
 import { ACCENT_PRESETS, applyTheme, loadTheme, saveTheme, ThemeState, FONT_SCALES, FontScale } from '../theme'
 
-const C = '#5eead4', CD = '#2dd4bf', CM = '#94a3b8', CB = '#64748b', ERR = '#ff4444'
-const BORDER = 'rgba(94,234,212,0.18)', SURFACE = '#0f141b'
+const C = 'var(--accent)', CD = 'var(--accent-strong)', CM = 'var(--text-dim)', CB = 'var(--text-muted)', ERR = 'var(--danger)'
+const BORDER = 'var(--accent-medium)', SURFACE = 'var(--surface-1)'
 
 const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '0.5rem 0.75rem', background: '#000',
+  width: '100%', padding: '0.5rem 0.75rem', background: 'var(--bg)',
   border: `1px solid ${BORDER}`, color: C, fontFamily: 'inherit',
   fontSize: '0.8125rem', outline: 'none', boxSizing: 'border-box',
 }
@@ -71,7 +71,7 @@ function ClaimMappingsEditor({ claims, onChange, availableAttrs }: {
                     style={{
                       padding: '0.2rem 0.5rem', fontSize: '0.6rem', cursor: used ? 'default' : 'pointer',
                       border: `1px solid ${used ? 'rgba(94,234,212,0.1)' : BORDER}`,
-                      background: used ? 'rgba(94,234,212,0.04)' : 'transparent',
+                      background: used ? 'var(--accent-soft)' : 'transparent',
                       color: used ? CB : CD, fontFamily: 'inherit',
                     }}
                   >
@@ -130,7 +130,7 @@ const emptyLdapForm = (): LdapConfigRequest => ({
 
 function ActiveConnectionPanel({ config }: { config: LdapServerConfig }) {
   return (
-    <div style={{ border: `1px solid ${C}`, background: 'rgba(94,234,212,0.03)', padding: '1rem 1.25rem', boxShadow: '0 0 16px rgba(94,234,212,0.07)' }}>
+    <div style={{ border: `1px solid ${C}`, background: 'var(--accent-soft)', padding: '1rem 1.25rem', boxShadow: '0 0 16px rgba(94,234,212,0.07)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
         <div style={{ width: 7, height: 7, borderRadius: '50%', background: C, boxShadow: '0 0 6px rgba(94,234,212,0.8)', flexShrink: 0 }} />
         <div style={{ fontSize: '0.75rem', fontWeight: 700, color: C, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
@@ -542,7 +542,7 @@ function LoginSection() {
       {saved && <div style={{ color: C, fontSize: '0.75rem', marginBottom: '1rem', padding: '0.5rem 0.75rem', border: '1px solid rgba(94,234,212,0.3)' }}>Saved.</div>}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-        <div style={{ background: SURFACE, border: `1px solid ${ldapActive ? BORDER : 'rgba(255,255,255,0.06)'}`, padding: '1rem', opacity: ldapActive ? 1 : 0.5 }}>
+        <div style={{ background: SURFACE, border: `1px solid ${ldapActive ? BORDER : 'var(--border-faint)'}`, padding: '1rem', opacity: ldapActive ? 1 : 0.5 }}>
           <Field label="Identifier Type">
             <select
               value={form.identifierType}
@@ -640,7 +640,7 @@ function SecuritySection() {
     <div onClick={onClick} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.45rem 0' }}>
       <div style={{
         width: 28, height: 16, borderRadius: 8, position: 'relative',
-        background: value ? 'rgba(94,234,212,0.25)' : 'rgba(94,234,212,0.05)',
+        background: value ? 'var(--accent-medium)' : 'var(--accent-soft)',
         border: `1px solid ${value ? C : 'rgba(94,234,212,0.2)'}`,
         transition: 'all 0.15s',
       }}>
@@ -896,6 +896,66 @@ function AppearanceSection() {
         </Card>
       </div>
 
+      {/* Custom palette editor — advanced */}
+      <Card title="Custom Palette · Advanced"
+            hint="Override any base color for the current mode. Leave blank to use the mode default.">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+          {([
+            { k: 'bg',        label: 'Background' },
+            { k: 'surface1',  label: 'Surface 1' },
+            { k: 'surface2',  label: 'Surface 2' },
+            { k: 'text',      label: 'Text primary' },
+            { k: 'textDim',   label: 'Text secondary' },
+            { k: 'border',    label: 'Border' },
+          ] as const).map(({ k, label }) => {
+            const cur = theme.customPalette?.[k] ?? ''
+            return (
+              <div key={k}>
+                <label style={{ display: 'block', fontSize: '0.58rem', color: 'var(--text-muted)', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '0.3rem' }}>{label}</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0.3rem 0.45rem', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 3 }}>
+                  <input type="color" value={/^#[0-9a-f]{6}$/i.test(cur) ? cur : '#000000'}
+                    onChange={e => update({ customPalette: { ...theme.customPalette, [k]: e.target.value } })}
+                    style={{ width: 24, height: 22, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }} />
+                  <input type="text" value={cur} placeholder="default" onChange={e => {
+                    update({ customPalette: { ...theme.customPalette, [k]: e.target.value } })
+                  }}
+                    style={{ flex: 1, minWidth: 0, padding: '2px 4px', background: 'transparent', border: 'none', color: 'var(--text)', fontFamily: 'monospace', fontSize: '0.7rem', outline: 'none' }} />
+                  {cur && (
+                    <button onClick={() => update({ customPalette: { ...theme.customPalette, [k]: '' } })}
+                      title="Clear override"
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, fontSize: '0.8rem', lineHeight: 1 }}>×</button>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+          <button onClick={() => update({ customPalette: {} })} style={{
+            padding: '4px 10px', fontSize: '0.66rem', background: 'transparent',
+            color: 'var(--text-muted)', border: '1px solid var(--border)', borderRadius: 4, cursor: 'pointer',
+          }}>↺ clear all overrides</button>
+          {/* preset palettes */}
+          {([
+            { name: 'Slate',  bg: '#0b1020', surface1: '#141a2e', surface2: '#1d2540' },
+            { name: 'Coffee', bg: '#1c1411', surface1: '#231a16', surface2: '#2c211c' },
+            { name: 'Forest', bg: '#0c1410', surface1: '#142016', surface2: '#1c2d20' },
+            { name: 'Plum',   bg: '#16101a', surface1: '#211626', surface2: '#2b1d33' },
+          ]).map(p => (
+            <button key={p.name} onClick={() => update({ customPalette: { ...theme.customPalette, bg: p.bg, surface1: p.surface1, surface2: p.surface2 } })}
+              style={{
+                padding: '4px 10px', fontSize: '0.66rem',
+                background: p.bg, color: 'var(--text)',
+                border: '1px solid var(--border)', borderRadius: 4, cursor: 'pointer',
+              }}>
+              {p.name}
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      <div style={{ height: 12 }} />
+
       {/* Component preview */}
       <Card title="Live Preview" hint="Real components with your current settings.">
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
@@ -931,7 +991,7 @@ function AppearanceSection() {
       <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <button
           onClick={() => {
-            const reset: ThemeState = { mode: 'dark', accent: '#5eead4', density: 'comfortable', radius: 'soft', fontScale: 'base' }
+            const reset: ThemeState = { mode: 'dark', accent: 'var(--accent)', density: 'comfortable', radius: 'soft', fontScale: 'base' }
             update(reset)
           }}
           style={{
@@ -951,8 +1011,141 @@ function AppearanceSection() {
   )
 }
 
+function LoginBrandingSection() {
+  const qc = useQueryClient()
+  const { data } = useQuery({ queryKey: ['login-branding'], queryFn: settingsApi.loginBranding.get })
+  const [form, setForm] = useState<LoginBranding>({
+    logoUrl: '', primaryColor: '#5eead4', bgColor: '#0a0c10', textColor: '#e7ebf0',
+    welcomeText: '', footerText: '', customCss: '',
+  })
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => { if (data) setForm(data) }, [data])
+
+  const saveMut = useMutation({
+    mutationFn: () => settingsApi.loginBranding.update(form),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['login-branding'] }); setSaved(true); setTimeout(() => setSaved(false), 2000) },
+  })
+
+  return (
+    <div>
+      <SectionTitle>OAuth2 Login Page Branding</SectionTitle>
+      <div style={{ fontSize: '0.72rem', color: CB, marginBottom: '1rem', padding: '0.6rem 0.85rem', border: `1px solid var(--border)`, background: 'var(--surface-1)', borderRadius: 5 }}>
+        Customize the login page shown to end users at <code style={{ color: C }}>/login</code> (the OAuth2/OIDC user-facing page).
+        These settings are stored server-side and read by the login template; updates apply on the next page load.
+      </div>
+
+      {saved && <div style={{ color: C, fontSize: '0.75rem', marginBottom: '0.75rem', padding: '0.4rem 0.75rem', border: '1px solid var(--accent-border)' }}>Saved.</div>}
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+        {/* LEFT — Form */}
+        <div style={{ background: SURFACE, border: `1px solid var(--border)`, padding: '1rem', borderRadius: 5 }}>
+          <Field label="Logo URL (optional)">
+            <input style={inputStyle} value={form.logoUrl}
+              onChange={e => setForm(f => ({ ...f, logoUrl: e.target.value }))}
+              placeholder="https://example.com/logo.png" />
+          </Field>
+          <Field label="Welcome / Heading text">
+            <input style={inputStyle} value={form.welcomeText}
+              onChange={e => setForm(f => ({ ...f, welcomeText: e.target.value }))}
+              placeholder="Sign in to AO IDP" />
+          </Field>
+          <Field label="Footer text">
+            <input style={inputStyle} value={form.footerText}
+              onChange={e => setForm(f => ({ ...f, footerText: e.target.value }))}
+              placeholder="© 2026 AO" />
+          </Field>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginTop: '0.4rem' }}>
+            <ColorField label="Primary" value={form.primaryColor} onChange={v => setForm(f => ({ ...f, primaryColor: v }))} />
+            <ColorField label="Background" value={form.bgColor} onChange={v => setForm(f => ({ ...f, bgColor: v }))} />
+            <ColorField label="Text" value={form.textColor} onChange={v => setForm(f => ({ ...f, textColor: v }))} />
+          </div>
+
+          <Field label="Custom CSS (advanced — appended to the page)">
+            <textarea
+              value={form.customCss}
+              onChange={e => setForm(f => ({ ...f, customCss: e.target.value }))}
+              rows={5}
+              spellCheck={false}
+              style={{ ...inputStyle, fontFamily: "'JetBrains Mono', monospace", fontSize: '0.72rem', resize: 'vertical' }}
+              placeholder="/* e.g. */
+.login-card { border-radius: 12px; }"
+            />
+          </Field>
+        </div>
+
+        {/* RIGHT — Live preview */}
+        <div style={{
+          background: form.bgColor || '#0a0c10', color: form.textColor || '#e7ebf0',
+          border: `1px solid var(--border)`, borderRadius: 5,
+          padding: '2rem 1.5rem',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          minHeight: 360,
+        }}>
+          <div style={{ fontSize: '0.55rem', letterSpacing: '0.2em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 12 }}>preview</div>
+          {form.logoUrl ? (
+            <img src={form.logoUrl} alt="logo" style={{ maxWidth: 120, maxHeight: 50, marginBottom: 14 }}
+              onError={e => ((e.target as HTMLImageElement).style.display = 'none')} />
+          ) : (
+            <div style={{
+              width: 48, height: 48, borderRadius: 8,
+              background: form.primaryColor, marginBottom: 14,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: form.bgColor, fontWeight: 800, fontSize: '1.3rem',
+            }}>AO</div>
+          )}
+          <div style={{ fontSize: '1rem', fontWeight: 700, marginBottom: 4 }}>
+            {form.welcomeText || 'Sign in to AO IDP'}
+          </div>
+          <div style={{ width: '100%', maxWidth: 240, marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <input placeholder="Username" readOnly style={{
+              padding: '8px 10px', borderRadius: 4, fontSize: '0.78rem',
+              background: 'rgba(255,255,255,0.06)', border: `1px solid ${form.primaryColor}33`,
+              color: form.textColor, outline: 'none',
+            }} />
+            <input placeholder="Password" type="password" readOnly style={{
+              padding: '8px 10px', borderRadius: 4, fontSize: '0.78rem',
+              background: 'rgba(255,255,255,0.06)', border: `1px solid ${form.primaryColor}33`,
+              color: form.textColor, outline: 'none',
+            }} />
+            <button style={{
+              padding: '8px 10px', borderRadius: 4, fontSize: '0.78rem', fontWeight: 700,
+              background: form.primaryColor, color: form.bgColor, border: 'none', cursor: 'default',
+            }}>Sign In</button>
+          </div>
+          <div style={{ fontSize: '0.62rem', opacity: 0.5, marginTop: 'auto', paddingTop: 20 }}>
+            {form.footerText || '© AO IDP'}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+        <button style={btnPrimary} onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>
+          {saveMut.isPending ? 'saving...' : '> save login branding'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <label style={{ display: 'block', fontSize: '0.6rem', color: CD, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '0.3rem' }}>{label}</label>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0.3rem 0.45rem', background: 'var(--bg)', border: `1px solid var(--border)`, borderRadius: 3 }}>
+        <input type="color" value={/^#[0-9a-f]{6}$/i.test(value) ? value : '#000000'}
+          onChange={e => onChange(e.target.value)}
+          style={{ width: 24, height: 22, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }} />
+        <input type="text" value={value} onChange={e => onChange(e.target.value)}
+          style={{ flex: 1, minWidth: 0, padding: '2px 4px', background: 'transparent', border: 'none', color: 'var(--text)', fontFamily: 'monospace', fontSize: '0.7rem', outline: 'none' }} />
+      </div>
+    </div>
+  )
+}
+
 export default function SettingsPage() {
-  const [tab, setTab] = useState<'appearance' | 'ldap' | 'tokens' | 'claims' | 'login' | 'security'>('appearance')
+  const [tab, setTab] = useState<'appearance' | 'ldap' | 'tokens' | 'claims' | 'login' | 'login-branding' | 'security'>('appearance')
 
   const tabs = [
     { key: 'appearance', label: 'Appearance' },
@@ -960,6 +1153,7 @@ export default function SettingsPage() {
     { key: 'tokens', label: 'Token Expiry' },
     { key: 'claims', label: 'JWT Claims' },
     { key: 'login', label: 'Login Settings' },
+    { key: 'login-branding', label: 'Login Branding' },
     { key: 'security', label: 'Security' },
   ] as const
 
@@ -984,6 +1178,7 @@ export default function SettingsPage() {
       {tab === 'tokens' && <TokenSection />}
       {tab === 'claims' && <ClaimsSection />}
       {tab === 'login' && <LoginSection />}
+      {tab === 'login-branding' && <LoginBrandingSection />}
       {tab === 'security' && <SecuritySection />}
     </div>
   )

@@ -28,21 +28,21 @@ function SessionExpiredOverlay() {
       zIndex: 9999, fontFamily: 'monospace',
     }}>
       <div style={{
-        background: '#0f141b', border: '1px solid rgba(94,234,212,0.3)',
+        background: 'var(--surface-1)', border: '1px solid rgba(94,234,212,0.3)',
         padding: '2.5rem 3rem', textAlign: 'center', maxWidth: 400,
       }}>
-        <div style={{ fontSize: '0.6rem', color: '#64748b', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '1rem' }}>
+        <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '1rem' }}>
           Session Expired
         </div>
-        <div style={{ fontSize: '0.9rem', color: '#5eead4', marginBottom: '0.5rem', fontWeight: 700 }}>
+        <div style={{ fontSize: '0.9rem', color: 'var(--accent)', marginBottom: '0.5rem', fontWeight: 700 }}>
           Your admin session has expired
         </div>
-        <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '2rem' }}>
+        <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: '2rem' }}>
           Admin sessions last 8 hours. Please sign in again to continue.
         </div>
         <button onClick={handleReLogin} style={{
           padding: '0.6rem 1.5rem', background: 'transparent',
-          border: '1px solid #5eead4', color: '#5eead4',
+          border: '1px solid #5eead4', color: 'var(--accent)',
           fontFamily: 'inherit', fontSize: '0.75rem', fontWeight: 700,
           letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer',
         }}>

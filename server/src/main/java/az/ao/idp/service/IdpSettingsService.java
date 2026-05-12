@@ -25,6 +25,15 @@ public class IdpSettingsService {
     private static final String KEY_LOGIN_PAGE_TITLE = "login_page_title";
     private static final String KEY_LOG_RETENTION_DAYS = "log_retention_days";
 
+    // OAuth2 / OIDC login page branding
+    private static final String KEY_LOGIN_LOGO_URL = "login_logo_url";
+    private static final String KEY_LOGIN_PRIMARY_COLOR = "login_primary_color";
+    private static final String KEY_LOGIN_BG_COLOR = "login_bg_color";
+    private static final String KEY_LOGIN_TEXT_COLOR = "login_text_color";
+    private static final String KEY_LOGIN_WELCOME = "login_welcome_text";
+    private static final String KEY_LOGIN_FOOTER = "login_footer_text";
+    private static final String KEY_LOGIN_CUSTOM_CSS = "login_custom_css";
+
     // Security settings keys
     private static final String KEY_LOCKOUT_ENABLED = "sec_lockout_enabled";
     private static final String KEY_LOCKOUT_MAX_ATTEMPTS = "sec_lockout_max_attempts";
@@ -139,6 +148,40 @@ public class IdpSettingsService {
     public int getLogRetentionDays() {
         String val = get(KEY_LOG_RETENTION_DAYS);
         return val != null ? Integer.parseInt(val) : 10;
+    }
+
+    public record LoginBranding(
+            String logoUrl,
+            String primaryColor,
+            String bgColor,
+            String textColor,
+            String welcomeText,
+            String footerText,
+            String customCss
+    ) {}
+
+    public LoginBranding getLoginBranding() {
+        return new LoginBranding(
+                getOrDefault(KEY_LOGIN_LOGO_URL, ""),
+                getOrDefault(KEY_LOGIN_PRIMARY_COLOR, "#5eead4"),
+                getOrDefault(KEY_LOGIN_BG_COLOR, "#0a0c10"),
+                getOrDefault(KEY_LOGIN_TEXT_COLOR, "#e7ebf0"),
+                getOrDefault(KEY_LOGIN_WELCOME, ""),
+                getOrDefault(KEY_LOGIN_FOOTER, ""),
+                getOrDefault(KEY_LOGIN_CUSTOM_CSS, "")
+        );
+    }
+
+    @Transactional
+    public LoginBranding setLoginBranding(LoginBranding b) {
+        set(KEY_LOGIN_LOGO_URL, b.logoUrl() == null ? "" : b.logoUrl().trim());
+        set(KEY_LOGIN_PRIMARY_COLOR, b.primaryColor() == null ? "#5eead4" : b.primaryColor());
+        set(KEY_LOGIN_BG_COLOR, b.bgColor() == null ? "#0a0c10" : b.bgColor());
+        set(KEY_LOGIN_TEXT_COLOR, b.textColor() == null ? "#e7ebf0" : b.textColor());
+        set(KEY_LOGIN_WELCOME, b.welcomeText() == null ? "" : b.welcomeText());
+        set(KEY_LOGIN_FOOTER, b.footerText() == null ? "" : b.footerText());
+        set(KEY_LOGIN_CUSTOM_CSS, b.customCss() == null ? "" : b.customCss());
+        return getLoginBranding();
     }
 
     public record SecuritySettings(

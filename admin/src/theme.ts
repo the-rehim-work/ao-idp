@@ -7,12 +7,24 @@ export type ThemeMode = 'dark' | 'light' | 'system'
 
 export type FontScale = 'xs' | 'sm' | 'base' | 'lg' | 'xl'
 
+// Optional custom palette overrides. Any non-empty value replaces the
+// corresponding theme variable for the active mode (dark or light).
+export interface CustomPalette {
+  bg?: string
+  surface1?: string
+  surface2?: string
+  text?: string
+  textDim?: string
+  border?: string
+}
+
 export interface ThemeState {
   mode: ThemeMode
   accent: string  // hex
   density: 'comfortable' | 'compact'
   radius: 'sharp' | 'soft' | 'round'
   fontScale: FontScale
+  customPalette?: CustomPalette
 }
 
 // Maps to root font-size in px; tailwind/rem/css var math cascades from here.
@@ -41,6 +53,7 @@ export const DEFAULT_THEME: ThemeState = {
   density: 'comfortable',
   radius: 'soft',
   fontScale: 'base',
+  customPalette: {},
 }
 
 const STORAGE_KEY = 'ao-theme-v1'
@@ -95,6 +108,19 @@ export function applyTheme(t: ThemeState) {
   root.style.setProperty('--accent-medium', `rgba(${r},${g},${b},0.22)`)
   root.style.setProperty('--accent-border', `rgba(${r},${g},${b},0.35)`)
   root.style.setProperty('--accent-glow', `0 0 8px rgba(${r},${g},${b},0.35), 0 0 20px rgba(${r},${g},${b},0.18)`)
+
+  // Custom palette overrides — apply only when explicitly set; empty resets to mode default
+  const cp = t.customPalette ?? {}
+  const setOrClear = (varName: string, val?: string) => {
+    if (val && val.trim()) root.style.setProperty(varName, val.trim())
+    else root.style.removeProperty(varName)
+  }
+  setOrClear('--bg',          cp.bg)
+  setOrClear('--surface-1',   cp.surface1)
+  setOrClear('--surface-2',   cp.surface2)
+  setOrClear('--text',        cp.text)
+  setOrClear('--text-dim',    cp.textDim)
+  setOrClear('--border',      cp.border)
 }
 
 // Initialize on import. Safe to call repeatedly.

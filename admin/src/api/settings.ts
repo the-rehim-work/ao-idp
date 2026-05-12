@@ -41,6 +41,16 @@ export interface ClaimMapping {
   enabled: boolean
 }
 
+export interface LoginBranding {
+  logoUrl: string
+  primaryColor: string
+  bgColor: string
+  textColor: string
+  welcomeText: string
+  footerText: string
+  customCss: string
+}
+
 export interface SecuritySettings {
   lockoutEnabled: boolean
   lockoutMaxAttempts: number
@@ -86,5 +96,9 @@ export const settingsApi = {
   security: {
     get: () => apiClient.get<SecuritySettings>('/settings/security').then(r => r.data),
     update: (data: SecuritySettings) => apiClient.put<SecuritySettings>('/settings/security', data).then(r => r.data),
+  },
+  loginBranding: {
+    get: () => apiClient.get<LoginBranding>('/settings/login/branding').then(r => r.data),
+    update: (data: LoginBranding) => apiClient.put<LoginBranding>('/settings/login/branding', data).then(r => r.data),
   },
 }

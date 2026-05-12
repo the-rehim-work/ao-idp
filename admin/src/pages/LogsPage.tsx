@@ -3,10 +3,10 @@ import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '../api/client'
 
 const LEVEL_COLORS: Record<string, string> = {
-  ERROR: '#ff4444',
+  ERROR: 'var(--danger)',
   WARN: '#ffaa00',
-  INFO: '#5eead4',
-  DEBUG: '#64748b',
+  INFO: 'var(--accent)',
+  DEBUG: 'var(--text-muted)',
 }
 
 type AppLogEntry = { timestamp: string; level: string; logger: string; message: string }
@@ -72,7 +72,7 @@ function AppLogsTab() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', height: '100%' }}>
       {/* toolbar */}
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', flexShrink: 0 }}>
-        <div style={{ flex: 1, minWidth: 180, display: 'flex', alignItems: 'center', gap: 6, padding: '0.45rem 0.75rem', background: '#0f141b', border: '1px solid rgba(94,234,212,0.18)' }}>
+        <div style={{ flex: 1, minWidth: 180, display: 'flex', alignItems: 'center', gap: 6, padding: '0.45rem 0.75rem', background: 'var(--surface-1)', border: '1px solid rgba(94,234,212,0.18)' }}>
           <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="#64748b" strokeWidth="1.8" style={{ flexShrink: 0 }}>
             <circle cx="9" cy="9" r="5"/><line x1="13" y1="13" x2="17" y2="17" strokeLinecap="round"/>
           </svg>
@@ -80,17 +80,17 @@ function AppLogsTab() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="search message, logger..."
-            style={{ flex: 1, background: 'transparent', border: 'none', color: '#5eead4', fontFamily: 'inherit', fontSize: '0.78rem', outline: 'none' }}
+            style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--accent)', fontFamily: 'inherit', fontSize: '0.78rem', outline: 'none' }}
           />
           {search && (
-            <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '0.85rem', padding: 0, lineHeight: 1 }}>×</button>
+            <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem', padding: 0, lineHeight: 1 }}>×</button>
           )}
         </div>
 
         <select
           value={level}
           onChange={e => setLevel(e.target.value)}
-          style={{ padding: '0.45rem 0.65rem', background: '#0f141b', border: '1px solid rgba(94,234,212,0.18)', color: level ? (LEVEL_COLORS[level] ?? '#5eead4') : '#94a3b8', fontFamily: 'inherit', fontSize: '0.75rem', outline: 'none', cursor: 'pointer' }}
+          style={{ padding: '0.45rem 0.65rem', background: 'var(--surface-1)', border: '1px solid rgba(94,234,212,0.18)', color: level ? (LEVEL_COLORS[level] ?? 'var(--accent)') : 'var(--text-dim)', fontFamily: 'inherit', fontSize: '0.75rem', outline: 'none', cursor: 'pointer' }}
         >
           <option value="">all levels</option>
           <option value="ERROR">ERROR</option>
@@ -102,7 +102,7 @@ function AppLogsTab() {
         {!autoRefresh && (
           <button
             onClick={() => refetch()}
-            style={{ padding: '0.45rem 0.9rem', background: 'transparent', border: '1px solid rgba(94,234,212,0.2)', color: '#94a3b8', fontFamily: 'inherit', fontSize: '0.72rem', cursor: 'pointer', letterSpacing: '0.06em' }}
+            style={{ padding: '0.45rem 0.9rem', background: 'transparent', border: '1px solid rgba(94,234,212,0.2)', color: 'var(--text-dim)', fontFamily: 'inherit', fontSize: '0.72rem', cursor: 'pointer', letterSpacing: '0.06em' }}
           >
             ↻ refresh
           </button>
@@ -114,7 +114,7 @@ function AppLogsTab() {
             padding: '0.45rem 0.9rem',
             background: autoRefresh ? 'rgba(94,234,212,0.1)' : 'transparent',
             border: `1px solid ${autoRefresh ? 'rgba(94,234,212,0.5)' : 'rgba(94,234,212,0.2)'}`,
-            color: autoRefresh ? '#5eead4' : '#64748b',
+            color: autoRefresh ? 'var(--accent)' : 'var(--text-muted)',
             fontFamily: 'inherit', fontSize: '0.72rem', cursor: 'pointer',
             display: 'flex', alignItems: 'center', gap: 6,
             letterSpacing: '0.06em', fontWeight: autoRefresh ? 700 : 400,
@@ -123,7 +123,7 @@ function AppLogsTab() {
         >
           <span style={{
             width: 6, height: 6, borderRadius: '50%',
-            background: autoRefresh ? '#5eead4' : '#64748b',
+            background: autoRefresh ? 'var(--accent)' : 'var(--text-muted)',
             boxShadow: autoRefresh ? '0 0 8px #5eead4' : 'none',
             opacity: autoRefresh ? (tick ? 1 : 0.3) : 1,
             transition: 'opacity 0.2s',
@@ -131,8 +131,8 @@ function AppLogsTab() {
           {autoRefresh ? 'live' : 'live'}
         </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0.45rem 0.75rem', background: '#0f141b', border: '1px solid rgba(94,234,212,0.08)', fontSize: '0.7rem', color: '#64748b' }}>
-          <span style={{ color: '#94a3b8', fontWeight: 700 }}>{logs.length}</span> entries
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0.45rem 0.75rem', background: 'var(--surface-1)', border: '1px solid rgba(94,234,212,0.08)', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+          <span style={{ color: 'var(--text-dim)', fontWeight: 700 }}>{logs.length}</span> entries
         </div>
       </div>
 
@@ -149,7 +149,7 @@ function AppLogsTab() {
                 padding: '2px 8px', fontSize: '0.65rem', fontWeight: 700,
                 background: level === lvl ? `rgba(${lvl === 'ERROR' ? '255,68,68' : lvl === 'WARN' ? '255,170,0' : '0,255,255'},0.12)` : 'transparent',
                 border: `1px solid ${level === lvl ? color : 'rgba(94,234,212,0.1)'}`,
-                color: level === lvl ? color : '#64748b',
+                color: level === lvl ? color : 'var(--text-muted)',
                 fontFamily: 'inherit', cursor: 'pointer', letterSpacing: '0.06em',
               }}
             >
@@ -166,13 +166,13 @@ function AppLogsTab() {
           flex: 1, overflowY: 'auto',
           fontFamily: "'JetBrains Mono', 'Courier New', monospace",
           fontSize: '0.76rem',
-          background: '#0f141b',
+          background: 'var(--surface-1)',
           border: `1px solid ${autoRefresh ? 'rgba(94,234,212,0.2)' : 'rgba(94,234,212,0.1)'}`,
           transition: 'border-color 0.3s',
         }}
       >
         {logs.length === 0 ? (
-          <div style={{ color: '#64748b', padding: '3rem', textAlign: 'center', fontSize: '0.8rem' }}>
+          <div style={{ color: 'var(--text-muted)', padding: '3rem', textAlign: 'center', fontSize: '0.8rem' }}>
             {autoRefresh ? 'waiting for log entries...' : 'no log entries'}
           </div>
         ) : (
@@ -190,11 +190,11 @@ function AppLogsTab() {
               }}
             >
               <span style={{ color: '#005a73', fontSize: '0.7rem', letterSpacing: '-0.02em' }}>{entry.timestamp}</span>
-              <span style={{ color: LEVEL_COLORS[entry.level] ?? '#94a3b8', fontWeight: 700, fontSize: '0.68rem' }}>{entry.level}</span>
+              <span style={{ color: LEVEL_COLORS[entry.level] ?? 'var(--text-dim)', fontWeight: 700, fontSize: '0.68rem' }}>{entry.level}</span>
               <span style={{ color: '#007a97', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.7rem' }} title={entry.logger}>
                 {entry.logger.includes('.') ? entry.logger.split('.').pop() : entry.logger}
               </span>
-              <span style={{ color: entry.level === 'ERROR' ? '#ff7777' : entry.level === 'WARN' ? '#ffcc55' : '#5eead4', wordBreak: 'break-all' }}>{entry.message}</span>
+              <span style={{ color: entry.level === 'ERROR' ? '#ff7777' : entry.level === 'WARN' ? '#ffcc55' : 'var(--accent)', wordBreak: 'break-all' }}>{entry.message}</span>
             </div>
           ))
         )}
@@ -244,12 +244,12 @@ function AuditLogsTab() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="search actor, action, target..."
-          style={{ flex: 1, minWidth: 200, padding: '0.5rem 0.75rem', background: '#0f141b', border: '1px solid rgba(94,234,212,0.2)', color: '#5eead4', fontFamily: 'inherit', fontSize: '0.8rem', outline: 'none' }}
+          style={{ flex: 1, minWidth: 200, padding: '0.5rem 0.75rem', background: 'var(--surface-1)', border: '1px solid rgba(94,234,212,0.2)', color: 'var(--accent)', fontFamily: 'inherit', fontSize: '0.8rem', outline: 'none' }}
         />
         <select
           value={action}
           onChange={e => { setAction(e.target.value); setPage(0) }}
-          style={{ padding: '0.5rem 0.75rem', background: '#0f141b', border: '1px solid rgba(94,234,212,0.2)', color: '#5eead4', fontFamily: 'inherit', fontSize: '0.8rem', outline: 'none' }}
+          style={{ padding: '0.5rem 0.75rem', background: 'var(--surface-1)', border: '1px solid rgba(94,234,212,0.2)', color: 'var(--accent)', fontFamily: 'inherit', fontSize: '0.8rem', outline: 'none' }}
         >
           <option value="">all actions</option>
           {(actions ?? []).map(a => <option key={a} value={a}>{a}</option>)}
@@ -257,7 +257,7 @@ function AuditLogsTab() {
         <select
           value={actorType}
           onChange={e => { setActorType(e.target.value); setPage(0) }}
-          style={{ padding: '0.5rem 0.75rem', background: '#0f141b', border: '1px solid rgba(94,234,212,0.2)', color: '#5eead4', fontFamily: 'inherit', fontSize: '0.8rem', outline: 'none' }}
+          style={{ padding: '0.5rem 0.75rem', background: 'var(--surface-1)', border: '1px solid rgba(94,234,212,0.2)', color: 'var(--accent)', fontFamily: 'inherit', fontSize: '0.8rem', outline: 'none' }}
         >
           <option value="">all actors</option>
           <option value="user">user</option>
@@ -267,7 +267,7 @@ function AuditLogsTab() {
         <select
           value={days}
           onChange={e => { setDays(e.target.value); setPage(0) }}
-          style={{ padding: '0.5rem 0.75rem', background: '#0f141b', border: '1px solid rgba(94,234,212,0.2)', color: '#5eead4', fontFamily: 'inherit', fontSize: '0.8rem', outline: 'none' }}
+          style={{ padding: '0.5rem 0.75rem', background: 'var(--surface-1)', border: '1px solid rgba(94,234,212,0.2)', color: 'var(--accent)', fontFamily: 'inherit', fontSize: '0.8rem', outline: 'none' }}
         >
           <option value="">all time</option>
           <option value="1">last 24h</option>
@@ -281,7 +281,7 @@ function AuditLogsTab() {
           <thead>
             <tr style={{ borderBottom: '1px solid rgba(94,234,212,0.2)' }}>
               {['time', 'actor', 'action', 'target', 'ip', ''].map(h => (
-                <th key={h} style={{ padding: '0.5rem 0.75rem', textAlign: 'left', fontSize: '0.65rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
+                <th key={h} style={{ padding: '0.5rem 0.75rem', textAlign: 'left', fontSize: '0.65rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -292,18 +292,18 @@ function AuditLogsTab() {
                   key={e.id}
                   onClick={() => setExpanded(expanded === e.id ? null : e.id)}
                   style={{ borderBottom: '1px solid rgba(94,234,212,0.06)', cursor: 'pointer', transition: 'background 0.1s' }}
-                  onMouseEnter={ev => (ev.currentTarget.style.background = 'rgba(94,234,212,0.04)')}
+                  onMouseEnter={ev => (ev.currentTarget.style.background = 'var(--accent-soft)')}
                   onMouseLeave={ev => (ev.currentTarget.style.background = '')}
                 >
-                  <td style={{ padding: '0.4rem 0.75rem', color: '#64748b', whiteSpace: 'nowrap' }}>{new Date(e.created_at).toLocaleString()}</td>
-                  <td style={{ padding: '0.4rem 0.75rem', color: '#94a3b8' }}>
-                    <span style={{ fontSize: '0.65rem', color: '#64748b', marginRight: '0.3rem' }}>[{e.actor_type}]</span>
+                  <td style={{ padding: '0.4rem 0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{new Date(e.created_at).toLocaleString()}</td>
+                  <td style={{ padding: '0.4rem 0.75rem', color: 'var(--text-dim)' }}>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginRight: '0.3rem' }}>[{e.actor_type}]</span>
                     {e.actor_id}
                   </td>
-                  <td style={{ padding: '0.4rem 0.75rem', color: '#5eead4', fontWeight: 600 }}>{e.action}</td>
-                  <td style={{ padding: '0.4rem 0.75rem', color: '#94a3b8' }}>{e.target_type ? `${e.target_type}:${e.target_id ?? ''}` : '—'}</td>
-                  <td style={{ padding: '0.4rem 0.75rem', color: '#64748b', fontFamily: 'monospace', fontSize: '0.75rem' }}>{e.ip_address ?? '—'}</td>
-                  <td style={{ padding: '0.4rem 0.75rem', color: '#64748b' }}>
+                  <td style={{ padding: '0.4rem 0.75rem', color: 'var(--accent)', fontWeight: 600 }}>{e.action}</td>
+                  <td style={{ padding: '0.4rem 0.75rem', color: 'var(--text-dim)' }}>{e.target_type ? `${e.target_type}:${e.target_id ?? ''}` : '—'}</td>
+                  <td style={{ padding: '0.4rem 0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: '0.75rem' }}>{e.ip_address ?? '—'}</td>
+                  <td style={{ padding: '0.4rem 0.75rem', color: 'var(--text-muted)' }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ transform: expanded === e.id ? 'rotate(180deg)' : '', transition: 'transform 0.15s' }}>
                       <polyline points="6 9 12 15 18 9"/>
                     </svg>
@@ -311,8 +311,8 @@ function AuditLogsTab() {
                 </tr>
                 {expanded === e.id && (
                   <tr key={`${e.id}-detail`}>
-                    <td colSpan={6} style={{ background: '#0f141b', padding: '0.75rem 1.5rem' }}>
-                      <pre style={{ margin: 0, fontSize: '0.75rem', color: '#94a3b8', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                    <td colSpan={6} style={{ background: 'var(--surface-1)', padding: '0.75rem 1.5rem' }}>
+                      <pre style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-dim)', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
                         {JSON.stringify(e.details, null, 2)}
                       </pre>
                     </td>
@@ -321,7 +321,7 @@ function AuditLogsTab() {
               </>
             ))}
             {entries.length === 0 && (
-              <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>no audit events</td></tr>
+              <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>no audit events</td></tr>
             )}
           </tbody>
         </table>
@@ -329,9 +329,9 @@ function AuditLogsTab() {
 
       {data && data.totalPages > 1 && (
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center' }}>
-          <button disabled={page === 0} onClick={() => setPage(p => p - 1)} style={{ padding: '0.4rem 0.75rem', background: 'transparent', border: '1px solid rgba(94,234,212,0.2)', color: page === 0 ? '#64748b' : '#5eead4', fontFamily: 'inherit', fontSize: '0.75rem', cursor: page === 0 ? 'default' : 'pointer' }}>prev</button>
-          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>page {page + 1} / {data.totalPages}</span>
-          <button disabled={page >= data.totalPages - 1} onClick={() => setPage(p => p + 1)} style={{ padding: '0.4rem 0.75rem', background: 'transparent', border: '1px solid rgba(94,234,212,0.2)', color: page >= data.totalPages - 1 ? '#64748b' : '#5eead4', fontFamily: 'inherit', fontSize: '0.75rem', cursor: page >= data.totalPages - 1 ? 'default' : 'pointer' }}>next</button>
+          <button disabled={page === 0} onClick={() => setPage(p => p - 1)} style={{ padding: '0.4rem 0.75rem', background: 'transparent', border: '1px solid rgba(94,234,212,0.2)', color: page === 0 ? 'var(--text-muted)' : 'var(--accent)', fontFamily: 'inherit', fontSize: '0.75rem', cursor: page === 0 ? 'default' : 'pointer' }}>prev</button>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>page {page + 1} / {data.totalPages}</span>
+          <button disabled={page >= data.totalPages - 1} onClick={() => setPage(p => p + 1)} style={{ padding: '0.4rem 0.75rem', background: 'transparent', border: '1px solid rgba(94,234,212,0.2)', color: page >= data.totalPages - 1 ? 'var(--text-muted)' : 'var(--accent)', fontFamily: 'inherit', fontSize: '0.75rem', cursor: page >= data.totalPages - 1 ? 'default' : 'pointer' }}>next</button>
         </div>
       )}
     </div>
@@ -344,8 +344,8 @@ export default function LogsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', height: 'calc(100vh - 4rem)' }}>
       <div>
-        <div style={{ fontSize: '0.65rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#64748b', marginBottom: '0.3rem' }}>system</div>
-        <h1 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#5eead4', letterSpacing: '0.08em' }}>LOGS</h1>
+        <div style={{ fontSize: '0.65rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>system</div>
+        <h1 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.08em' }}>LOGS</h1>
       </div>
 
       <div style={{ display: 'flex', gap: '0', borderBottom: '1px solid rgba(94,234,212,0.12)' }}>
@@ -354,8 +354,8 @@ export default function LogsPage() {
             key={t}
             onClick={() => setTab(t)}
             style={{
-              padding: '0.5rem 1.25rem', background: tab === t ? '#5eead4' : 'transparent',
-              border: 'none', color: tab === t ? '#000' : '#64748b',
+              padding: '0.5rem 1.25rem', background: tab === t ? 'var(--accent)' : 'transparent',
+              border: 'none', color: tab === t ? '#000' : 'var(--text-muted)',
               fontFamily: 'inherit', fontSize: '0.75rem', fontWeight: 700,
               letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer',
               borderBottom: tab === t ? '2px solid #5eead4' : '2px solid transparent',
