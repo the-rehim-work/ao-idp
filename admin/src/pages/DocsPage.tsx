@@ -10,7 +10,6 @@ const SURFACE2 = 'var(--surface-2)'
 const AMBER = '#fbbf24'
 const GREEN = '#34d399'
 const RED = '#f87171'
-const PURPLE = '#c4b5fd'
 
 interface Section {
   id: string
@@ -42,10 +41,6 @@ function Block({ children, lang }: { children: string; lang?: string }) {
 
 function H3({ children }: { children: string }) {
   return <div className="text-xs font-bold tracking-widest uppercase mt-5 mb-2" style={{ color: C }}>{children}</div>
-}
-
-function H4({ children }: { children: string }) {
-  return <div className="text-xs font-semibold mt-3 mb-1" style={{ color: AMBER }}>{children}</div>
 }
 
 function P({ children }: { children: React.ReactNode }) {
