@@ -2882,10 +2882,13 @@ export default function LdapTreePage() {
         }}>
           {/* Search row — single primary input with clear/scope inside */}
           <div style={{
-            padding: '10px 10px 8px',
-            borderBottom: `1px solid ${C.borderFaint}`,
-            background: C.surface,
+            padding: '12px 10px 14px',
+            borderBottom: `2px solid ${C.border}`,
+            background: C.surface2,
             display: 'flex', flexDirection: 'column', gap: 8,
+            boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
+            position: 'relative',
+            zIndex: 1,
           }}>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
