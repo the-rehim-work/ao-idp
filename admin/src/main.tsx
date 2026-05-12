@@ -10,6 +10,9 @@ import '@fontsource/inter/700.css'
 import '@fontsource/jetbrains-mono/400.css'
 import '@fontsource/jetbrains-mono/600.css'
 import './index.css'
+import { initTheme } from './theme'
+
+initTheme()
 
 const queryClient = new QueryClient({
   defaultOptions: {

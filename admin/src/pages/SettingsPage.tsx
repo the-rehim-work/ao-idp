@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi, LdapServerConfig, LdapConfigRequest, TokenSettings, ClaimMapping, SecuritySettings } from '../api/settings'
 import { apiClient } from '../api/client'
+import { ACCENT_PRESETS, applyTheme, loadTheme, saveTheme, ThemeState } from '../theme'
 
 const C = '#5eead4', CD = '#2dd4bf', CM = '#94a3b8', CB = '#64748b', ERR = '#ff4444'
 const BORDER = 'rgba(94,234,212,0.18)', SURFACE = '#0f141b'
@@ -742,10 +743,201 @@ function SecuritySection() {
   )
 }
 
+function AppearanceSection() {
+  const [theme, setTheme] = useState<ThemeState>(() => loadTheme())
+
+  const update = (patch: Partial<ThemeState>) => {
+    const next = { ...theme, ...patch }
+    setTheme(next)
+    saveTheme(next)
+    applyTheme(next)
+  }
+
+  const Card = ({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) => (
+    <div style={{ background: 'var(--surface-1)', border: '1px solid var(--border)', padding: '1rem 1.1rem', borderRadius: 6 }}>
+      <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>{title}</div>
+      {hint && <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginBottom: '0.85rem' }}>{hint}</div>}
+      {children}
+    </div>
+  )
+
+  const Seg = <T extends string>({ value, options, onChange }: { value: T; options: { v: T; label: string; icon?: React.ReactNode }[]; onChange: (v: T) => void }) => (
+    <div style={{ display: 'inline-flex', padding: 2, background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 5 }}>
+      {options.map(({ v, label, icon }) => {
+        const active = value === v
+        return (
+          <button key={v} onClick={() => onChange(v)} style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '5px 12px', fontSize: '0.72rem',
+            background: active ? 'var(--accent-soft)' : 'transparent',
+            border: 'none',
+            color: active ? 'var(--accent)' : 'var(--text-dim)',
+            fontFamily: 'inherit', cursor: 'pointer',
+            fontWeight: active ? 600 : 400,
+            borderRadius: 3,
+            transition: 'all 0.12s',
+          }}>
+            {icon}{label}
+          </button>
+        )
+      })}
+    </div>
+  )
+
+  const SunIcon = <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="10" cy="10" r="3.5"/><path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.5 4.5l1.4 1.4M14.1 14.1l1.4 1.4M4.5 15.5l1.4-1.4M14.1 5.9l1.4-1.4" strokeLinecap="round"/></svg>
+  const MoonIcon = <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M16 12a6 6 0 11-8-8 5 5 0 008 8z"/></svg>
+  const AutoIcon = <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="4" width="16" height="11" rx="1"/><path d="M7 18h6M10 15v3" strokeLinecap="round"/></svg>
+
+  return (
+    <div>
+      <SectionTitle>Appearance & Branding</SectionTitle>
+      <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginBottom: '1rem', padding: '0.6rem 0.85rem', border: '1px solid var(--border)', background: 'var(--surface-1)', borderRadius: 5 }}>
+        Tweaks apply immediately and persist to <code style={{ color: 'var(--accent)' }}>localStorage</code>. Light mode is wired into the
+        new design tokens — chrome (sidebar, layout, theme-aware pages) flips correctly; legacy pages still using hardcoded hex values
+        will be migrated incrementally.
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+        <Card title="Theme Mode" hint="Dark by default. Auto follows your OS.">
+          <Seg<ThemeState['mode']>
+            value={theme.mode}
+            onChange={v => update({ mode: v })}
+            options={[
+              { v: 'dark', label: 'Dark', icon: MoonIcon },
+              { v: 'light', label: 'Light', icon: SunIcon },
+              { v: 'system', label: 'Auto', icon: AutoIcon },
+            ]}
+          />
+        </Card>
+
+        <Card title="Density" hint="Comfortable for browsing; compact for power users.">
+          <Seg<ThemeState['density']>
+            value={theme.density}
+            onChange={v => update({ density: v })}
+            options={[
+              { v: 'comfortable', label: 'Comfortable' },
+              { v: 'compact', label: 'Compact' },
+            ]}
+          />
+        </Card>
+
+        <Card title="Corner Radius" hint="Sharp = brutalist; soft = balanced; round = playful.">
+          <Seg<ThemeState['radius']>
+            value={theme.radius}
+            onChange={v => update({ radius: v })}
+            options={[
+              { v: 'sharp', label: 'Sharp' },
+              { v: 'soft', label: 'Soft' },
+              { v: 'round', label: 'Round' },
+            ]}
+          />
+        </Card>
+
+        <Card title="Accent Color" hint="Drives all primary buttons, links, focus rings, active states.">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+            {ACCENT_PRESETS.map(p => {
+              const active = theme.accent.toLowerCase() === p.hex.toLowerCase()
+              return (
+                <button
+                  key={p.hex}
+                  onClick={() => update({ accent: p.hex })}
+                  title={p.name}
+                  style={{
+                    width: 28, height: 28,
+                    borderRadius: '50%',
+                    background: p.hex,
+                    border: `2px solid ${active ? 'var(--text)' : 'transparent'}`,
+                    boxShadow: active ? `0 0 0 2px ${p.hex}` : `0 0 0 1px var(--border)`,
+                    cursor: 'pointer',
+                    transition: 'transform 0.1s',
+                    transform: active ? 'scale(1.08)' : 'scale(1)',
+                  }}
+                />
+              )
+            })}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 8, padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 4 }}>
+              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>HEX</span>
+              <input
+                type="color"
+                value={theme.accent}
+                onChange={e => update({ accent: e.target.value })}
+                style={{ width: 24, height: 18, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0 }}
+              />
+              <input
+                type="text"
+                value={theme.accent}
+                onChange={e => {
+                  const v = e.target.value.trim()
+                  if (/^#[0-9a-f]{6}$/i.test(v)) update({ accent: v })
+                  else setTheme(t => ({ ...t, accent: v }))
+                }}
+                style={{ width: 72, padding: '2px 6px', background: 'var(--bg)', border: '1px solid var(--border-faint)', color: 'var(--text)', fontFamily: 'monospace', fontSize: '0.7rem', outline: 'none', borderRadius: 3 }}
+              />
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Component preview */}
+      <Card title="Live Preview" hint="Real components with your current settings.">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+          <button style={{
+            padding: '6px 14px', fontSize: '0.75rem', fontWeight: 600,
+            background: 'var(--accent)', color: 'var(--bg)',
+            border: 'none', borderRadius: 'var(--r, 5px)',
+            cursor: 'pointer', boxShadow: 'var(--accent-glow)',
+          }}>Primary Action</button>
+          <button style={{
+            padding: '6px 14px', fontSize: '0.75rem',
+            background: 'transparent', color: 'var(--accent)',
+            border: '1px solid var(--accent)', borderRadius: 'var(--r, 5px)', cursor: 'pointer',
+          }}>Secondary</button>
+          <button style={{
+            padding: '6px 14px', fontSize: '0.75rem',
+            background: 'transparent', color: 'var(--text-dim)',
+            border: '1px solid var(--border)', borderRadius: 'var(--r, 5px)', cursor: 'pointer',
+          }}>Ghost</button>
+          <span style={{ padding: '3px 10px', fontSize: '0.65rem', background: 'var(--accent-soft)', color: 'var(--accent)', border: '1px solid var(--accent-border)', borderRadius: 999, fontWeight: 600 }}>● active</span>
+          <span style={{ padding: '3px 10px', fontSize: '0.65rem', background: 'rgba(52,211,153,0.10)', color: 'var(--success)', border: '1px solid rgba(52,211,153,0.35)', borderRadius: 999, fontWeight: 600 }}>● success</span>
+          <span style={{ padding: '3px 10px', fontSize: '0.65rem', background: 'rgba(251,191,36,0.10)', color: 'var(--warning)', border: '1px solid rgba(251,191,36,0.35)', borderRadius: 999, fontWeight: 600 }}>● warning</span>
+          <span style={{ padding: '3px 10px', fontSize: '0.65rem', background: 'rgba(251,113,133,0.10)', color: 'var(--danger)', border: '1px solid rgba(251,113,133,0.35)', borderRadius: 999, fontWeight: 600 }}>● danger</span>
+          <input type="text" placeholder="example input" defaultValue="ao-idp" style={{
+            padding: '5px 9px', fontSize: '0.75rem',
+            background: 'var(--bg)', color: 'var(--text)',
+            border: '1px solid var(--border)', borderRadius: 'var(--r, 5px)',
+            outline: 'none', fontFamily: 'monospace',
+          }} />
+        </div>
+      </Card>
+
+      <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <button
+          onClick={() => {
+            const reset: ThemeState = { mode: 'dark', accent: '#5eead4', density: 'comfortable', radius: 'soft' }
+            update(reset)
+          }}
+          style={{
+            padding: '5px 10px', fontSize: '0.7rem',
+            background: 'transparent', color: 'var(--text-muted)',
+            border: '1px solid var(--border)', cursor: 'pointer',
+            fontFamily: 'inherit', borderRadius: 4,
+          }}
+        >
+          ↺ reset to defaults
+        </button>
+        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+          Stored locally · per-user preference
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export default function SettingsPage() {
-  const [tab, setTab] = useState<'ldap' | 'tokens' | 'claims' | 'login' | 'security'>('ldap')
+  const [tab, setTab] = useState<'appearance' | 'ldap' | 'tokens' | 'claims' | 'login' | 'security'>('appearance')
 
   const tabs = [
+    { key: 'appearance', label: 'Appearance' },
     { key: 'ldap', label: 'LDAP Server' },
     { key: 'tokens', label: 'Token Expiry' },
     { key: 'claims', label: 'JWT Claims' },
@@ -769,6 +961,7 @@ export default function SettingsPage() {
         ))}
       </div>
 
+      {tab === 'appearance' && <AppearanceSection />}
       {tab === 'ldap' && <LdapSection />}
       {tab === 'tokens' && <TokenSection />}
       {tab === 'claims' && <ClaimsSection />}

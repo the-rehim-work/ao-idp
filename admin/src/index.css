@@ -3,13 +3,16 @@
 @tailwind utilities;
 
 /* ───────── Quanta design tokens ─────────
-   Warm-graphite dark, mint primary, multi-hue semantic accents.
+   Variables live on :root (default = dark). The runtime theme module
+   toggles data-theme="light|dark" on <html> to swap palettes.
+   The --accent set is injected at runtime by theme.ts from user choice.
 */
-:root {
+:root, html[data-theme="dark"] {
   --bg:           #0a0c10;
   --surface-1:    #12161e;
   --surface-2:    #1a1f29;
   --surface-3:    #242a36;
+  --overlay:      rgba(0,0,0,0.6);
 
   --border:         rgba(255,255,255,0.08);
   --border-hover:   rgba(255,255,255,0.18);
@@ -19,9 +22,9 @@
   --text-dim:    #a3acb9;
   --text-muted:  #6b7383;
 
-  --accent:        #5eead4;   /* mint — primary */
-  --accent-strong: #2dd4bf;
-  --accent-soft:   rgba(94,234,212,0.10);
+  --bg-gradient:
+    radial-gradient(ellipse 80% 60% at 50% -20%, rgba(var(--accent-rgb,94,234,212),0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 100% 100%, rgba(196,181,253,0.025) 0%, transparent 70%);
 
   --info:    #7dd3fc;
   --success: #34d399;
@@ -29,7 +32,56 @@
   --danger:  #fb7185;
   --gold:    #fbbf24;
   --purple:  #c4b5fd;
+
+  /* Defaults so :root works before theme.ts runs */
+  --accent:        #5eead4;
+  --accent-strong: #2dd4bf;
+  --accent-rgb:    94, 234, 212;
+  --accent-soft:   rgba(94,234,212,0.10);
+  --accent-medium: rgba(94,234,212,0.22);
+  --accent-border: rgba(94,234,212,0.35);
+  --accent-glow:   0 0 8px rgba(94,234,212,0.35), 0 0 20px rgba(94,234,212,0.18);
+
+  color-scheme: dark;
 }
+
+html[data-theme="light"] {
+  --bg:           #f6f7f9;
+  --surface-1:    #ffffff;
+  --surface-2:    #f1f3f6;
+  --surface-3:    #e4e7ec;
+  --overlay:      rgba(15,18,24,0.45);
+
+  --border:         rgba(15,18,24,0.10);
+  --border-hover:   rgba(15,18,24,0.22);
+  --border-faint:   rgba(15,18,24,0.05);
+
+  --text:        #0f1320;
+  --text-dim:    #424a5b;
+  --text-muted:  #6b7383;
+
+  --bg-gradient:
+    radial-gradient(ellipse 80% 60% at 50% -20%, rgba(var(--accent-rgb,94,234,212),0.10) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 100% 100%, rgba(196,181,253,0.06) 0%, transparent 70%);
+
+  --info:    #0284c7;
+  --success: #059669;
+  --warning: #d97706;
+  --danger:  #e11d48;
+  --gold:    #d97706;
+  --purple:  #7c3aed;
+
+  color-scheme: light;
+}
+
+/* Density */
+html[data-density="compact"] { font-size: 14px; }
+html[data-density="comfortable"] { font-size: 15px; }
+
+/* Radius preference — applied via the helper class */
+html[data-radius="sharp"] { --r: 0px; --r-sm: 0px; --r-lg: 0px; }
+html[data-radius="soft"]  { --r: 5px; --r-sm: 3px; --r-lg: 8px; }
+html[data-radius="round"] { --r: 10px; --r-sm: 6px; --r-lg: 14px; }
 
 @layer base {
   * { box-sizing: border-box; }
@@ -42,11 +94,7 @@
   body {
     @apply m-0;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    /* Subtle gradient underlay — adds depth, never distracts */
-    background:
-      radial-gradient(ellipse 80% 60% at 50% -20%, rgba(94,234,212,0.04) 0%, transparent 70%),
-      radial-gradient(ellipse 60% 50% at 100% 100%, rgba(196,181,253,0.025) 0%, transparent 70%),
-      var(--bg);
+    background: var(--bg-gradient), var(--bg);
     background-attachment: fixed;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
