@@ -21,17 +21,32 @@ export interface LdapOuInfo {
   level: number
 }
 
+export interface LdapSearchHit {
+  ldap_username: string
+  email?: string
+  display_name?: string
+  is_activated: boolean
+  title?: string
+  ou?: string
+  groups?: string[]
+  ldap_server_name?: string
+}
+
 export const ldapApi = {
-  getChildren: (dn?: string) =>
+  getChildren: (dn?: string, configId?: string) =>
     apiClient.get<LdapTreeNode[]>('/ldap/tree', {
-      params: dn ? { dn } : undefined,
+      params: { ...(dn ? { dn } : {}), ...(configId ? { configId } : {}) },
     }).then(r => r.data),
 
   getOus: () =>
     apiClient.get<LdapOuInfo[]>('/ldap/ous').then(r => r.data),
 
   getUsers: (dn?: string, search?: string) =>
-    apiClient.get<LdapUser[]>('/ldap/users', {
+    apiClient.get<LdapSearchHit[]>('/ldap/users', {
       params: { ...(dn ? { dn } : {}), ...(search ? { search } : {}) },
     }).then(r => r.data),
+
+  // Returns real LDAP schema attributes for a given server (attribute name -> sample value)
+  attributesById: (configId: string) =>
+    apiClient.get<Record<string, string>>(`/settings/ldap/${configId}/attributes`).then(r => r.data),
 }

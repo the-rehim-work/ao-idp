@@ -41,6 +41,19 @@ export interface ClaimMapping {
   enabled: boolean
 }
 
+export interface SecuritySettings {
+  lockoutEnabled: boolean
+  lockoutMaxAttempts: number
+  lockoutWindowMinutes: number
+  lockoutDurationMinutes: number
+  sessionIdleMinutes: number
+  sessionAbsoluteHours: number
+  requirePkce: boolean
+  refreshTokenRotation: boolean
+  ipAllowlist: string
+  forceHttps: boolean
+}
+
 export const settingsApi = {
   ldap: {
     list: () => apiClient.get<LdapServerConfig[]>('/settings/ldap').then(r => r.data),
@@ -69,5 +82,9 @@ export const settingsApi = {
   claims: {
     list: () => apiClient.get<ClaimMapping[]>('/settings/claims').then(r => r.data),
     update: (data: ClaimMapping[]) => apiClient.put<ClaimMapping[]>('/settings/claims', data).then(r => r.data),
+  },
+  security: {
+    get: () => apiClient.get<SecuritySettings>('/settings/security').then(r => r.data),
+    update: (data: SecuritySettings) => apiClient.put<SecuritySettings>('/settings/security', data).then(r => r.data),
   },
 }

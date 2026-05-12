@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { settingsApi, LdapServerConfig, LdapConfigRequest, TokenSettings, ClaimMapping } from '../api/settings'
+import { settingsApi, LdapServerConfig, LdapConfigRequest, TokenSettings, ClaimMapping, SecuritySettings } from '../api/settings'
 import { apiClient } from '../api/client'
 
 const C = '#00ffff', CD = '#00d4e8', CM = '#009bb5', CB = '#006b8a', ERR = '#ff4444'
@@ -610,14 +610,147 @@ function LoginSection() {
   )
 }
 
+function SecuritySection() {
+  const qc = useQueryClient()
+  const { data } = useQuery({ queryKey: ['security-settings'], queryFn: settingsApi.security.get })
+  const [form, setForm] = useState<SecuritySettings>({
+    lockoutEnabled: true, lockoutMaxAttempts: 5, lockoutWindowMinutes: 15, lockoutDurationMinutes: 30,
+    sessionIdleMinutes: 30, sessionAbsoluteHours: 12,
+    requirePkce: true, refreshTokenRotation: false,
+    ipAllowlist: '', forceHttps: false,
+  })
+  const [saved, setSaved] = useState(false)
+  const [err, setErr] = useState('')
+
+  useEffect(() => { if (data) setForm(data) }, [data])
+
+  const saveMut = useMutation({
+    mutationFn: () => settingsApi.security.update(form),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['security-settings'] }); setSaved(true); setErr(''); setTimeout(() => setSaved(false), 2000) },
+    onError: (e: any) => setErr(e?.response?.data?.message ?? 'Save failed'),
+  })
+
+  const num = (k: keyof SecuritySettings, min: number, max: number) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm(f => ({ ...f, [k]: Math.max(min, Math.min(max, parseInt(e.target.value) || 0)) }))
+
+  const tog = (k: keyof SecuritySettings) => () => setForm(f => ({ ...f, [k]: !f[k] }))
+
+  const Toggle = ({ value, onClick, label, hint }: { value: boolean; onClick: () => void; label: string; hint?: string }) => (
+    <div onClick={onClick} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.45rem 0' }}>
+      <div style={{
+        width: 28, height: 16, borderRadius: 8, position: 'relative',
+        background: value ? 'rgba(0,255,255,0.25)' : 'rgba(0,255,255,0.05)',
+        border: `1px solid ${value ? C : 'rgba(0,255,255,0.2)'}`,
+        transition: 'all 0.15s',
+      }}>
+        <div style={{
+          width: 10, height: 10, borderRadius: 5, position: 'absolute',
+          top: 2, left: value ? 14 : 2,
+          background: value ? C : CB,
+          boxShadow: value ? '0 0 6px rgba(0,255,255,0.8)' : 'none',
+          transition: 'left 0.15s',
+        }} />
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: '0.75rem', color: value ? CD : CM, fontWeight: 600 }}>{label}</div>
+        {hint && <div style={{ fontSize: '0.62rem', color: CB, marginTop: 1 }}>{hint}</div>}
+      </div>
+    </div>
+  )
+
+  const Card = ({ title, children, accent }: { title: string; children: React.ReactNode; accent?: string }) => (
+    <div style={{ background: SURFACE, border: `1px solid ${accent ?? BORDER}`, padding: '1rem 1.1rem' }}>
+      <div style={{ fontSize: '0.6rem', color: accent ?? CB, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '0.7rem', fontWeight: 700 }}>
+        {title}
+      </div>
+      {children}
+    </div>
+  )
+
+  return (
+    <div>
+      <SectionTitle>Security & Hardening</SectionTitle>
+      <div style={{ fontSize: '0.7rem', color: CB, marginBottom: '1rem', padding: '0.6rem 0.85rem', border: `1px solid rgba(0,153,181,0.25)`, background: 'rgba(0,153,181,0.04)' }}>
+        Most settings are persisted but enforcement points are documented inline. Lockout & PKCE are the most impactful — wire them in
+        <span style={{ color: CM }}> AdminAuthController/OidcController</span> by calling <code style={{ color: CD }}>settingsService.getSecuritySettings()</code>.
+      </div>
+
+      {saved && <div style={{ color: C, fontSize: '0.75rem', marginBottom: '0.75rem', padding: '0.4rem 0.75rem', border: '1px solid rgba(0,255,255,0.3)' }}>Saved.</div>}
+      {err && <div style={{ color: ERR, fontSize: '0.75rem', marginBottom: '0.75rem', padding: '0.4rem 0.75rem', border: '1px solid rgba(255,68,68,0.3)' }}>[ERR] {err}</div>}
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+        {/* Brute-force / account lockout */}
+        <Card title="Brute-force / Account Lockout" accent={form.lockoutEnabled ? C : BORDER}>
+          <Toggle value={form.lockoutEnabled} onClick={tog('lockoutEnabled')}
+            label="Enable lockout" hint="Temporarily block a user after repeated failures" />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.6rem', marginTop: '0.6rem', opacity: form.lockoutEnabled ? 1 : 0.45, pointerEvents: form.lockoutEnabled ? 'auto' : 'none' }}>
+            <Field label="Max attempts">
+              <input style={inputStyle} type="number" min={1} max={20} value={form.lockoutMaxAttempts} onChange={num('lockoutMaxAttempts', 1, 20)} />
+            </Field>
+            <Field label="Window (min)">
+              <input style={inputStyle} type="number" min={1} max={1440} value={form.lockoutWindowMinutes} onChange={num('lockoutWindowMinutes', 1, 1440)} />
+            </Field>
+            <Field label="Lockout (min)">
+              <input style={inputStyle} type="number" min={1} max={1440} value={form.lockoutDurationMinutes} onChange={num('lockoutDurationMinutes', 1, 1440)} />
+            </Field>
+          </div>
+        </Card>
+
+        {/* Session timeouts */}
+        <Card title="Session Timeouts">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+            <Field label="Idle timeout (min)">
+              <input style={inputStyle} type="number" min={1} max={1440} value={form.sessionIdleMinutes} onChange={num('sessionIdleMinutes', 1, 1440)} />
+            </Field>
+            <Field label="Absolute max (hours)">
+              <input style={inputStyle} type="number" min={1} max={720} value={form.sessionAbsoluteHours} onChange={num('sessionAbsoluteHours', 1, 720)} />
+            </Field>
+          </div>
+          <div style={{ fontSize: '0.62rem', color: CB, marginTop: '0.25rem', lineHeight: 1.5 }}>
+            Idle ⇒ logout after no activity. Absolute ⇒ hard cap regardless of activity. Enforce in JWT validation.
+          </div>
+        </Card>
+
+        {/* OAuth security */}
+        <Card title="OAuth / OIDC Security">
+          <Toggle value={form.requirePkce} onClick={tog('requirePkce')}
+            label="Require PKCE for public clients"
+            hint="RFC 7636 — mandatory for SPAs and mobile. Highly recommended." />
+          <Toggle value={form.refreshTokenRotation} onClick={tog('refreshTokenRotation')}
+            label="Refresh token rotation"
+            hint="Issue a new refresh token on each use; revoke the family on reuse." />
+        </Card>
+
+        {/* Transport */}
+        <Card title="Transport / Network">
+          <Toggle value={form.forceHttps} onClick={tog('forceHttps')}
+            label="Force HTTPS / HSTS"
+            hint="Redirect HTTP→HTTPS and emit HSTS header. Set behind a real cert." />
+          <Field label="Admin IP allowlist (CIDR, comma-separated — empty = allow all)">
+            <input style={inputStyle} value={form.ipAllowlist} onChange={e => setForm(f => ({ ...f, ipAllowlist: e.target.value }))}
+              placeholder="10.0.0.0/8, 192.168.0.0/16" />
+          </Field>
+        </Card>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+        <button style={btnPrimary} onClick={() => saveMut.mutate()} disabled={saveMut.isPending}>
+          {saveMut.isPending ? 'saving...' : '> save security settings'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function SettingsPage() {
-  const [tab, setTab] = useState<'ldap' | 'tokens' | 'claims' | 'login'>('ldap')
+  const [tab, setTab] = useState<'ldap' | 'tokens' | 'claims' | 'login' | 'security'>('ldap')
 
   const tabs = [
     { key: 'ldap', label: 'LDAP Server' },
     { key: 'tokens', label: 'Token Expiry' },
     { key: 'claims', label: 'JWT Claims' },
     { key: 'login', label: 'Login Settings' },
+    { key: 'security', label: 'Security' },
   ] as const
 
   return (
@@ -640,6 +773,7 @@ export default function SettingsPage() {
       {tab === 'tokens' && <TokenSection />}
       {tab === 'claims' && <ClaimsSection />}
       {tab === 'login' && <LoginSection />}
+      {tab === 'security' && <SecuritySection />}
     </div>
   )
 }

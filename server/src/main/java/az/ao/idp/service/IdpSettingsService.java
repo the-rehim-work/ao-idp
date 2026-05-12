@@ -25,6 +25,18 @@ public class IdpSettingsService {
     private static final String KEY_LOGIN_PAGE_TITLE = "login_page_title";
     private static final String KEY_LOG_RETENTION_DAYS = "log_retention_days";
 
+    // Security settings keys
+    private static final String KEY_LOCKOUT_ENABLED = "sec_lockout_enabled";
+    private static final String KEY_LOCKOUT_MAX_ATTEMPTS = "sec_lockout_max_attempts";
+    private static final String KEY_LOCKOUT_WINDOW_MINUTES = "sec_lockout_window_minutes";
+    private static final String KEY_LOCKOUT_DURATION_MINUTES = "sec_lockout_duration_minutes";
+    private static final String KEY_SESSION_IDLE_MINUTES = "sec_session_idle_minutes";
+    private static final String KEY_SESSION_ABSOLUTE_HOURS = "sec_session_absolute_hours";
+    private static final String KEY_REQUIRE_PKCE = "sec_require_pkce";
+    private static final String KEY_REFRESH_TOKEN_ROTATION = "sec_refresh_token_rotation";
+    private static final String KEY_IP_ALLOWLIST = "sec_ip_allowlist";
+    private static final String KEY_FORCE_HTTPS = "sec_force_https";
+
     private final IdpSettingRepository repository;
     private final ObjectMapper objectMapper;
     private final LdapConfigService ldapConfigService;
@@ -129,11 +141,60 @@ public class IdpSettingsService {
         return val != null ? Integer.parseInt(val) : 10;
     }
 
+    public record SecuritySettings(
+            boolean lockoutEnabled,
+            int lockoutMaxAttempts,
+            int lockoutWindowMinutes,
+            int lockoutDurationMinutes,
+            int sessionIdleMinutes,
+            int sessionAbsoluteHours,
+            boolean requirePkce,
+            boolean refreshTokenRotation,
+            String ipAllowlist,
+            boolean forceHttps
+    ) {}
+
+    private String getOrDefault(String key, String def) {
+        String v = get(key);
+        return v == null ? def : v;
+    }
+
+    public SecuritySettings getSecuritySettings() {
+        return new SecuritySettings(
+                Boolean.parseBoolean(getOrDefault(KEY_LOCKOUT_ENABLED, "true")),
+                Integer.parseInt(getOrDefault(KEY_LOCKOUT_MAX_ATTEMPTS, "5")),
+                Integer.parseInt(getOrDefault(KEY_LOCKOUT_WINDOW_MINUTES, "15")),
+                Integer.parseInt(getOrDefault(KEY_LOCKOUT_DURATION_MINUTES, "30")),
+                Integer.parseInt(getOrDefault(KEY_SESSION_IDLE_MINUTES, "30")),
+                Integer.parseInt(getOrDefault(KEY_SESSION_ABSOLUTE_HOURS, "12")),
+                Boolean.parseBoolean(getOrDefault(KEY_REQUIRE_PKCE, "true")),
+                Boolean.parseBoolean(getOrDefault(KEY_REFRESH_TOKEN_ROTATION, "false")),
+                getOrDefault(KEY_IP_ALLOWLIST, ""),
+                Boolean.parseBoolean(getOrDefault(KEY_FORCE_HTTPS, "false"))
+        );
+    }
+
+    @Transactional
+    public SecuritySettings setSecuritySettings(SecuritySettings s) {
+        set(KEY_LOCKOUT_ENABLED, String.valueOf(s.lockoutEnabled()));
+        set(KEY_LOCKOUT_MAX_ATTEMPTS, String.valueOf(Math.max(1, Math.min(20, s.lockoutMaxAttempts()))));
+        set(KEY_LOCKOUT_WINDOW_MINUTES, String.valueOf(Math.max(1, Math.min(1440, s.lockoutWindowMinutes()))));
+        set(KEY_LOCKOUT_DURATION_MINUTES, String.valueOf(Math.max(1, Math.min(1440, s.lockoutDurationMinutes()))));
+        set(KEY_SESSION_IDLE_MINUTES, String.valueOf(Math.max(1, Math.min(1440, s.sessionIdleMinutes()))));
+        set(KEY_SESSION_ABSOLUTE_HOURS, String.valueOf(Math.max(1, Math.min(720, s.sessionAbsoluteHours()))));
+        set(KEY_REQUIRE_PKCE, String.valueOf(s.requirePkce()));
+        set(KEY_REFRESH_TOKEN_ROTATION, String.valueOf(s.refreshTokenRotation()));
+        set(KEY_IP_ALLOWLIST, s.ipAllowlist() == null ? "" : s.ipAllowlist().trim());
+        set(KEY_FORCE_HTTPS, String.valueOf(s.forceHttps()));
+        return getSecuritySettings();
+    }
+
     public Map<String, Object> getAllSettings() {
         return Map.of(
                 "tokenSettings", getTokenSettings(),
                 "claimMappings", getClaimMappings(),
-                "loginSettings", getLoginSettings()
+                "loginSettings", getLoginSettings(),
+                "securitySettings", getSecuritySettings()
         );
     }
 }

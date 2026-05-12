@@ -4,6 +4,7 @@ import { apiClient } from '../api/client'
 import { usersApi } from '../api/users'
 import { appsApi } from '../api/apps'
 import { settingsApi, LdapServerConfig } from '../api/settings'
+import { ldapApi, LdapSearchHit } from '../api/ldap'
 import type { Application } from '../types'
 
 /* ======================================================================
@@ -1693,6 +1694,106 @@ function Breadcrumb({
 }
 
 /* ======================================================================
+   Server-side LDAP search results
+   ====================================================================== */
+
+function ServerSearchResults({
+  query, attr, hits, loading, onPick,
+}: {
+  query: string
+  attr: string
+  hits: LdapSearchHit[]
+  loading: boolean
+  onPick: (hit: LdapSearchHit) => void
+}) {
+  if (!query.trim()) {
+    return (
+      <div style={{ padding: '1.5rem 1rem', fontSize: '0.7rem', color: C.textMuted, lineHeight: 1.7 }}>
+        <div style={{ color: C.amber, marginBottom: 6 }}>● LDAP server search</div>
+        Type a query to search the directory server directly.
+        {attr !== 'all' && (
+          <div style={{ marginTop: 6, color: C.textDim }}>
+            Filtering by <code style={{ color: C.cyanDim }}>{attr === 'name' ? 'cn' : attr === 'username' ? 'uid/sAMAccountName' : attr === 'email' ? 'mail' : attr}</code>
+          </div>
+        )}
+        <div style={{ marginTop: 10, fontSize: '0.62rem', color: C.textMuted }}>
+          Tip: pick an attribute above to scope the LDAP filter (e.g. <code style={{ color: C.cyanDim }}>department</code>).
+        </div>
+      </div>
+    )
+  }
+  if (loading) {
+    return (
+      <div style={{ padding: '1.5rem 1rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Spinner size={12} color={C.amber} />
+        <span style={{ fontSize: '0.7rem', color: C.textMuted }}>querying directory for "{query}"...</span>
+      </div>
+    )
+  }
+  if (hits.length === 0) {
+    return (
+      <div style={{ padding: '1.5rem 1rem', fontSize: '0.7rem', color: C.textMuted }}>
+        no LDAP matches for "{query}"
+      </div>
+    )
+  }
+  return (
+    <div>
+      <div style={{
+        padding: '0.4rem 0.75rem',
+        background: 'rgba(255,136,0,0.06)',
+        borderBottom: `1px solid ${C.borderFaint}`,
+        fontSize: '0.62rem', color: C.amber, letterSpacing: '0.1em', textTransform: 'uppercase',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <span>LDAP search · {hits.length} {hits.length === 1 ? 'result' : 'results'}</span>
+        <span style={{ color: C.textMuted, letterSpacing: '0.04em', textTransform: 'none' }}>
+          {attr !== 'all' ? `attr=${attr}` : 'all attrs'}
+        </span>
+      </div>
+      <div>
+        {hits.map(hit => (
+          <div
+            key={hit.ldap_username}
+            onClick={() => onPick(hit)}
+            style={{
+              display: 'flex', flexDirection: 'column', gap: 2,
+              padding: '0.5rem 0.75rem',
+              borderBottom: `1px solid ${C.borderFaint}`,
+              fontSize: '0.72rem', cursor: 'pointer',
+              transition: 'background 0.1s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,255,255,0.04)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <UserIcon activated={hit.is_activated} size={12} />
+              <span style={{ color: hit.is_activated ? C.cyan : C.textDim, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {hit.display_name || hit.ldap_username}
+              </span>
+              {hit.is_activated && (
+                <span style={{ fontSize: '0.55rem', color: C.green, letterSpacing: '0.06em' }}>● ACTIVE</span>
+              )}
+            </div>
+            <div style={{ fontSize: '0.62rem', color: C.textMuted, paddingLeft: 20, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ color: C.textDim }}>{hit.ldap_username}</span>
+              {hit.email && <> · {hit.email}</>}
+              {hit.title && <> · {hit.title}</>}
+            </div>
+            {(hit.ou || hit.ldap_server_name) && (
+              <div style={{ fontSize: '0.58rem', color: C.textMuted, paddingLeft: 20, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {hit.ldap_server_name && <span style={{ color: C.cyanDim }}>[{hit.ldap_server_name}]</span>}
+                {hit.ou && <> {hit.ou}</>}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ======================================================================
    Per-config root query hook (one query per active config)
    ====================================================================== */
 
@@ -1734,7 +1835,11 @@ export default function LdapTreePage() {
   // Filter bar state
   const [filterType, setFilterType] = useState<'all' | 'ou' | 'user' | 'group'>('all')
   const [filterActivated, setFilterActivated] = useState<'all' | 'active' | 'inactive'>('all')
-  const [searchAttr, setSearchAttr] = useState<'all' | 'name' | 'username' | 'email' | 'title'>('all')
+  // searchAttr 'all' = match across all loaded fields; otherwise must match the LDAP attribute name
+  // 'name' | 'username' | 'email' | 'title' map to the TreeNode fields; any other value is a raw LDAP attribute name (server-side only)
+  const [searchAttr, setSearchAttr] = useState<string>('all')
+  // 'tree' = filter what's already loaded; 'server' = call /ldap/users for a directory-wide LDAP search
+  const [searchScope, setSearchScope] = useState<'tree' | 'server'>('tree')
 
   // Panel width (resizable)
   const [panelWidth, setPanelWidth] = useState<number>(() => {
@@ -1823,6 +1928,30 @@ export default function LdapTreePage() {
     })
     return m
   }, [activeConfigs, rootQueries])
+
+  // Real LDAP schema attributes for the first active config (drives the searchable-attribute dropdown)
+  const primaryConfigId = activeConfigs[0]?.id
+  const { data: serverAttrs } = useQuery({
+    queryKey: ['ldap-attrs', primaryConfigId],
+    queryFn: () => ldapApi.attributesById(primaryConfigId!),
+    enabled: !!primaryConfigId,
+    staleTime: 60_000,
+    retry: false,
+  })
+
+  // Server-side LDAP search (only enabled when scope=server and there is a query)
+  const { data: serverHits = [], isFetching: serverSearching } = useQuery({
+    queryKey: ['ldap-server-search', state.debouncedSearch, searchAttr],
+    queryFn: () => {
+      // For non-default attribute, encode an LDAP filter clause in the search param
+      const q = searchAttr === 'all' || ['name', 'username', 'email', 'title'].includes(searchAttr)
+        ? state.debouncedSearch
+        : `${searchAttr}=${state.debouncedSearch}`
+      return ldapApi.getUsers(undefined, q)
+    },
+    enabled: searchScope === 'server' && !!state.debouncedSearch.trim(),
+    staleTime: 5_000,
+  })
 
   // Counts derived from queries (for status bar / summary)
   const counts = useMemo(() => {
@@ -1987,6 +2116,8 @@ export default function LdapTreePage() {
             || (filterActivated === 'inactive' && !n.is_activated)
 
           // attribute-scoped text search
+          // tree mode only carries name/uid/mail/title; arbitrary LDAP attrs fall back to all-fields
+          // (use server scope to actually filter by an attribute not exposed on the tree node)
           let matchesSearch = true
           if (search) {
             if (searchAttr === 'name') {
@@ -1998,6 +2129,7 @@ export default function LdapTreePage() {
             } else if (searchAttr === 'title') {
               matchesSearch = (n.title?.toLowerCase().includes(search) ?? false)
             } else {
+              // 'all' or any unknown server-schema attribute → match across all locally-known fields
               matchesSearch = n.name.toLowerCase().includes(search) ||
                 (n.ldap_username?.toLowerCase().includes(search) ?? false) ||
                 (n.email?.toLowerCase().includes(search) ?? false) ||
@@ -2573,22 +2705,60 @@ export default function LdapTreePage() {
               <span style={{ fontSize: '0.56rem', color: C.textMuted, letterSpacing: '0.12em', textTransform: 'uppercase', minWidth: 28 }}>attr</span>
               <select
                 value={searchAttr}
-                onChange={e => setSearchAttr(e.target.value as typeof searchAttr)}
+                onChange={e => setSearchAttr(e.target.value)}
+                title={searchAttr !== 'all' && serverAttrs?.[searchAttr] ? `sample: ${serverAttrs[searchAttr]}` : 'search target attribute'}
                 style={{
                   background: C.surface2, border: `1px solid ${searchAttr !== 'all' ? C.cyanDim : C.borderFaint}`,
                   color: searchAttr !== 'all' ? C.cyanDim : C.textMuted,
                   fontFamily: FONT, fontSize: '0.62rem', padding: '1px 4px',
-                  outline: 'none', cursor: 'pointer',
+                  outline: 'none', cursor: 'pointer', maxWidth: 160,
                 }}
               >
                 <option value="all">all attrs</option>
-                <option value="name">name / cn</option>
-                <option value="username">uid / sAMAccountName</option>
-                <option value="email">mail</option>
-                <option value="title">title</option>
+                <optgroup label="quick">
+                  <option value="name">name / cn</option>
+                  <option value="username">uid / sAMAccountName</option>
+                  <option value="email">mail</option>
+                  <option value="title">title</option>
+                </optgroup>
+                {serverAttrs && Object.keys(serverAttrs).length > 0 && (
+                  <optgroup label={`server schema (${Object.keys(serverAttrs).length})`}>
+                    {Object.entries(serverAttrs)
+                      .filter(([k]) => !['name', 'cn', 'uid', 'sAMAccountName', 'mail', 'title', 'objectClass', 'objectGUID', 'objectSid', 'uSNCreated', 'uSNChanged', 'whenCreated', 'whenChanged'].includes(k))
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([attr, sample]) => (
+                        <option key={attr} value={attr}>
+                          {attr}{sample && sample !== '[binary]' ? ` — ${String(sample).slice(0, 24)}` : ''}
+                        </option>
+                      ))}
+                  </optgroup>
+                )}
               </select>
 
-              {(filterType === 'user' || filterType === 'all') && (
+              {/* Scope toggle: tree (client filter) vs server (LDAP query) */}
+              <span style={{ color: C.borderFaint, margin: '0 1px' }}>│</span>
+              <span style={{ fontSize: '0.56rem', color: C.textMuted, letterSpacing: '0.12em', textTransform: 'uppercase', minWidth: 30 }}>scope</span>
+              {([
+                { v: 'tree', label: 'tree', hint: 'filter loaded nodes only' },
+                { v: 'server', label: 'LDAP', hint: 'query the directory server' },
+              ] as const).map(({ v, label, hint }) => {
+                const active = searchScope === v
+                const c = v === 'server' ? C.amber : C.cyanDim
+                return (
+                  <button key={v} onClick={() => setSearchScope(v)} title={hint} style={{
+                    padding: '1px 7px', fontSize: '0.62rem',
+                    background: active ? `rgba(${v === 'server' ? '255,136,0' : '0,212,232'},0.12)` : 'transparent',
+                    border: `1px solid ${active ? c : C.borderFaint}`,
+                    color: active ? c : C.textMuted,
+                    fontFamily: FONT, cursor: 'pointer', letterSpacing: '0.04em',
+                    transition: 'all 0.1s',
+                  }}>
+                    {label}
+                  </button>
+                )
+              })}
+
+              {(filterType === 'user' || filterType === 'all') && searchScope === 'tree' && (
                 <>
                   <span style={{ color: C.borderFaint, margin: '0 1px' }}>│</span>
                   <span style={{ fontSize: '0.56rem', color: C.textMuted, letterSpacing: '0.12em', textTransform: 'uppercase', minWidth: 30 }}>status</span>
@@ -2615,9 +2785,9 @@ export default function LdapTreePage() {
                 </>
               )}
 
-              {(filterType !== 'all' || filterActivated !== 'all' || searchAttr !== 'all') && (
+              {(filterType !== 'all' || filterActivated !== 'all' || searchAttr !== 'all' || searchScope !== 'tree') && (
                 <button
-                  onClick={() => { setFilterType('all'); setFilterActivated('all'); setSearchAttr('all') }}
+                  onClick={() => { setFilterType('all'); setFilterActivated('all'); setSearchAttr('all'); setSearchScope('tree') }}
                   style={{
                     marginLeft: 'auto', padding: '1px 6px', fontSize: '0.6rem',
                     background: 'transparent', border: `1px solid ${C.borderFaint}`,
@@ -2647,6 +2817,41 @@ export default function LdapTreePage() {
                   Add and activate an LDAP server in <span style={{ color: C.cyan }}>Settings → LDAP</span> to begin browsing the directory.
                 </div>
               </div>
+            ) : searchScope === 'server' ? (
+              <ServerSearchResults
+                query={state.debouncedSearch}
+                attr={searchAttr}
+                hits={serverHits}
+                loading={serverSearching}
+                onPick={hit => {
+                  // Try to find the node in the loaded tree and select it; otherwise just show a toast-like row.
+                  const ld = hit.ldap_username
+                  const lookup = new Map<string, { node: TreeNode; configId: string }>()
+                  state.childMap.forEach((arr, parentDn) => {
+                    arr.forEach(n => {
+                      const cfg = activeConfigs.find(c => parentDn.toLowerCase().endsWith(c.baseDn.toLowerCase()))
+                      if (cfg) lookup.set(n.dn, { node: n, configId: cfg.id })
+                    })
+                  })
+                  for (const v of lookup.values()) {
+                    if (v.node.ldap_username?.toLowerCase() === ld.toLowerCase()) {
+                      handleJump(v.configId, v.node)
+                      setSearchScope('tree')
+                      return
+                    }
+                  }
+                  // fall back: pseudo-select using the hit
+                  const cfgId = activeConfigs[0]?.id ?? ''
+                  if (!cfgId) return
+                  const pseudo: TreeNode = {
+                    dn: `uid=${ld}`, rdn: `uid=${ld}`, type: 'user', name: hit.display_name ?? ld,
+                    ldap_username: ld, email: hit.email, title: hit.title,
+                    has_children: false, is_activated: hit.is_activated, groups: hit.groups,
+                  }
+                  dispatch({ type: 'SELECT', configId: cfgId, node: pseudo })
+                  dispatch({ type: 'ADD_RECENT', node: pseudo, configId: cfgId })
+                }}
+              />
             ) : flatNodes.length === 0 ? (
               <div style={{ padding: '1.5rem 1rem', fontSize: '0.7rem', color: C.textMuted }}>
                 {state.debouncedSearch ? `no matches for "${state.debouncedSearch}"` : 'directory is empty'}

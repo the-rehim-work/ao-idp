@@ -69,4 +69,41 @@ public class AdminSettingsController {
         settingsService.setLoginSettings(identifierType, pageTitle, logRetentionDays);
         return ResponseEntity.ok(settingsService.getLoginSettings());
     }
+
+    @GetMapping("/security")
+    public ResponseEntity<IdpSettingsService.SecuritySettings> getSecurity() {
+        return ResponseEntity.ok(settingsService.getSecuritySettings());
+    }
+
+    @PutMapping("/security")
+    public ResponseEntity<IdpSettingsService.SecuritySettings> updateSecurity(@RequestBody Map<String, Object> body) {
+        IdpSettingsService.SecuritySettings cur = settingsService.getSecuritySettings();
+        IdpSettingsService.SecuritySettings next = new IdpSettingsService.SecuritySettings(
+                boolField(body, "lockoutEnabled", cur.lockoutEnabled()),
+                intField(body, "lockoutMaxAttempts", cur.lockoutMaxAttempts()),
+                intField(body, "lockoutWindowMinutes", cur.lockoutWindowMinutes()),
+                intField(body, "lockoutDurationMinutes", cur.lockoutDurationMinutes()),
+                intField(body, "sessionIdleMinutes", cur.sessionIdleMinutes()),
+                intField(body, "sessionAbsoluteHours", cur.sessionAbsoluteHours()),
+                boolField(body, "requirePkce", cur.requirePkce()),
+                boolField(body, "refreshTokenRotation", cur.refreshTokenRotation()),
+                body.get("ipAllowlist") instanceof String s ? s : cur.ipAllowlist(),
+                boolField(body, "forceHttps", cur.forceHttps())
+        );
+        return ResponseEntity.ok(settingsService.setSecuritySettings(next));
+    }
+
+    private static boolean boolField(Map<String, Object> body, String key, boolean def) {
+        Object v = body.get(key);
+        if (v instanceof Boolean b) return b;
+        if (v instanceof String s) return Boolean.parseBoolean(s);
+        return def;
+    }
+
+    private static int intField(Map<String, Object> body, String key, int def) {
+        Object v = body.get(key);
+        if (v instanceof Number n) return n.intValue();
+        if (v instanceof String s) try { return Integer.parseInt(s); } catch (NumberFormatException ignored) {}
+        return def;
+    }
 }
