@@ -3,15 +3,15 @@ import { Link } from 'react-router-dom'
 import { apiClient } from '../api/client'
 import type { SystemStats, PageResponse, AuditLog } from '../types'
 
-const C = '#00ffff'
-const CD = '#00d4e8'
-const CM = '#009bb5'
-const CB = '#006b8a'
-const BORDER = 'rgba(0,255,255,0.2)'
-const SURFACE = '#020d10'
+const C = '#5eead4'
+const CD = '#2dd4bf'
+const CM = '#94a3b8'
+const CB = '#64748b'
+const BORDER = 'rgba(94,234,212,0.2)'
+const SURFACE = '#0f141b'
 
 const ACTION_STYLE: Record<string, { color: string; bg: string }> = {
-  login:            { color: C, bg: 'rgba(0,255,255,0.08)' },
+  login:            { color: C, bg: 'rgba(94,234,212,0.08)' },
   login_failed:     { color: '#ff3333', bg: 'rgba(255,51,51,0.08)' },
   user_activated:   { color: CD, bg: 'rgba(0,179,204,0.08)' },
   user_deactivated: { color: '#ff8800', bg: 'rgba(255,136,0,0.08)' },
@@ -38,7 +38,7 @@ function MiniBar({ label, value, max, color }: { label: string; value: number; m
   return (
     <div className="flex items-center gap-3">
       <span className="text-xs w-32 truncate" style={{ color: CM }}>{label}</span>
-      <div className="flex-1 h-1" style={{ background: 'rgba(0,255,255,0.08)' }}>
+      <div className="flex-1 h-1" style={{ background: 'rgba(94,234,212,0.08)' }}>
         <div style={{ width: `${pct}%`, height: '100%', background: color, boxShadow: `0 0 4px ${color}` }} />
       </div>
       <span className="text-xs w-8 text-right tabular-nums" style={{ color: CD }}>{value}</span>
@@ -89,7 +89,7 @@ export default function DashboardPage() {
                   { label: 'this week', value: s.logins_week, color: CD },
                   { label: 'failed week', value: s.failed_week, color: '#ff6600' },
                 ].map(item => (
-                  <div key={item.label} className="p-3" style={{ background: 'rgba(0,255,255,0.03)', border: '1px solid rgba(0,255,255,0.1)' }}>
+                  <div key={item.label} className="p-3" style={{ background: 'rgba(94,234,212,0.03)', border: '1px solid rgba(94,234,212,0.1)' }}>
                     <div className="text-2xl font-bold tabular-nums" style={{ color: item.color }}>{item.value}</div>
                     <div className="text-xs mt-0.5 tracking-wide" style={{ color: CB }}>{item.label}</div>
                   </div>
@@ -147,7 +147,7 @@ export default function DashboardPage() {
             {recentAudit.content.map(log => {
               const style = ACTION_STYLE[log.action] ?? { color: CM, bg: 'transparent' }
               return (
-                <div key={log.id} className="flex items-center gap-4 px-5 py-2.5" style={{ borderBottom: `1px solid rgba(0,255,255,0.06)` }}>
+                <div key={log.id} className="flex items-center gap-4 px-5 py-2.5" style={{ borderBottom: `1px solid rgba(94,234,212,0.06)` }}>
                   <span className="text-xs px-2 py-0.5 whitespace-nowrap font-bold" style={{ color: style.color, background: style.bg, border: `1px solid ${style.color}33` }}>
                     {log.action}
                   </span>

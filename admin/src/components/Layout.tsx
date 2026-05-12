@@ -65,8 +65,8 @@ function NavItem({ to, label, prefix, icon }: { to: string; label: string; prefi
         `flex items-center gap-2.5 px-4 py-2.5 text-xs transition-all ${isActive ? 'font-bold' : ''}`
       }
       style={({ isActive }) => isActive
-        ? { color: '#000', background: '#00ffff', boxShadow: 'inset 0 0 12px rgba(0,255,255,0.3), 0 0 8px rgba(0,255,255,0.4)' }
-        : { color: '#009bb5' }
+        ? { color: '#000', background: '#5eead4', boxShadow: 'inset 0 0 12px rgba(94,234,212,0.3), 0 0 8px rgba(94,234,212,0.4)' }
+        : { color: '#94a3b8' }
       }
     >
       {icon}
@@ -82,24 +82,24 @@ export default function Layout() {
   const visibleItems = allNavItems.filter(item => hasPermission(item.section))
 
   return (
-    <div className="flex min-h-screen" style={{ background: '#000', color: '#00ffff', fontFamily: '"JetBrains Mono", "Courier New", monospace' }}>
-      <nav className="w-52 flex flex-col shrink-0 border-r" style={{ borderColor: 'rgba(0,255,255,0.15)', background: '#020d10' }}>
-        <div className="px-5 py-5 border-b" style={{ borderColor: 'rgba(0,255,255,0.12)' }}>
-          <div className="font-bold text-base tracking-widest uppercase" style={{ color: '#00ffff', textShadow: '0 0 8px rgba(0,255,255,0.8), 0 0 20px rgba(0,255,255,0.4)' }}>AO IDP</div>
-          <div className="text-xs mt-0.5 tracking-widest uppercase" style={{ color: '#006b8a' }}>admin panel</div>
+    <div className="flex min-h-screen" style={{ background: '#000', color: '#5eead4', fontFamily: '"JetBrains Mono", "Courier New", monospace' }}>
+      <nav className="w-52 flex flex-col shrink-0 border-r" style={{ borderColor: 'rgba(94,234,212,0.15)', background: '#0f141b' }}>
+        <div className="px-5 py-5 border-b" style={{ borderColor: 'rgba(94,234,212,0.12)' }}>
+          <div className="font-bold text-base tracking-widest uppercase" style={{ color: '#5eead4', textShadow: '0 0 8px rgba(94,234,212,0.8), 0 0 20px rgba(94,234,212,0.4)' }}>AO IDP</div>
+          <div className="text-xs mt-0.5 tracking-widest uppercase" style={{ color: '#64748b' }}>admin panel</div>
         </div>
 
         <div className="flex-1 py-2">
           {visibleItems.map(item => <NavItem key={item.to} {...item} />)}
         </div>
 
-        <div className="border-t" style={{ borderColor: 'rgba(0,255,255,0.12)' }}>
+        <div className="border-t" style={{ borderColor: 'rgba(94,234,212,0.12)' }}>
           <NavItem {...profileNavItem} />
           <div className="px-4 pb-4">
             <button
               onClick={() => { clearAuth(); navigate('/login') }}
               className="text-xs tracking-wide"
-              style={{ color: '#006b8a', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              style={{ color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
             >
               {'> '}logout
             </button>

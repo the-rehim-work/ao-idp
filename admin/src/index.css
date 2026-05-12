@@ -2,12 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ───────── Quanta design tokens ─────────
+   Warm-graphite dark, mint primary, multi-hue semantic accents.
+*/
+:root {
+  --bg:           #0a0c10;
+  --surface-1:    #12161e;
+  --surface-2:    #1a1f29;
+  --surface-3:    #242a36;
+
+  --border:         rgba(255,255,255,0.08);
+  --border-hover:   rgba(255,255,255,0.18);
+  --border-faint:   rgba(255,255,255,0.04);
+
+  --text:        #e7ebf0;
+  --text-dim:    #a3acb9;
+  --text-muted:  #6b7383;
+
+  --accent:        #5eead4;   /* mint — primary */
+  --accent-strong: #2dd4bf;
+  --accent-soft:   rgba(94,234,212,0.10);
+
+  --info:    #7dd3fc;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger:  #fb7185;
+  --gold:    #fbbf24;
+  --purple:  #c4b5fd;
+}
+
 @layer base {
   * { box-sizing: border-box; }
 
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+  }
+
   body {
-    @apply m-0 bg-black text-cyan-400;
+    @apply m-0;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    /* Subtle gradient underlay — adds depth, never distracts */
+    background:
+      radial-gradient(ellipse 80% 60% at 50% -20%, rgba(94,234,212,0.04) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 50% at 100% 100%, rgba(196,181,253,0.025) 0%, transparent 70%),
+      var(--bg);
+    background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   a { @apply no-underline; }
@@ -30,30 +72,37 @@
     -moz-appearance: textfield;
   }
 
-  /* Custom scrollbars */
-  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  /* Custom scrollbars — subtle, fade in on hover */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    background: rgba(0,255,255,0.18);
+    background: rgba(255,255,255,0.06);
     border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    transition: background 0.15s;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(0,255,255,0.35);
+    background: rgba(255,255,255,0.18);
+    background-clip: padding-box;
   }
   ::-webkit-scrollbar-corner { background: transparent; }
+
+  /* Selection */
+  ::selection { background: rgba(94,234,212,0.25); color: #fff; }
 }
 
 @layer utilities {
   .neon-text {
-    color: #00ffff;
-    text-shadow: 0 0 6px rgba(0,255,255,0.9), 0 0 12px rgba(0,255,255,0.5), 0 0 24px rgba(0,255,255,0.2);
+    color: #5eead4;
+    text-shadow: 0 0 6px rgba(94,234,212,0.9), 0 0 12px rgba(94,234,212,0.5), 0 0 24px rgba(94,234,212,0.2);
   }
   .neon-border {
-    border-color: rgba(0,255,255,0.5);
-    box-shadow: 0 0 6px rgba(0,255,255,0.3), inset 0 0 6px rgba(0,255,255,0.05);
+    border-color: rgba(94,234,212,0.5);
+    box-shadow: 0 0 6px rgba(94,234,212,0.3), inset 0 0 6px rgba(94,234,212,0.05);
   }
   .neon-glow {
-    box-shadow: 0 0 8px rgba(0,255,255,0.6), 0 0 20px rgba(0,255,255,0.3);
+    box-shadow: 0 0 8px rgba(94,234,212,0.6), 0 0 20px rgba(94,234,212,0.3);
   }
   .font-mono {
     font-family: 'JetBrains Mono', 'Courier New', monospace;

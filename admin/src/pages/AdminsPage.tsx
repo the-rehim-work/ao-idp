@@ -3,8 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminsApi, AdminUser } from '../api/admins'
 import { appsApi } from '../api/apps'
 
-const C = '#00ffff', CD = '#00d4e8', CM = '#009bb5', CB = '#006b8a'
-const BORDER = 'rgba(0,255,255,0.18)', SURFACE = '#020d10', ERR = '#ff4444'
+const C = '#5eead4', CD = '#2dd4bf', CM = '#94a3b8', CB = '#64748b'
+const BORDER = 'rgba(94,234,212,0.18)', SURFACE = '#0f141b', ERR = '#ff4444'
 
 const ALL_SECTIONS = [
   { key: 'dashboard',     label: 'Dashboard' },
@@ -24,7 +24,7 @@ const DEFAULT_APP_ADMIN_SECTIONS = ['dashboard', 'applications', 'users']
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '1rem' }}>
-      <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', padding: '1.75rem', boxShadow: `0 0 40px rgba(0,255,255,0.1)` }}>
+      <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', padding: '1.75rem', boxShadow: `0 0 40px rgba(94,234,212,0.1)` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 700, color: C, letterSpacing: '0.15em', textTransform: 'uppercase' }}>{title}</div>
           <button onClick={onClose} style={{ color: CB, background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem' }}>✕</button>
@@ -53,7 +53,7 @@ function PermissionPicker({ value, onChange }: { value: string[]; onChange: (v: 
       {ALL_SECTIONS.map(s => {
         const on = value.includes(s.key)
         return (
-          <label key={s.key} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.5rem', border: `1px solid ${on ? 'rgba(0,255,255,0.35)' : 'rgba(0,255,255,0.1)'}`, background: on ? 'rgba(0,255,255,0.05)' : 'transparent', cursor: 'pointer', fontSize: '0.7rem', color: on ? C : CB, transition: 'all 0.12s' }}>
+          <label key={s.key} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.5rem', border: `1px solid ${on ? 'rgba(94,234,212,0.35)' : 'rgba(94,234,212,0.1)'}`, background: on ? 'rgba(94,234,212,0.05)' : 'transparent', cursor: 'pointer', fontSize: '0.7rem', color: on ? C : CB, transition: 'all 0.12s' }}>
             <input type="checkbox" checked={on} onChange={() => toggle(s.key)} style={{ accentColor: C, width: 12, height: 12 }} />
             {s.label}
           </label>
@@ -148,7 +148,7 @@ export default function AdminsPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem' }}>
         <div>
           <div style={{ fontSize: '0.625rem', color: CB, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '0.25rem' }}>AO IDP</div>
-          <h1 style={{ fontSize: '1.125rem', fontWeight: 700, color: C, letterSpacing: '0.08em', textTransform: 'uppercase', textShadow: '0 0 8px rgba(0,255,255,0.5)' }}>Admin Users</h1>
+          <h1 style={{ fontSize: '1.125rem', fontWeight: 700, color: C, letterSpacing: '0.08em', textTransform: 'uppercase', textShadow: '0 0 8px rgba(94,234,212,0.5)' }}>Admin Users</h1>
         </div>
         <button style={btnPrimary} onClick={() => { setCreateOpen(true); setError('') }}>+ create admin</button>
       </div>
@@ -167,7 +167,7 @@ export default function AdminsPage() {
             </thead>
             <tbody>
               {admins.map(admin => (
-                <tr key={admin.id} style={{ borderBottom: `1px solid rgba(0,255,255,0.07)`, opacity: admin.active ? 1 : 0.5 }}>
+                <tr key={admin.id} style={{ borderBottom: `1px solid rgba(94,234,212,0.07)`, opacity: admin.active ? 1 : 0.5 }}>
                   <td style={{ padding: '0.75rem 1rem', color: C, fontWeight: 600 }}>{admin.username}</td>
                   <td style={{ padding: '0.75rem 1rem', color: CD }}>{admin.displayName}</td>
                   <td style={{ padding: '0.75rem 1rem' }}>
@@ -319,7 +319,7 @@ export default function AdminsPage() {
             const granted = currentScopes.includes(app.id)
             const busy = addScopeMut.isPending || removeScopeMut.isPending
             return (
-              <div key={app.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', marginBottom: '0.25rem', border: `1px solid ${granted ? 'rgba(0,255,255,0.3)' : 'rgba(0,255,255,0.08)'}`, background: granted ? 'rgba(0,255,255,0.04)' : 'transparent' }}>
+              <div key={app.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', marginBottom: '0.25rem', border: `1px solid ${granted ? 'rgba(94,234,212,0.3)' : 'rgba(94,234,212,0.08)'}`, background: granted ? 'rgba(94,234,212,0.04)' : 'transparent' }}>
                 <div>
                   <div style={{ fontSize: '0.8125rem', color: granted ? C : CD }}>{app.name}</div>
                   <div style={{ fontSize: '0.6rem', color: CB }}>{app.client_id}</div>

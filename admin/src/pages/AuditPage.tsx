@@ -3,13 +3,13 @@ import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '../api/client'
 import type { AuditLog, PageResponse } from '../types'
 
-const C = '#00ffff'
-const CD = '#00d4e8'
-const CM = '#009bb5'
-const CB = '#006b8a'
-const BORDER = 'rgba(0,255,255,0.2)'
-const SURFACE = '#020d10'
-const SURFACE2 = '#041520'
+const C = '#5eead4'
+const CD = '#2dd4bf'
+const CM = '#94a3b8'
+const CB = '#64748b'
+const BORDER = 'rgba(94,234,212,0.2)'
+const SURFACE = '#0f141b'
+const SURFACE2 = '#1a2129'
 
 const ACTION_COLOR: Record<string, string> = {
   login:               C,
@@ -123,7 +123,7 @@ function DetailModal({ log, onClose }: { log: AuditLog; onClose: () => void }) {
       style={{ background: 'rgba(0,0,0,0.92)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="w-full max-w-xl max-h-[90vh] overflow-auto border" style={{ background: '#000', borderColor: `${color}55` }}>
-        <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: `1px solid rgba(0,255,255,0.12)`, background: 'rgba(0,255,255,0.02)' }}>
+        <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: `1px solid rgba(94,234,212,0.12)`, background: 'rgba(94,234,212,0.02)' }}>
           <div>
             <div className="text-xs tracking-widest uppercase mb-0.5" style={{ color: CB }}>[audit] event detail</div>
             <span className="text-sm font-bold px-2 py-0.5" style={{ color, border: `1px solid ${color}44`, background: `${color}0d` }}>
@@ -134,7 +134,7 @@ function DetailModal({ log, onClose }: { log: AuditLog; onClose: () => void }) {
         </div>
 
         <div className="px-5 py-5 space-y-4">
-          <div className="p-3 text-xs leading-relaxed" style={{ background: 'rgba(0,255,255,0.04)', border: `1px solid ${BORDER}`, color: CD }}>
+          <div className="p-3 text-xs leading-relaxed" style={{ background: 'rgba(94,234,212,0.04)', border: `1px solid ${BORDER}`, color: CD }}>
             <span style={{ color: CB }}>{'> '}</span>{description}
           </div>
 
@@ -286,7 +286,7 @@ export default function AuditPage() {
                 const color = colorForAction(log.action)
                 const desc = buildDescription(log)
                 return (
-                  <tr key={log.id} style={{ borderBottom: `1px solid rgba(0,255,255,0.06)`, cursor: 'pointer' }}
+                  <tr key={log.id} style={{ borderBottom: `1px solid rgba(94,234,212,0.06)`, cursor: 'pointer' }}
                     onClick={() => setDetail(log)}>
                     <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: CB }}>
                       <div style={{ color: CM }}>{new Date(log.created_at).toLocaleDateString()}</div>

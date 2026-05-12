@@ -4,14 +4,14 @@ import { appsApi } from '../api/apps'
 import { usersApi } from '../api/users'
 import type { Application, User } from '../types'
 
-const C = '#00ffff'
-const CD = '#00d4e8'
-const CM = '#009bb5'
-const CB = '#006b8a'
-const BORDER = 'rgba(0,255,255,0.2)'
-const BORDER_H = 'rgba(0,255,255,0.4)'
-const SURFACE = '#020d10'
-const SURFACE2 = '#041520'
+const C = '#5eead4'
+const CD = '#2dd4bf'
+const CM = '#94a3b8'
+const CB = '#64748b'
+const BORDER = 'rgba(94,234,212,0.2)'
+const BORDER_H = 'rgba(94,234,212,0.4)'
+const SURFACE = '#0f141b'
+const SURFACE2 = '#1a2129'
 
 interface AppForm {
   name: string
@@ -71,7 +71,7 @@ function TagInput({ label, tags, onChange, placeholder, required }: {
       >
         {tags.map(tag => (
           <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 text-xs shrink-0"
-            style={{ background: 'rgba(0,255,255,0.08)', color: CD, border: `1px solid rgba(0,255,255,0.2)` }}>
+            style={{ background: 'rgba(94,234,212,0.08)', color: CD, border: `1px solid rgba(94,234,212,0.2)` }}>
             <span className="truncate max-w-[220px]">{tag}</span>
             <button type="button"
               onClick={e => { e.stopPropagation(); onChange(tags.filter(t => t !== tag)) }}
@@ -116,7 +116,7 @@ function AppModal({ title, form, setForm, error, onSave, onClose, saving, isEdit
               const n = e.target.value
               setForm(f => ({ ...f, name: n, slug: isEdit ? f.slug : toSlug(n) }))
             }} placeholder="my-application" autoFocus
-              onFocus={e => { e.target.style.borderColor = C; e.target.style.boxShadow = '0 0 0 2px rgba(0,255,255,0.1)' }}
+              onFocus={e => { e.target.style.borderColor = C; e.target.style.boxShadow = '0 0 0 2px rgba(94,234,212,0.1)' }}
               onBlur={e => { e.target.style.borderColor = BORDER; e.target.style.boxShadow = 'none' }}
             />
           </div>
@@ -150,7 +150,7 @@ function AppModal({ title, form, setForm, error, onSave, onClose, saving, isEdit
                     className="flex-1 px-3 py-2 text-left text-xs transition-all"
                     style={{
                       border: `1px solid ${form.isPublicClient === opt.value ? C : BORDER}`,
-                      background: form.isPublicClient === opt.value ? 'rgba(0,255,255,0.08)' : 'transparent',
+                      background: form.isPublicClient === opt.value ? 'rgba(94,234,212,0.08)' : 'transparent',
                       color: form.isPublicClient === opt.value ? C : CM,
                       cursor: 'pointer',
                     }}
@@ -262,7 +262,7 @@ function AppUsersSection({ appId }: { appId: string }) {
     <div className="space-y-1">
       {data.content.map((u: User) => (
         <div key={u.id} className="flex items-center justify-between px-2 py-1.5 text-xs"
-          style={{ background: 'rgba(0,255,255,0.03)', border: `1px solid rgba(0,255,255,0.1)` }}>
+          style={{ background: 'rgba(94,234,212,0.03)', border: `1px solid rgba(94,234,212,0.1)` }}>
           <span style={{ color: CD }}>{u.displayName}</span>
           <span style={{ color: CM }}>{u.ldapUsername}</span>
         </div>
@@ -300,14 +300,14 @@ function AppCard({ app, onEdit, onRemove, onToggleActive }: {
             <span className="text-xs px-2 py-0.5 font-bold" style={{
               color: app.is_public_client ? '#ffaa00' : CD,
               border: `1px solid ${app.is_public_client ? 'rgba(255,170,0,0.3)' : 'rgba(0,179,204,0.3)'}`,
-              background: app.is_public_client ? 'rgba(255,170,0,0.06)' : 'rgba(0,255,255,0.06)',
+              background: app.is_public_client ? 'rgba(255,170,0,0.06)' : 'rgba(94,234,212,0.06)',
             }}>
               {app.is_public_client ? 'public' : 'confidential'}
             </span>
             <span className="text-xs px-2 py-0.5 font-bold" style={{
               color: app.is_active ? C : '#ff3333',
-              border: `1px solid ${app.is_active ? 'rgba(0,255,255,0.3)' : 'rgba(255,51,51,0.3)'}`,
-              background: app.is_active ? 'rgba(0,255,255,0.06)' : 'rgba(255,51,51,0.06)',
+              border: `1px solid ${app.is_active ? 'rgba(94,234,212,0.3)' : 'rgba(255,51,51,0.3)'}`,
+              background: app.is_active ? 'rgba(94,234,212,0.06)' : 'rgba(255,51,51,0.06)',
             }}>
               {app.is_active ? 'active' : 'inactive'}
             </span>
@@ -317,7 +317,7 @@ function AppCard({ app, onEdit, onRemove, onToggleActive }: {
         <div className="space-y-1.5 mb-4">
           <div className="flex items-center gap-2">
             <span className="text-xs w-20 shrink-0" style={{ color: CB }}>client_id</span>
-            <code className="text-xs flex-1 truncate px-2 py-1" style={{ color: CD, background: 'rgba(0,255,255,0.04)', border: `1px solid ${BORDER}` }}>{app.client_id}</code>
+            <code className="text-xs flex-1 truncate px-2 py-1" style={{ color: CD, background: 'rgba(94,234,212,0.04)', border: `1px solid ${BORDER}` }}>{app.client_id}</code>
             <CopyButton text={app.client_id} />
           </div>
           {app.client_secret && (
@@ -339,7 +339,7 @@ function AppCard({ app, onEdit, onRemove, onToggleActive }: {
           <div className="flex flex-wrap gap-1.5 mb-3">
             {app.redirect_uris.map(uri => (
               <span key={uri} className="text-xs px-2 py-0.5 truncate max-w-[200px]"
-                style={{ color: CM, border: `1px solid ${BORDER}`, background: 'rgba(0,255,255,0.03)' }}>{uri}</span>
+                style={{ color: CM, border: `1px solid ${BORDER}`, background: 'rgba(94,234,212,0.03)' }}>{uri}</span>
             ))}
           </div>
         )}
@@ -518,7 +518,7 @@ export default function ApplicationsPage() {
 
       {newSecret && (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0,0,0,0.9)' }}>
-          <div className="w-full max-w-md p-8 border" style={{ background: '#000', borderColor: C, boxShadow: `0 0 40px rgba(0,255,255,0.15)` }}>
+          <div className="w-full max-w-md p-8 border" style={{ background: '#000', borderColor: C, boxShadow: `0 0 40px rgba(94,234,212,0.15)` }}>
             <div className="mb-5">
               <div className="text-xs tracking-widest uppercase mb-1" style={{ color: CB }}>application created</div>
               <div className="font-bold tracking-wider" style={{ color: C }}>save credentials now</div>

@@ -33,7 +33,7 @@ export function ConfirmModal({
         </div>
 
         <div className="p-6">
-          <p className="text-sm mb-4 leading-relaxed" style={{ color: '#009bb5' }}>{message}</p>
+          <p className="text-sm mb-4 leading-relaxed" style={{ color: '#94a3b8' }}>{message}</p>
 
           {itemName && (
             <div className="mb-4 px-3 py-2 text-xs break-all" style={{ background: 'rgba(255,51,51,0.06)', border: '1px solid rgba(255,51,51,0.2)', color: '#ff6666', fontFamily: 'inherit' }}>
@@ -48,7 +48,7 @@ export function ConfirmModal({
           <div className="flex gap-3 justify-end">
             <button onClick={onClose}
               className="px-4 py-2 text-xs tracking-wide"
-              style={{ color: '#009bb5', border: '1px solid rgba(0,255,255,0.2)', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ color: '#94a3b8', border: '1px solid rgba(94,234,212,0.2)', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
               cancel
             </button>
             <button onClick={onConfirm} disabled={isPending}

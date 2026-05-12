@@ -54,33 +54,40 @@ interface RecentRef {
    Color palette / fonts
    ====================================================================== */
 
+// "Quanta" design system — refined dark with semantic color, not neon-monoculture.
+// Surfaces are layered warm graphite (not pure black); accents are color-coded by meaning.
 const C = {
-  bg: '#000',
-  surface: '#020d10',
-  surface2: '#041520',
-  surface3: '#06202c',
-  border: 'rgba(0,255,255,0.15)',
-  borderHover: 'rgba(0,255,255,0.35)',
-  borderFaint: 'rgba(0,255,255,0.08)',
-  cyan: '#00ffff',
-  cyanDim: '#00d4e8',
-  text: '#00ffff',
-  textDim: '#009bb5',
-  textMuted: '#006b8a',
-  blue: '#00ccff',
-  ouGold: '#f0b429',
-  containerBlue: '#60a5fa',
-  purple: '#aa88ff',
-  amber: '#ff8800',
-  red: '#ff3333',
-  green: '#00ff88',
-  slate: '#8aa1b0',
+  // Base layers — warm graphite, layered for depth (no pure black, no flat panels)
+  bg:         '#0a0c10',
+  surface:    '#12161e',
+  surface2:   '#1a1f29',
+  surface3:   '#242a36',
+  // Borders — opacity-based off white so they adapt to any background
+  border:       'rgba(255,255,255,0.08)',
+  borderHover:  'rgba(255,255,255,0.18)',
+  borderFaint:  'rgba(255,255,255,0.04)',
+  // Primary accent — soft mint (NOT neon cyan). Reserved for active state, focus, primary action.
+  cyan:     '#5eead4',
+  cyanDim:  '#2dd4bf',
+  // Text hierarchy via lightness, not hue
+  text:       '#e7ebf0',
+  textDim:    '#a3acb9',
+  textMuted:  '#6b7383',
+  // Semantic accents — each entity class gets a distinct, refined hue
+  blue:          '#7dd3fc',  // info / sky
+  ouGold:        '#fbbf24',  // organizational unit — amber/gold
+  containerBlue: '#7dd3fc',  // container — sky
+  purple:        '#c4b5fd',  // group — lavender
+  amber:         '#fb923c',  // warning — peach
+  red:           '#fb7185',  // danger — coral
+  green:         '#34d399',  // success — emerald
+  slate:         '#94a3b8',
 }
 
 const FONT = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
 const ROW_H = 26
 const INDENT = 16
-const LINE_COLOR = 'rgba(0,255,255,0.08)'
+const LINE_COLOR = 'rgba(255,255,255,0.05)'
 const OVERSCAN = 5
 
 const LS_PINNED = 'ldap-pinned'
@@ -505,7 +512,7 @@ function ActivateModal({ node, apps, onClose }: { node: TreeNode; apps: Applicat
         width: '100%', maxWidth: 460,
         border: `1px solid ${C.borderHover}`,
         background: C.surface,
-        boxShadow: '0 0 0 1px rgba(0,255,255,0.08), 0 30px 80px rgba(0,255,255,0.06)',
+        boxShadow: '0 0 0 1px rgba(94,234,212,0.08), 0 30px 80px rgba(94,234,212,0.06)',
         fontFamily: FONT,
       }}>
         <div style={{
@@ -655,7 +662,7 @@ function BulkGrantModal({
       <div style={{
         width: '100%', maxWidth: 540,
         border: `1px solid ${C.borderHover}`, background: C.surface,
-        boxShadow: '0 0 0 1px rgba(0,255,255,0.08), 0 30px 80px rgba(0,255,255,0.06)',
+        boxShadow: '0 0 0 1px rgba(94,234,212,0.08), 0 30px 80px rgba(94,234,212,0.06)',
         fontFamily: FONT,
       }}>
         <div style={{
@@ -803,7 +810,7 @@ function ContextMenu({
         minWidth: 200,
         background: C.surface,
         border: `1px solid ${C.borderHover}`,
-        boxShadow: '0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,255,255,0.08)',
+        boxShadow: '0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(94,234,212,0.08)',
         fontFamily: FONT,
         animation: 'ldapFadeIn 0.1s ease',
       }}
@@ -827,7 +834,7 @@ function ContextMenu({
             borderBottom: i === items.length - 1 ? 'none' : `1px solid ${C.borderFaint}`,
             opacity: it.disabled ? 0.5 : 1,
           }}
-          onMouseEnter={e => { if (!it.disabled) e.currentTarget.style.background = 'rgba(0,255,255,0.06)' }}
+          onMouseEnter={e => { if (!it.disabled) e.currentTarget.style.background = 'rgba(94,234,212,0.06)' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
         >
           <span>{it.label}</span>
@@ -851,7 +858,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
   return (
     <>
       {text.slice(0, idx)}
-      <mark style={{ background: 'rgba(0,255,255,0.25)', color: C.cyan, padding: 0 }}>
+      <mark style={{ background: 'rgba(94,234,212,0.25)', color: C.cyan, padding: 0 }}>
         {text.slice(idx, idx + q.length)}
       </mark>
       {text.slice(idx + q.length)}
@@ -895,7 +902,7 @@ const FlatTreeRow = React.memo(function FlatTreeRow(props: FlatTreeRowProps) {
       }}>
         <div style={{
           height: 10, width: `${40 + (flatNode.depth * 17) % 40}%`,
-          background: 'rgba(0,255,255,0.08)', borderRadius: 2,
+          background: 'rgba(94,234,212,0.08)', borderRadius: 2,
           animation: 'ldapSkeleton 1.2s ease infinite',
         }} />
       </div>
@@ -983,11 +990,11 @@ const FlatTreeRow = React.memo(function FlatTreeRow(props: FlatTreeRowProps) {
         position: 'relative',
         paddingRight: 8,
         background: isSelected
-          ? 'linear-gradient(90deg, rgba(0,255,255,0.10) 0%, rgba(0,255,255,0.03) 100%)'
+          ? 'linear-gradient(90deg, rgba(94,234,212,0.10) 0%, rgba(94,234,212,0.03) 100%)'
           : isMultiSelected
           ? 'rgba(170,136,255,0.10)'
           : isFocused
-          ? 'rgba(0,255,255,0.04)'
+          ? 'rgba(94,234,212,0.04)'
           : 'transparent',
         borderLeft: isSelected ? `2px solid ${C.cyan}`
           : isMultiSelected ? `2px solid ${C.purple}`
@@ -1256,11 +1263,11 @@ function UserDetail({
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 22 }}>
         <div style={{
           width: 64, height: 64, flexShrink: 0,
-          border: `1px solid ${node.is_activated ? 'rgba(0,255,255,0.4)' : C.border}`,
+          border: `1px solid ${node.is_activated ? 'rgba(94,234,212,0.4)' : C.border}`,
           background: `linear-gradient(135deg, ${C.surface2} 0%, ${C.surface} 100%)`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           position: 'relative',
-          boxShadow: node.is_activated ? '0 0 0 1px rgba(0,255,255,0.1), 0 0 24px rgba(0,255,255,0.08)' : 'none',
+          boxShadow: node.is_activated ? '0 0 0 1px rgba(94,234,212,0.1), 0 0 24px rgba(94,234,212,0.08)' : 'none',
         }}>
           <UserIcon activated={node.is_activated} size={32} />
         </div>
@@ -1562,7 +1569,7 @@ function NodeRefRow({
         fontSize: '0.72rem', cursor: 'pointer',
         transition: 'background 0.1s',
       }}
-      onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,255,255,0.04)'}
+      onMouseEnter={e => e.currentTarget.style.background = 'rgba(94,234,212,0.04)'}
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
     >
       <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -1694,6 +1701,210 @@ function Breadcrumb({
 }
 
 /* ======================================================================
+   AttributePicker — custom dropdown to replace the broken native <select>.
+   Renders a styled trigger; on click, a portal-less floating panel
+   appears with a search input and grouped options.
+   ====================================================================== */
+
+interface AttrOption { value: string; label: string; sample?: string }
+
+function AttributePicker({
+  value, onChange, quickOptions, schema,
+}: {
+  value: string
+  onChange: (v: string) => void
+  quickOptions: AttrOption[]
+  schema: Record<string, string> | undefined
+}) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const [activeIdx, setActiveIdx] = useState(0)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
+
+  // Close on outside click / Esc
+  useEffect(() => {
+    if (!open) return
+    const onClick = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onClick)
+    document.addEventListener('keydown', onKey)
+    requestAnimationFrame(() => searchRef.current?.focus())
+    return () => {
+      document.removeEventListener('mousedown', onClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  const HIDDEN_ATTRS = new Set([
+    'name', 'cn', 'uid', 'sAMAccountName', 'mail', 'title',
+    'objectClass', 'objectGUID', 'objectSid', 'uSNCreated', 'uSNChanged',
+    'whenCreated', 'whenChanged', 'dSCorePropagationData', 'distinguishedName',
+  ])
+  const schemaOpts: AttrOption[] = useMemo(() => {
+    if (!schema) return []
+    return Object.entries(schema)
+      .filter(([k]) => !HIDDEN_ATTRS.has(k))
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => ({ value: k, label: k, sample: v === '[binary]' ? undefined : v }))
+  }, [schema])
+
+  const ql = q.trim().toLowerCase()
+  const filterFn = (o: AttrOption) =>
+    !ql || o.label.toLowerCase().includes(ql) || (o.sample?.toLowerCase().includes(ql) ?? false)
+  const quickFiltered = quickOptions.filter(filterFn)
+  const schemaFiltered = schemaOpts.filter(filterFn)
+  const flatList = [...quickFiltered, ...schemaFiltered]
+
+  // Active option helper
+  const selected = quickOptions.concat(schemaOpts).find(o => o.value === value)
+  const triggerLabel = selected?.label ?? value
+
+  useEffect(() => { if (open) setActiveIdx(0) }, [open, ql])
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative', minWidth: 0 }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        title={selected?.sample ? `sample: ${selected.sample}` : selected?.label}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          padding: '4px 8px 4px 9px',
+          background: value !== 'all' ? 'rgba(94,234,212,0.08)' : C.surface2,
+          border: `1px solid ${open ? C.borderHover : value !== 'all' ? 'rgba(94,234,212,0.35)' : C.border}`,
+          color: value !== 'all' ? C.cyan : C.textDim,
+          fontFamily: FONT, fontSize: '0.7rem',
+          cursor: 'pointer', borderRadius: 4,
+          transition: 'all 0.12s ease', maxWidth: 200,
+        }}
+      >
+        <span style={{ fontSize: '0.55rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: C.textMuted }}>attr</span>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{triggerLabel}</span>
+        <svg width="9" height="9" viewBox="0 0 10 10" style={{ flexShrink: 0, transform: open ? 'rotate(180deg)' : '', transition: 'transform 0.15s' }}>
+          <path d="M2 4l3 3 3-3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          style={{
+            position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 250,
+            width: 280, maxHeight: 360,
+            background: C.surface,
+            border: `1px solid ${C.borderHover}`,
+            borderRadius: 6,
+            boxShadow: '0 12px 28px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.04)',
+            display: 'flex', flexDirection: 'column',
+            animation: 'ldapFadeIn 0.12s ease',
+          }}
+        >
+          {/* search */}
+          <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.borderFaint}` }}>
+            <input
+              ref={searchRef}
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && flatList[activeIdx]) {
+                  onChange(flatList[activeIdx].value); setOpen(false)
+                } else if (e.key === 'ArrowDown') {
+                  e.preventDefault(); setActiveIdx(i => Math.min(flatList.length - 1, i + 1))
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault(); setActiveIdx(i => Math.max(0, i - 1))
+                }
+              }}
+              placeholder={`filter ${schemaOpts.length} attributes...`}
+              style={{
+                width: '100%', padding: '5px 8px',
+                background: C.bg, border: `1px solid ${C.borderFaint}`,
+                color: C.text, fontFamily: FONT, fontSize: '0.72rem',
+                outline: 'none', borderRadius: 3,
+              }}
+            />
+          </div>
+
+          {/* list */}
+          <div style={{ overflowY: 'auto', flex: 1 }}>
+            {quickFiltered.length > 0 && (
+              <>
+                <div style={{ padding: '6px 12px 3px', fontSize: '0.55rem', color: C.textMuted, letterSpacing: '0.16em', textTransform: 'uppercase' }}>
+                  Quick
+                </div>
+                {quickFiltered.map((o, i) => (
+                  <AttrRow key={o.value} opt={o} active={value === o.value} hover={activeIdx === i}
+                    onPick={() => { onChange(o.value); setOpen(false) }}
+                    onHover={() => setActiveIdx(i)}
+                  />
+                ))}
+              </>
+            )}
+            {schemaFiltered.length > 0 && (
+              <>
+                <div style={{ padding: '6px 12px 3px', fontSize: '0.55rem', color: C.textMuted, letterSpacing: '0.16em', textTransform: 'uppercase' }}>
+                  Server Schema · {schemaFiltered.length}
+                </div>
+                {schemaFiltered.map((o, i) => (
+                  <AttrRow key={o.value} opt={o} active={value === o.value}
+                    hover={activeIdx === (quickFiltered.length + i)}
+                    onPick={() => { onChange(o.value); setOpen(false) }}
+                    onHover={() => setActiveIdx(quickFiltered.length + i)}
+                  />
+                ))}
+              </>
+            )}
+            {flatList.length === 0 && (
+              <div style={{ padding: '14px 12px', fontSize: '0.7rem', color: C.textMuted, textAlign: 'center' }}>
+                no matches
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AttrRow({ opt, active, hover, onPick, onHover }: {
+  opt: AttrOption; active: boolean; hover: boolean
+  onPick: () => void; onHover: () => void
+}) {
+  return (
+    <div
+      onClick={onPick}
+      onMouseEnter={onHover}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '5px 12px',
+        background: hover ? 'rgba(94,234,212,0.06)' : active ? 'rgba(94,234,212,0.04)' : 'transparent',
+        borderLeft: `2px solid ${active ? C.cyan : 'transparent'}`,
+        cursor: 'pointer', fontSize: '0.72rem',
+        transition: 'background 0.08s',
+      }}
+    >
+      <span style={{
+        color: active ? C.cyan : C.text,
+        fontWeight: active ? 600 : 400,
+        fontFamily: FONT,
+        flexShrink: 0,
+      }}>
+        {opt.label}
+      </span>
+      {opt.sample && (
+        <span style={{
+          color: C.textMuted, fontSize: '0.62rem',
+          marginLeft: 'auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          maxWidth: 130,
+        }}>
+          {opt.sample}
+        </span>
+      )}
+    </div>
+  )
+}
+
+/* ======================================================================
    Server-side LDAP search results
    ====================================================================== */
 
@@ -1763,7 +1974,7 @@ function ServerSearchResults({
               fontSize: '0.72rem', cursor: 'pointer',
               transition: 'background 0.1s',
             }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,255,255,0.04)')}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(94,234,212,0.04)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -2638,121 +2849,133 @@ export default function LdapTreePage() {
           background: C.surface,
           minHeight: 0,
         }}>
-          {/* Search */}
+          {/* Search row — single primary input with clear/scope inside */}
           <div style={{
-            padding: '0.5rem 0.75rem',
+            padding: '10px 10px 8px',
             borderBottom: `1px solid ${C.borderFaint}`,
-            display: 'flex', alignItems: 'center', gap: 8,
-            background: C.surface2,
-          }}>
-            <span style={{ color: C.textMuted, display: 'flex' }}><SearchIcon size={12} /></span>
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={state.searchQuery}
-              onChange={e => dispatch({ type: 'SET_SEARCH', query: e.target.value })}
-              placeholder="filter — / to focus"
-              style={{
-                flex: 1, minWidth: 0,
-                background: 'transparent', border: 'none',
-                color: C.cyan, fontSize: '0.75rem',
-                fontFamily: FONT, outline: 'none',
-              }}
-            />
-            {state.searchQuery && (
-              <button onClick={() => dispatch({ type: 'SET_SEARCH', query: '' })} style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                color: C.textMuted, fontSize: '0.75rem', padding: 0,
-              }}>×</button>
-            )}
-          </div>
-
-          {/* Filter bar */}
-          <div style={{
-            padding: '0.375rem 0.75rem',
-            borderBottom: `1px solid ${C.border}`,
             background: C.surface,
-            display: 'flex', flexDirection: 'column', gap: 5,
-            flexShrink: 0,
+            display: 'flex', flexDirection: 'column', gap: 8,
           }}>
-            {/* Type chips */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ fontSize: '0.56rem', color: C.textMuted, letterSpacing: '0.12em', textTransform: 'uppercase', minWidth: 28 }}>type</span>
-              {([
-                { v: 'all', label: 'all', color: C.textDim },
-                { v: 'ou', label: 'OU', color: C.ouGold },
-                { v: 'user', label: 'user', color: C.cyan },
-                { v: 'group', label: 'group', color: C.purple },
-              ] as const).map(({ v, label, color }) => {
-                const active = filterType === v
-                return (
-                  <button key={v} onClick={() => { setFilterType(v); if (v !== 'user' && v !== 'all') setFilterActivated('all') }} style={{
-                    padding: '1px 7px', fontSize: '0.62rem',
-                    background: active ? `rgba(${v === 'ou' ? '240,180,41' : v === 'group' ? '170,136,255' : v === 'user' ? '0,255,255' : '0,155,181'},0.12)` : 'transparent',
-                    border: `1px solid ${active ? color : C.borderFaint}`,
-                    color: active ? color : C.textMuted,
-                    fontFamily: FONT, cursor: 'pointer', letterSpacing: '0.04em',
-                    transition: 'all 0.1s',
-                  }}>
-                    {label}
-                  </button>
-                )
-              })}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '7px 10px',
+              background: C.bg,
+              border: `1px solid ${state.searchQuery ? 'rgba(94,234,212,0.35)' : C.border}`,
+              borderRadius: 6,
+              transition: 'border-color 0.15s',
+            }}>
+              <span style={{ color: C.textMuted, display: 'flex' }}><SearchIcon size={13} /></span>
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={state.searchQuery}
+                onChange={e => dispatch({ type: 'SET_SEARCH', query: e.target.value })}
+                placeholder={searchScope === 'server' ? 'Search directory (LDAP)…' : 'Filter visible…'}
+                style={{
+                  flex: 1, minWidth: 0,
+                  background: 'transparent', border: 'none',
+                  color: C.text, fontSize: '0.78rem',
+                  fontFamily: FONT, outline: 'none',
+                }}
+              />
+              {state.searchQuery && (
+                <button onClick={() => dispatch({ type: 'SET_SEARCH', query: '' })} style={{
+                  background: 'rgba(255,255,255,0.06)', border: 'none', cursor: 'pointer',
+                  color: C.textDim, fontSize: '0.8rem', padding: '2px 7px',
+                  borderRadius: 3, lineHeight: 1,
+                }}>×</button>
+              )}
+              <kbd style={{
+                fontSize: '0.58rem', fontFamily: FONT,
+                padding: '1px 5px', color: C.textMuted,
+                background: 'rgba(255,255,255,0.04)',
+                border: `1px solid ${C.borderFaint}`, borderRadius: 3,
+              }}>/</kbd>
             </div>
 
-            {/* Attribute + activation row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.56rem', color: C.textMuted, letterSpacing: '0.12em', textTransform: 'uppercase', minWidth: 28 }}>attr</span>
-              <select
-                value={searchAttr}
-                onChange={e => setSearchAttr(e.target.value)}
-                title={searchAttr !== 'all' && serverAttrs?.[searchAttr] ? `sample: ${serverAttrs[searchAttr]}` : 'search target attribute'}
-                style={{
-                  background: C.surface2, border: `1px solid ${searchAttr !== 'all' ? C.cyanDim : C.borderFaint}`,
-                  color: searchAttr !== 'all' ? C.cyanDim : C.textMuted,
-                  fontFamily: FONT, fontSize: '0.62rem', padding: '1px 4px',
-                  outline: 'none', cursor: 'pointer', maxWidth: 160,
-                }}
-              >
-                <option value="all">all attrs</option>
-                <optgroup label="quick">
-                  <option value="name">name / cn</option>
-                  <option value="username">uid / sAMAccountName</option>
-                  <option value="email">mail</option>
-                  <option value="title">title</option>
-                </optgroup>
-                {serverAttrs && Object.keys(serverAttrs).length > 0 && (
-                  <optgroup label={`server schema (${Object.keys(serverAttrs).length})`}>
-                    {Object.entries(serverAttrs)
-                      .filter(([k]) => !['name', 'cn', 'uid', 'sAMAccountName', 'mail', 'title', 'objectClass', 'objectGUID', 'objectSid', 'uSNCreated', 'uSNChanged', 'whenCreated', 'whenChanged'].includes(k))
-                      .sort(([a], [b]) => a.localeCompare(b))
-                      .map(([attr, sample]) => (
-                        <option key={attr} value={attr}>
-                          {attr}{sample && sample !== '[binary]' ? ` — ${String(sample).slice(0, 24)}` : ''}
-                        </option>
-                      ))}
-                  </optgroup>
-                )}
-              </select>
+            {/* Row 1: scope segmented control + attribute picker */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{
+                display: 'flex', padding: 2,
+                background: C.surface2, border: `1px solid ${C.border}`,
+                borderRadius: 5,
+              }}>
+                {([
+                  { v: 'tree', label: 'Tree', hint: 'filter loaded nodes' },
+                  { v: 'server', label: 'LDAP', hint: 'query the directory server' },
+                ] as const).map(({ v, label, hint }) => {
+                  const active = searchScope === v
+                  return (
+                    <button key={v} onClick={() => setSearchScope(v)} title={hint} style={{
+                      padding: '3px 12px', fontSize: '0.7rem',
+                      background: active ? (v === 'server' ? 'rgba(251,146,60,0.16)' : 'rgba(94,234,212,0.12)') : 'transparent',
+                      border: 'none',
+                      color: active ? (v === 'server' ? C.amber : C.cyan) : C.textMuted,
+                      fontFamily: FONT, cursor: 'pointer', letterSpacing: '0.02em',
+                      fontWeight: active ? 600 : 400,
+                      borderRadius: 3,
+                      transition: 'all 0.12s',
+                    }}>
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
 
-              {/* Scope toggle: tree (client filter) vs server (LDAP query) */}
-              <span style={{ color: C.borderFaint, margin: '0 1px' }}>│</span>
-              <span style={{ fontSize: '0.56rem', color: C.textMuted, letterSpacing: '0.12em', textTransform: 'uppercase', minWidth: 30 }}>scope</span>
+              <AttributePicker
+                value={searchAttr}
+                onChange={setSearchAttr}
+                quickOptions={[
+                  { value: 'all', label: 'all attributes' },
+                  { value: 'name', label: 'name (cn)' },
+                  { value: 'username', label: 'username (uid)' },
+                  { value: 'email', label: 'email (mail)' },
+                  { value: 'title', label: 'title' },
+                ]}
+                schema={serverAttrs}
+              />
+
+              {(filterType !== 'all' || filterActivated !== 'all' || searchAttr !== 'all' || searchScope !== 'tree') && (
+                <button
+                  onClick={() => { setFilterType('all'); setFilterActivated('all'); setSearchAttr('all'); setSearchScope('tree') }}
+                  title="Reset all filters"
+                  style={{
+                    marginLeft: 'auto', padding: '3px 8px', fontSize: '0.65rem',
+                    background: 'transparent', border: `1px solid ${C.borderFaint}`,
+                    color: C.textMuted, fontFamily: FONT, cursor: 'pointer',
+                    borderRadius: 4,
+                  }}
+                >
+                  reset
+                </button>
+              )}
+            </div>
+
+            {/* Row 2: type pills + (conditional) status pills */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
               {([
-                { v: 'tree', label: 'tree', hint: 'filter loaded nodes only' },
-                { v: 'server', label: 'LDAP', hint: 'query the directory server' },
-              ] as const).map(({ v, label, hint }) => {
-                const active = searchScope === v
-                const c = v === 'server' ? C.amber : C.cyanDim
+                { v: 'all', label: 'All', color: C.textDim },
+                { v: 'ou', label: 'OUs', color: C.ouGold },
+                { v: 'user', label: 'Users', color: C.cyan },
+                { v: 'group', label: 'Groups', color: C.purple },
+              ] as const).map(({ v, label, color }) => {
+                const active = filterType === v
+                const rgba = v === 'ou' ? '251,191,36' : v === 'group' ? '196,181,253' : v === 'user' ? '94,234,212' : '255,255,255'
                 return (
-                  <button key={v} onClick={() => setSearchScope(v)} title={hint} style={{
-                    padding: '1px 7px', fontSize: '0.62rem',
-                    background: active ? `rgba(${v === 'server' ? '255,136,0' : '0,212,232'},0.12)` : 'transparent',
-                    border: `1px solid ${active ? c : C.borderFaint}`,
-                    color: active ? c : C.textMuted,
-                    fontFamily: FONT, cursor: 'pointer', letterSpacing: '0.04em',
-                    transition: 'all 0.1s',
-                  }}>
+                  <button
+                    key={v}
+                    onClick={() => { setFilterType(v); if (v !== 'user' && v !== 'all') setFilterActivated('all') }}
+                    style={{
+                      padding: '3px 10px', fontSize: '0.68rem',
+                      background: active ? `rgba(${rgba},0.12)` : 'transparent',
+                      border: `1px solid ${active ? color : C.borderFaint}`,
+                      color: active ? color : C.textDim,
+                      fontFamily: FONT, cursor: 'pointer',
+                      fontWeight: active ? 600 : 400,
+                      borderRadius: 999,
+                      transition: 'all 0.1s',
+                    }}
+                  >
                     {label}
                   </button>
                 )
@@ -2760,22 +2983,22 @@ export default function LdapTreePage() {
 
               {(filterType === 'user' || filterType === 'all') && searchScope === 'tree' && (
                 <>
-                  <span style={{ color: C.borderFaint, margin: '0 1px' }}>│</span>
-                  <span style={{ fontSize: '0.56rem', color: C.textMuted, letterSpacing: '0.12em', textTransform: 'uppercase', minWidth: 30 }}>status</span>
+                  <span style={{ width: 1, height: 14, background: C.borderFaint, margin: '0 4px' }} />
                   {([
-                    { v: 'all', label: 'all' },
-                    { v: 'active', label: '● active' },
-                    { v: 'inactive', label: '○ inactive' },
-                  ] as const).map(({ v, label }) => {
+                    { v: 'all', label: 'any state', color: C.textDim, rgba: '255,255,255' },
+                    { v: 'active', label: '● active', color: C.green, rgba: '52,211,153' },
+                    { v: 'inactive', label: '○ inactive', color: C.textMuted, rgba: '107,115,131' },
+                  ] as const).map(({ v, label, color, rgba }) => {
                     const active = filterActivated === v
-                    const c = v === 'active' ? C.green : v === 'inactive' ? C.textMuted : C.textDim
                     return (
                       <button key={v} onClick={() => setFilterActivated(v)} style={{
-                        padding: '1px 7px', fontSize: '0.62rem',
-                        background: active ? `rgba(${v === 'active' ? '0,255,136' : '0,0,0'},0.1)` : 'transparent',
-                        border: `1px solid ${active ? c : C.borderFaint}`,
-                        color: active ? c : C.textMuted,
-                        fontFamily: FONT, cursor: 'pointer', letterSpacing: '0.04em',
+                        padding: '3px 10px', fontSize: '0.68rem',
+                        background: active ? `rgba(${rgba},0.12)` : 'transparent',
+                        border: `1px solid ${active ? color : C.borderFaint}`,
+                        color: active ? color : C.textDim,
+                        fontFamily: FONT, cursor: 'pointer',
+                        fontWeight: active ? 600 : 400,
+                        borderRadius: 999,
                         transition: 'all 0.1s',
                       }}>
                         {label}
@@ -2783,19 +3006,6 @@ export default function LdapTreePage() {
                     )
                   })}
                 </>
-              )}
-
-              {(filterType !== 'all' || filterActivated !== 'all' || searchAttr !== 'all' || searchScope !== 'tree') && (
-                <button
-                  onClick={() => { setFilterType('all'); setFilterActivated('all'); setSearchAttr('all'); setSearchScope('tree') }}
-                  style={{
-                    marginLeft: 'auto', padding: '1px 6px', fontSize: '0.6rem',
-                    background: 'transparent', border: `1px solid ${C.borderFaint}`,
-                    color: C.textMuted, fontFamily: FONT, cursor: 'pointer',
-                  }}
-                >
-                  × clear
-                </button>
               )}
             </div>
           </div>
@@ -2923,10 +3133,10 @@ export default function LdapTreePage() {
             width: 5,
             cursor: 'col-resize',
             zIndex: 10,
-            background: isDragging ? 'rgba(0,255,255,0.3)' : 'transparent',
+            background: isDragging ? 'rgba(94,234,212,0.3)' : 'transparent',
             transition: 'background 0.12s',
           }}
-          onMouseEnter={e => { if (!isDragging) e.currentTarget.style.background = 'rgba(0,255,255,0.12)' }}
+          onMouseEnter={e => { if (!isDragging) e.currentTarget.style.background = 'rgba(94,234,212,0.12)' }}
           onMouseLeave={e => { if (!isDragging) e.currentTarget.style.background = 'transparent' }}
         />
 
@@ -2934,7 +3144,7 @@ export default function LdapTreePage() {
         <div style={{
           flex: 1, minWidth: 0,
           overflowY: 'auto',
-          background: `radial-gradient(ellipse at top right, rgba(0,255,255,0.025) 0%, transparent 60%), ${C.bg}`,
+          background: `radial-gradient(ellipse at top right, rgba(94,234,212,0.025) 0%, transparent 60%), ${C.bg}`,
         }}>
           <div key={state.selection?.node.dn ?? 'none'} style={{ animation: 'ldapSlideIn 0.18s ease' }}>
             {!state.selection ? (

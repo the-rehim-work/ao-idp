@@ -3,8 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi, LdapServerConfig, LdapConfigRequest, TokenSettings, ClaimMapping, SecuritySettings } from '../api/settings'
 import { apiClient } from '../api/client'
 
-const C = '#00ffff', CD = '#00d4e8', CM = '#009bb5', CB = '#006b8a', ERR = '#ff4444'
-const BORDER = 'rgba(0,255,255,0.18)', SURFACE = '#020d10'
+const C = '#5eead4', CD = '#2dd4bf', CM = '#94a3b8', CB = '#64748b', ERR = '#ff4444'
+const BORDER = 'rgba(94,234,212,0.18)', SURFACE = '#0f141b'
 
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '0.5rem 0.75rem', background: '#000',
@@ -69,8 +69,8 @@ function ClaimMappingsEditor({ claims, onChange, availableAttrs }: {
                     onClick={() => addRow(attr, attr)}
                     style={{
                       padding: '0.2rem 0.5rem', fontSize: '0.6rem', cursor: used ? 'default' : 'pointer',
-                      border: `1px solid ${used ? 'rgba(0,255,255,0.1)' : BORDER}`,
-                      background: used ? 'rgba(0,255,255,0.04)' : 'transparent',
+                      border: `1px solid ${used ? 'rgba(94,234,212,0.1)' : BORDER}`,
+                      background: used ? 'rgba(94,234,212,0.04)' : 'transparent',
                       color: used ? CB : CD, fontFamily: 'inherit',
                     }}
                   >
@@ -95,7 +95,7 @@ function ClaimMappingsEditor({ claims, onChange, availableAttrs }: {
           </div>
         )}
         {claims.map((m, idx) => (
-          <div key={idx} style={{ display: 'grid', gridTemplateColumns: '50px 1fr 1fr 1fr 36px', borderBottom: `1px solid rgba(0,255,255,0.06)`, padding: '0.3rem 0.5rem', alignItems: 'center', gap: '0.25rem' }}>
+          <div key={idx} style={{ display: 'grid', gridTemplateColumns: '50px 1fr 1fr 1fr 36px', borderBottom: `1px solid rgba(94,234,212,0.06)`, padding: '0.3rem 0.5rem', alignItems: 'center', gap: '0.25rem' }}>
             <div style={{ display: 'flex', justifyContent: 'center' }}>
               <input type="checkbox" checked={m.enabled} onChange={e => update(idx, 'enabled', e.target.checked)}
                 style={{ accentColor: C, cursor: 'pointer', width: 13, height: 13 }} />
@@ -129,9 +129,9 @@ const emptyLdapForm = (): LdapConfigRequest => ({
 
 function ActiveConnectionPanel({ config }: { config: LdapServerConfig }) {
   return (
-    <div style={{ border: `1px solid ${C}`, background: 'rgba(0,255,255,0.03)', padding: '1rem 1.25rem', boxShadow: '0 0 16px rgba(0,255,255,0.07)' }}>
+    <div style={{ border: `1px solid ${C}`, background: 'rgba(94,234,212,0.03)', padding: '1rem 1.25rem', boxShadow: '0 0 16px rgba(94,234,212,0.07)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-        <div style={{ width: 7, height: 7, borderRadius: '50%', background: C, boxShadow: '0 0 6px rgba(0,255,255,0.8)', flexShrink: 0 }} />
+        <div style={{ width: 7, height: 7, borderRadius: '50%', background: C, boxShadow: '0 0 6px rgba(94,234,212,0.8)', flexShrink: 0 }} />
         <div style={{ fontSize: '0.75rem', fontWeight: 700, color: C, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
           Active Connection — {config.name}
         </div>
@@ -275,7 +275,7 @@ function LdapSection() {
       )}
 
       {configs.map(c => (
-        <div key={c.id} style={{ border: `1px solid ${c.active ? C : BORDER}`, background: SURFACE, padding: '0.875rem 1.25rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: c.active ? '0 0 12px rgba(0,255,255,0.08)' : 'none', opacity: c.active ? 1 : 0.7 }}>
+        <div key={c.id} style={{ border: `1px solid ${c.active ? C : BORDER}`, background: SURFACE, padding: '0.875rem 1.25rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: c.active ? '0 0 12px rgba(94,234,212,0.08)' : 'none', opacity: c.active ? 1 : 0.7 }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.2rem' }}>
               <span style={{ fontSize: '0.875rem', fontWeight: 700, color: c.active ? C : CD }}>{c.name}</span>
@@ -328,7 +328,7 @@ function LdapSection() {
           </div>
 
           {testResult && (
-            <div style={{ padding: '0.5rem 0.75rem', border: `1px solid ${testResult.success ? 'rgba(0,255,255,0.3)' : 'rgba(255,68,68,0.3)'}`, color: testResult.success ? C : ERR, fontSize: '0.75rem', marginBottom: '1rem' }}>
+            <div style={{ padding: '0.5rem 0.75rem', border: `1px solid ${testResult.success ? 'rgba(94,234,212,0.3)' : 'rgba(255,68,68,0.3)'}`, color: testResult.success ? C : ERR, fontSize: '0.75rem', marginBottom: '1rem' }}>
               {testResult.success ? '✓' : '✗'} {testResult.message}
             </div>
           )}
@@ -364,7 +364,7 @@ function TokenSection() {
   return (
     <div>
       <SectionTitle>Token Expiry</SectionTitle>
-      {saved && <div style={{ color: C, fontSize: '0.75rem', marginBottom: '1rem', padding: '0.5rem 0.75rem', border: '1px solid rgba(0,255,255,0.3)' }}>Saved.</div>}
+      {saved && <div style={{ color: C, fontSize: '0.75rem', marginBottom: '1rem', padding: '0.5rem 0.75rem', border: '1px solid rgba(94,234,212,0.3)' }}>Saved.</div>}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
         {([
           { label: 'Access Token (minutes)', key: 'accessTokenExpiryMinutes', min: 1, max: 1440 },
@@ -421,13 +421,13 @@ function LdapClaimsEditor({ config }: { config: LdapServerConfig }) {
   return (
     <div style={{ border: `1px solid ${config.active ? C : BORDER}`, background: SURFACE, padding: '1.25rem', marginBottom: '1rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-        <div style={{ width: 6, height: 6, borderRadius: '50%', background: config.active ? C : CB, boxShadow: config.active ? '0 0 5px rgba(0,255,255,0.8)' : 'none', flexShrink: 0 }} />
+        <div style={{ width: 6, height: 6, borderRadius: '50%', background: config.active ? C : CB, boxShadow: config.active ? '0 0 5px rgba(94,234,212,0.8)' : 'none', flexShrink: 0 }} />
         <span style={{ fontSize: '0.8rem', fontWeight: 700, color: config.active ? C : CD }}>{config.name}</span>
         {config.active && <span style={{ fontSize: '0.5rem', padding: '0.1rem 0.4rem', border: `1px solid ${C}`, color: C, letterSpacing: '0.1em', textTransform: 'uppercase' }}>active</span>}
         <span style={{ fontSize: '0.65rem', color: CB, marginLeft: 'auto' }}>{config.url} · {config.baseDn}</span>
       </div>
 
-      {saved && <div style={{ color: C, fontSize: '0.7rem', marginBottom: '0.75rem', padding: '0.4rem 0.6rem', border: '1px solid rgba(0,255,255,0.3)' }}>Saved.</div>}
+      {saved && <div style={{ color: C, fontSize: '0.7rem', marginBottom: '0.75rem', padding: '0.4rem 0.6rem', border: '1px solid rgba(94,234,212,0.3)' }}>Saved.</div>}
       {saveError && <div style={{ color: ERR, fontSize: '0.7rem', marginBottom: '0.75rem', padding: '0.4rem 0.6rem', border: '1px solid rgba(255,68,68,0.3)' }}>[ERR] {saveError}</div>}
 
       <ClaimMappingsEditor
@@ -450,7 +450,7 @@ function ClaimsSection() {
 
   return (
     <div>
-      <div style={{ fontSize: '0.65rem', color: CB, marginBottom: '1.25rem', padding: '0.5rem 0.75rem', border: `1px solid rgba(0,153,181,0.25)`, background: 'rgba(0,153,181,0.04)' }}>
+      <div style={{ fontSize: '0.65rem', color: CB, marginBottom: '1.25rem', padding: '0.5rem 0.75rem', border: `1px solid rgba(148,163,184,0.25)`, background: 'rgba(148,163,184,0.04)' }}>
         JWT claim mappings are configured per LDAP server. Each server can expose different attributes as JWT claims.
         <strong style={{ color: CM }}> sub</strong> (user UUID) is always included.
       </div>
@@ -494,7 +494,7 @@ function LdapAttributeRow({ config }: { config: LdapServerConfig }) {
   return (
     <div style={{ border: `1px solid ${config.active ? C : BORDER}`, background: SURFACE, padding: '0.875rem 1rem', marginBottom: '0.5rem', opacity: config.active ? 1 : 0.65 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.75rem' }}>
-        <div style={{ width: 6, height: 6, borderRadius: '50%', background: config.active ? C : CB, boxShadow: config.active ? '0 0 5px rgba(0,255,255,0.8)' : 'none', flexShrink: 0 }} />
+        <div style={{ width: 6, height: 6, borderRadius: '50%', background: config.active ? C : CB, boxShadow: config.active ? '0 0 5px rgba(94,234,212,0.8)' : 'none', flexShrink: 0 }} />
         <span style={{ fontSize: '0.75rem', fontWeight: 700, color: config.active ? C : CD }}>{config.name}</span>
         {config.active && <span style={{ fontSize: '0.5rem', padding: '0.1rem 0.35rem', border: `1px solid ${C}`, color: C, letterSpacing: '0.1em', textTransform: 'uppercase' }}>active</span>}
         <span style={{ fontSize: '0.6rem', color: CB, marginLeft: 'auto' }}>{config.url}</span>
@@ -538,7 +538,7 @@ function LoginSection() {
   return (
     <div>
       <SectionTitle>Login Page Settings</SectionTitle>
-      {saved && <div style={{ color: C, fontSize: '0.75rem', marginBottom: '1rem', padding: '0.5rem 0.75rem', border: '1px solid rgba(0,255,255,0.3)' }}>Saved.</div>}
+      {saved && <div style={{ color: C, fontSize: '0.75rem', marginBottom: '1rem', padding: '0.5rem 0.75rem', border: '1px solid rgba(94,234,212,0.3)' }}>Saved.</div>}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
         <div style={{ background: SURFACE, border: `1px solid ${ldapActive ? BORDER : 'rgba(255,255,255,0.06)'}`, padding: '1rem', opacity: ldapActive ? 1 : 0.5 }}>
@@ -596,7 +596,7 @@ function LoginSection() {
       </div>
 
       <div style={{ fontSize: '0.625rem', color: CB, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '0.75rem' }}>LDAP Login Attributes — per server</div>
-      <div style={{ fontSize: '0.65rem', color: CB, marginBottom: '1rem', padding: '0.5rem 0.75rem', border: `1px solid rgba(0,153,181,0.25)`, background: 'rgba(0,153,181,0.04)' }}>
+      <div style={{ fontSize: '0.65rem', color: CB, marginBottom: '1rem', padding: '0.5rem 0.75rem', border: `1px solid rgba(148,163,184,0.25)`, background: 'rgba(148,163,184,0.04)' }}>
         Configure which LDAP attribute is used as the username and email for login, per server. Different directories can use different attribute names.
       </div>
       {ldapConfigs.length === 0 ? (
@@ -639,15 +639,15 @@ function SecuritySection() {
     <div onClick={onClick} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.45rem 0' }}>
       <div style={{
         width: 28, height: 16, borderRadius: 8, position: 'relative',
-        background: value ? 'rgba(0,255,255,0.25)' : 'rgba(0,255,255,0.05)',
-        border: `1px solid ${value ? C : 'rgba(0,255,255,0.2)'}`,
+        background: value ? 'rgba(94,234,212,0.25)' : 'rgba(94,234,212,0.05)',
+        border: `1px solid ${value ? C : 'rgba(94,234,212,0.2)'}`,
         transition: 'all 0.15s',
       }}>
         <div style={{
           width: 10, height: 10, borderRadius: 5, position: 'absolute',
           top: 2, left: value ? 14 : 2,
           background: value ? C : CB,
-          boxShadow: value ? '0 0 6px rgba(0,255,255,0.8)' : 'none',
+          boxShadow: value ? '0 0 6px rgba(94,234,212,0.8)' : 'none',
           transition: 'left 0.15s',
         }} />
       </div>
@@ -670,12 +670,12 @@ function SecuritySection() {
   return (
     <div>
       <SectionTitle>Security & Hardening</SectionTitle>
-      <div style={{ fontSize: '0.7rem', color: CB, marginBottom: '1rem', padding: '0.6rem 0.85rem', border: `1px solid rgba(0,153,181,0.25)`, background: 'rgba(0,153,181,0.04)' }}>
+      <div style={{ fontSize: '0.7rem', color: CB, marginBottom: '1rem', padding: '0.6rem 0.85rem', border: `1px solid rgba(148,163,184,0.25)`, background: 'rgba(148,163,184,0.04)' }}>
         Most settings are persisted but enforcement points are documented inline. Lockout & PKCE are the most impactful — wire them in
         <span style={{ color: CM }}> AdminAuthController/OidcController</span> by calling <code style={{ color: CD }}>settingsService.getSecuritySettings()</code>.
       </div>
 
-      {saved && <div style={{ color: C, fontSize: '0.75rem', marginBottom: '0.75rem', padding: '0.4rem 0.75rem', border: '1px solid rgba(0,255,255,0.3)' }}>Saved.</div>}
+      {saved && <div style={{ color: C, fontSize: '0.75rem', marginBottom: '0.75rem', padding: '0.4rem 0.75rem', border: '1px solid rgba(94,234,212,0.3)' }}>Saved.</div>}
       {err && <div style={{ color: ERR, fontSize: '0.75rem', marginBottom: '0.75rem', padding: '0.4rem 0.75rem', border: '1px solid rgba(255,68,68,0.3)' }}>[ERR] {err}</div>}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
@@ -757,7 +757,7 @@ export default function SettingsPage() {
     <div>
       <div style={{ marginBottom: '2rem' }}>
         <div style={{ fontSize: '0.625rem', color: CB, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '0.25rem' }}>AO IDP</div>
-        <h1 style={{ fontSize: '1.125rem', fontWeight: 700, color: C, letterSpacing: '0.08em', textTransform: 'uppercase', textShadow: '0 0 8px rgba(0,255,255,0.5)' }}>Settings</h1>
+        <h1 style={{ fontSize: '1.125rem', fontWeight: 700, color: C, letterSpacing: '0.08em', textTransform: 'uppercase', textShadow: '0 0 8px rgba(94,234,212,0.5)' }}>Settings</h1>
       </div>
 
       <div style={{ display: 'flex', borderBottom: `1px solid ${BORDER}`, marginBottom: '2rem' }}>
