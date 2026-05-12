@@ -16,68 +16,185 @@ type AuditEntry = {
   ip_address: string; created_at: string; details: Record<string, unknown>
 }
 
+const LEVEL_BG: Record<string, string> = {
+  ERROR: 'rgba(255,68,68,0.07)',
+  WARN: 'rgba(255,170,0,0.06)',
+}
+
 function AppLogsTab() {
   const [search, setSearch] = useState('')
   const [level, setLevel] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [autoRefresh, setAutoRefresh] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const prevCountRef = useRef(0)
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300)
     return () => clearTimeout(t)
   }, [search])
 
-  const { data, refetch } = useQuery({
+  const { data, refetch, dataUpdatedAt } = useQuery({
     queryKey: ['app-logs', debouncedSearch, level],
     queryFn: () => apiClient.get<AppLogEntry[]>(`/logs/app?limit=500${debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : ''}${level ? `&level=${level}` : ''}`).then(r => r.data),
-    refetchInterval: autoRefresh ? 3000 : false,
+    refetchInterval: autoRefresh ? 1000 : false,
   })
 
   const logs = data ?? []
 
+  // scroll to bottom on first live enable
+  useEffect(() => {
+    if (autoRefresh) bottomRef.current?.scrollIntoView({ behavior: 'instant' as ScrollBehavior })
+  }, [autoRefresh])
+
+  // scroll to bottom when new entries arrive while live
+  useEffect(() => {
+    if (!autoRefresh) { prevCountRef.current = logs.length; return }
+    const el = containerRef.current
+    if (!el) return
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120
+    if (logs.length > prevCountRef.current || nearBottom) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+    prevCountRef.current = logs.length
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataUpdatedAt, autoRefresh])
+
+  const [tick, setTick] = useState(true)
+  useEffect(() => {
+    if (!autoRefresh) return
+    const t = setInterval(() => setTick(v => !v), 800)
+    return () => clearInterval(t)
+  }, [autoRefresh])
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%' }}>
-      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="search logs..."
-          style={{ flex: 1, minWidth: 200, padding: '0.5rem 0.75rem', background: '#020d10', border: '1px solid rgba(0,255,255,0.2)', color: '#00ffff', fontFamily: 'inherit', fontSize: '0.8rem', outline: 'none' }}
-        />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', height: '100%' }}>
+      {/* toolbar */}
+      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', flexShrink: 0 }}>
+        <div style={{ flex: 1, minWidth: 180, display: 'flex', alignItems: 'center', gap: 6, padding: '0.45rem 0.75rem', background: '#020d10', border: '1px solid rgba(0,255,255,0.18)' }}>
+          <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="#006b8a" strokeWidth="1.8" style={{ flexShrink: 0 }}>
+            <circle cx="9" cy="9" r="5"/><line x1="13" y1="13" x2="17" y2="17" strokeLinecap="round"/>
+          </svg>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="search message, logger..."
+            style={{ flex: 1, background: 'transparent', border: 'none', color: '#00ffff', fontFamily: 'inherit', fontSize: '0.78rem', outline: 'none' }}
+          />
+          {search && (
+            <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', color: '#006b8a', cursor: 'pointer', fontSize: '0.85rem', padding: 0, lineHeight: 1 }}>×</button>
+          )}
+        </div>
+
         <select
           value={level}
           onChange={e => setLevel(e.target.value)}
-          style={{ padding: '0.5rem 0.75rem', background: '#020d10', border: '1px solid rgba(0,255,255,0.2)', color: '#00ffff', fontFamily: 'inherit', fontSize: '0.8rem', outline: 'none' }}
+          style={{ padding: '0.45rem 0.65rem', background: '#020d10', border: '1px solid rgba(0,255,255,0.18)', color: level ? (LEVEL_COLORS[level] ?? '#00ffff') : '#009bb5', fontFamily: 'inherit', fontSize: '0.75rem', outline: 'none', cursor: 'pointer' }}
         >
           <option value="">all levels</option>
           <option value="ERROR">ERROR</option>
           <option value="WARN">WARN</option>
           <option value="INFO">INFO</option>
+          <option value="DEBUG">DEBUG</option>
         </select>
+
+        {!autoRefresh && (
+          <button
+            onClick={() => refetch()}
+            style={{ padding: '0.45rem 0.9rem', background: 'transparent', border: '1px solid rgba(0,255,255,0.2)', color: '#009bb5', fontFamily: 'inherit', fontSize: '0.72rem', cursor: 'pointer', letterSpacing: '0.06em' }}
+          >
+            ↻ refresh
+          </button>
+        )}
+
         <button
-          onClick={() => refetch()}
-          style={{ padding: '0.5rem 1rem', background: 'transparent', border: '1px solid rgba(0,255,255,0.3)', color: '#00ffff', fontFamily: 'inherit', fontSize: '0.75rem', cursor: 'pointer' }}
+          onClick={() => setAutoRefresh(v => !v)}
+          style={{
+            padding: '0.45rem 0.9rem',
+            background: autoRefresh ? 'rgba(0,255,255,0.1)' : 'transparent',
+            border: `1px solid ${autoRefresh ? 'rgba(0,255,255,0.5)' : 'rgba(0,255,255,0.2)'}`,
+            color: autoRefresh ? '#00ffff' : '#006b8a',
+            fontFamily: 'inherit', fontSize: '0.72rem', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 6,
+            letterSpacing: '0.06em', fontWeight: autoRefresh ? 700 : 400,
+            transition: 'all 0.15s',
+          }}
         >
-          refresh
+          <span style={{
+            width: 6, height: 6, borderRadius: '50%',
+            background: autoRefresh ? '#00ffff' : '#006b8a',
+            boxShadow: autoRefresh ? '0 0 8px #00ffff' : 'none',
+            opacity: autoRefresh ? (tick ? 1 : 0.3) : 1,
+            transition: 'opacity 0.2s',
+          }} />
+          {autoRefresh ? 'live' : 'live'}
         </button>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: autoRefresh ? '#00ffff' : '#006b8a', cursor: 'pointer' }}>
-          <input type="checkbox" checked={autoRefresh} onChange={e => setAutoRefresh(e.target.checked)} style={{ accentColor: '#00ffff' }} />
-          auto-refresh (3s)
-        </label>
-        <span style={{ fontSize: '0.7rem', color: '#006b8a' }}>{logs.length} entries</span>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0.45rem 0.75rem', background: '#020d10', border: '1px solid rgba(0,255,255,0.08)', fontSize: '0.7rem', color: '#006b8a' }}>
+          <span style={{ color: '#009bb5', fontWeight: 700 }}>{logs.length}</span> entries
+        </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', fontFamily: '"Courier New", monospace', fontSize: '0.78rem', background: '#020d10', border: '1px solid rgba(0,255,255,0.12)', padding: '0.75rem' }}>
+      {/* log level filter chips */}
+      <div style={{ display: 'flex', gap: 4, flexShrink: 0, flexWrap: 'wrap' }}>
+        {Object.entries(LEVEL_COLORS).map(([lvl, color]) => {
+          const count = logs.filter(l => l.level === lvl).length
+          if (count === 0) return null
+          return (
+            <button
+              key={lvl}
+              onClick={() => setLevel(l => l === lvl ? '' : lvl)}
+              style={{
+                padding: '2px 8px', fontSize: '0.65rem', fontWeight: 700,
+                background: level === lvl ? `rgba(${lvl === 'ERROR' ? '255,68,68' : lvl === 'WARN' ? '255,170,0' : '0,255,255'},0.12)` : 'transparent',
+                border: `1px solid ${level === lvl ? color : 'rgba(0,255,255,0.1)'}`,
+                color: level === lvl ? color : '#006b8a',
+                fontFamily: 'inherit', cursor: 'pointer', letterSpacing: '0.06em',
+              }}
+            >
+              {lvl} <span style={{ opacity: 0.7 }}>{count}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* log stream */}
+      <div
+        ref={containerRef}
+        style={{
+          flex: 1, overflowY: 'auto',
+          fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+          fontSize: '0.76rem',
+          background: '#020d10',
+          border: `1px solid ${autoRefresh ? 'rgba(0,255,255,0.2)' : 'rgba(0,255,255,0.1)'}`,
+          transition: 'border-color 0.3s',
+        }}
+      >
         {logs.length === 0 ? (
-          <div style={{ color: '#006b8a', padding: '2rem', textAlign: 'center' }}>no log entries</div>
+          <div style={{ color: '#006b8a', padding: '3rem', textAlign: 'center', fontSize: '0.8rem' }}>
+            {autoRefresh ? 'waiting for log entries...' : 'no log entries'}
+          </div>
         ) : (
           logs.map((entry, i) => (
-            <div key={i} style={{ display: 'flex', gap: '0.75rem', padding: '0.15rem 0', borderBottom: '1px solid rgba(0,255,255,0.04)', lineHeight: 1.5 }}>
-              <span style={{ color: '#006b8a', flexShrink: 0, minWidth: 140 }}>{entry.timestamp}</span>
-              <span style={{ color: LEVEL_COLORS[entry.level] ?? '#009bb5', flexShrink: 0, minWidth: 48, fontWeight: 700 }}>{entry.level}</span>
-              <span style={{ color: '#009bb5', flexShrink: 0, minWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.logger}</span>
-              <span style={{ color: '#00d4e8', wordBreak: 'break-all' }}>{entry.message}</span>
+            <div
+              key={i}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '155px 50px 160px 1fr',
+                gap: '0 0.6rem',
+                padding: '0.18rem 0.75rem',
+                borderBottom: '1px solid rgba(0,255,255,0.03)',
+                lineHeight: 1.55,
+                background: LEVEL_BG[entry.level] ?? 'transparent',
+              }}
+            >
+              <span style={{ color: '#005a73', fontSize: '0.7rem', letterSpacing: '-0.02em' }}>{entry.timestamp}</span>
+              <span style={{ color: LEVEL_COLORS[entry.level] ?? '#009bb5', fontWeight: 700, fontSize: '0.68rem' }}>{entry.level}</span>
+              <span style={{ color: '#007a97', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.7rem' }} title={entry.logger}>
+                {entry.logger.includes('.') ? entry.logger.split('.').pop() : entry.logger}
+              </span>
+              <span style={{ color: entry.level === 'ERROR' ? '#ff7777' : entry.level === 'WARN' ? '#ffcc55' : '#00c4d8', wordBreak: 'break-all' }}>{entry.message}</span>
             </div>
           ))
         )}

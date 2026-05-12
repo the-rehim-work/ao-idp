@@ -1731,6 +1731,11 @@ export default function LdapTreePage() {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; configId: string; node: TreeNode } | null>(null)
   const [lastClickedDn, setLastClickedDn] = useState<string | null>(null)
 
+  // Filter bar state
+  const [filterType, setFilterType] = useState<'all' | 'ou' | 'user' | 'group'>('all')
+  const [filterActivated, setFilterActivated] = useState<'all' | 'active' | 'inactive'>('all')
+  const [searchAttr, setSearchAttr] = useState<'all' | 'name' | 'username' | 'email' | 'title'>('all')
+
   // Panel width (resizable)
   const [panelWidth, setPanelWidth] = useState<number>(() => {
     const saved = localStorage.getItem(LS_PANEL_WIDTH)
@@ -1965,33 +1970,52 @@ export default function LdapTreePage() {
       }
       orderedRoots.forEach(f => walk(f))
 
-      // Apply search filter
-      if (search) {
+      // Apply search + attribute + type + activation filters
+      const hasFilter = search || filterType !== 'all' || filterActivated !== 'all'
+      if (hasFilter) {
         const matchSet = new Set<string>()
-        // mark direct matches
         tempOut.forEach(fn => {
           if (fn.kind !== 'node') return
           const n = fn.node
-          if (
-            n.name.toLowerCase().includes(search) ||
-            (n.ldap_username?.toLowerCase().includes(search) ?? false) ||
-            (n.email?.toLowerCase().includes(search) ?? false)
-          ) {
+
+          // type filter: ancestors (non-matching types) always pass through
+          const matchesType = filterType === 'all' || n.type === filterType
+
+          // activation filter applies only to users
+          const matchesActivation = n.type !== 'user' || filterActivated === 'all'
+            || (filterActivated === 'active' && n.is_activated)
+            || (filterActivated === 'inactive' && !n.is_activated)
+
+          // attribute-scoped text search
+          let matchesSearch = true
+          if (search) {
+            if (searchAttr === 'name') {
+              matchesSearch = n.name.toLowerCase().includes(search)
+            } else if (searchAttr === 'username') {
+              matchesSearch = (n.ldap_username?.toLowerCase().includes(search) ?? false)
+            } else if (searchAttr === 'email') {
+              matchesSearch = (n.email?.toLowerCase().includes(search) ?? false)
+            } else if (searchAttr === 'title') {
+              matchesSearch = (n.title?.toLowerCase().includes(search) ?? false)
+            } else {
+              matchesSearch = n.name.toLowerCase().includes(search) ||
+                (n.ldap_username?.toLowerCase().includes(search) ?? false) ||
+                (n.email?.toLowerCase().includes(search) ?? false) ||
+                (n.title?.toLowerCase().includes(search) ?? false)
+            }
+          }
+
+          if (matchesType && matchesActivation && matchesSearch) {
             matchSet.add(n.dn)
-            // include all ancestors (using DN suffix logic)
-            const ancs = dnAncestors(n.dn)
-            ancs.forEach(a => matchSet.add(a))
+            dnAncestors(n.dn).forEach(a => matchSet.add(a))
           }
         })
-        // Filter: keep matches and ancestors and skeleton/empty children of kept
         const keptDns = new Set<string>()
         tempOut.forEach(fn => {
           if (fn.kind === 'node' && matchSet.has(fn.node.dn)) keptDns.add(fn.node.dn)
         })
         const filtered = tempOut.filter(fn => {
           if (fn.kind === 'node') return keptDns.has(fn.node.dn)
-          // skeleton/empty: keep if their virtual parent is kept
-          // dn format: __skel:<parentDn>:<i> or __empty:<parentDn>
           if (fn.kind === 'skeleton') {
             const m = fn.node.dn.match(/^__skel:(.*):\d+$/)
             return m ? keptDns.has(m[1]) : false
@@ -2009,7 +2033,7 @@ export default function LdapTreePage() {
     })
 
     return out
-  }, [activeConfigs, rootsMap, state.expandedDns, state.childMap, state.loadingDns, state.debouncedSearch, collapsedConfigs])
+  }, [activeConfigs, rootsMap, state.expandedDns, state.childMap, state.loadingDns, state.debouncedSearch, collapsedConfigs, filterType, filterActivated, searchAttr])
 
   // Auto-expand search matches: trigger lazy loads for ancestors of matches when search active
   useEffect(() => {
@@ -2484,8 +2508,8 @@ export default function LdapTreePage() {
         }}>
           {/* Search */}
           <div style={{
-            padding: '0.625rem 0.75rem',
-            borderBottom: `1px solid ${C.border}`,
+            padding: '0.5rem 0.75rem',
+            borderBottom: `1px solid ${C.borderFaint}`,
             display: 'flex', alignItems: 'center', gap: 8,
             background: C.surface2,
           }}>
@@ -2509,6 +2533,101 @@ export default function LdapTreePage() {
                 color: C.textMuted, fontSize: '0.75rem', padding: 0,
               }}>×</button>
             )}
+          </div>
+
+          {/* Filter bar */}
+          <div style={{
+            padding: '0.375rem 0.75rem',
+            borderBottom: `1px solid ${C.border}`,
+            background: C.surface,
+            display: 'flex', flexDirection: 'column', gap: 5,
+            flexShrink: 0,
+          }}>
+            {/* Type chips */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: '0.56rem', color: C.textMuted, letterSpacing: '0.12em', textTransform: 'uppercase', minWidth: 28 }}>type</span>
+              {([
+                { v: 'all', label: 'all', color: C.textDim },
+                { v: 'ou', label: 'OU', color: C.ouGold },
+                { v: 'user', label: 'user', color: C.cyan },
+                { v: 'group', label: 'group', color: C.purple },
+              ] as const).map(({ v, label, color }) => {
+                const active = filterType === v
+                return (
+                  <button key={v} onClick={() => { setFilterType(v); if (v !== 'user' && v !== 'all') setFilterActivated('all') }} style={{
+                    padding: '1px 7px', fontSize: '0.62rem',
+                    background: active ? `rgba(${v === 'ou' ? '240,180,41' : v === 'group' ? '170,136,255' : v === 'user' ? '0,255,255' : '0,155,181'},0.12)` : 'transparent',
+                    border: `1px solid ${active ? color : C.borderFaint}`,
+                    color: active ? color : C.textMuted,
+                    fontFamily: FONT, cursor: 'pointer', letterSpacing: '0.04em',
+                    transition: 'all 0.1s',
+                  }}>
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Attribute + activation row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.56rem', color: C.textMuted, letterSpacing: '0.12em', textTransform: 'uppercase', minWidth: 28 }}>attr</span>
+              <select
+                value={searchAttr}
+                onChange={e => setSearchAttr(e.target.value as typeof searchAttr)}
+                style={{
+                  background: C.surface2, border: `1px solid ${searchAttr !== 'all' ? C.cyanDim : C.borderFaint}`,
+                  color: searchAttr !== 'all' ? C.cyanDim : C.textMuted,
+                  fontFamily: FONT, fontSize: '0.62rem', padding: '1px 4px',
+                  outline: 'none', cursor: 'pointer',
+                }}
+              >
+                <option value="all">all attrs</option>
+                <option value="name">name / cn</option>
+                <option value="username">uid / sAMAccountName</option>
+                <option value="email">mail</option>
+                <option value="title">title</option>
+              </select>
+
+              {(filterType === 'user' || filterType === 'all') && (
+                <>
+                  <span style={{ color: C.borderFaint, margin: '0 1px' }}>│</span>
+                  <span style={{ fontSize: '0.56rem', color: C.textMuted, letterSpacing: '0.12em', textTransform: 'uppercase', minWidth: 30 }}>status</span>
+                  {([
+                    { v: 'all', label: 'all' },
+                    { v: 'active', label: '● active' },
+                    { v: 'inactive', label: '○ inactive' },
+                  ] as const).map(({ v, label }) => {
+                    const active = filterActivated === v
+                    const c = v === 'active' ? C.green : v === 'inactive' ? C.textMuted : C.textDim
+                    return (
+                      <button key={v} onClick={() => setFilterActivated(v)} style={{
+                        padding: '1px 7px', fontSize: '0.62rem',
+                        background: active ? `rgba(${v === 'active' ? '0,255,136' : '0,0,0'},0.1)` : 'transparent',
+                        border: `1px solid ${active ? c : C.borderFaint}`,
+                        color: active ? c : C.textMuted,
+                        fontFamily: FONT, cursor: 'pointer', letterSpacing: '0.04em',
+                        transition: 'all 0.1s',
+                      }}>
+                        {label}
+                      </button>
+                    )
+                  })}
+                </>
+              )}
+
+              {(filterType !== 'all' || filterActivated !== 'all' || searchAttr !== 'all') && (
+                <button
+                  onClick={() => { setFilterType('all'); setFilterActivated('all'); setSearchAttr('all') }}
+                  style={{
+                    marginLeft: 'auto', padding: '1px 6px', fontSize: '0.6rem',
+                    background: 'transparent', border: `1px solid ${C.borderFaint}`,
+                    color: C.textMuted, fontFamily: FONT, cursor: 'pointer',
+                  }}
+                >
+                  × clear
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Virtual flat list */}

@@ -537,7 +537,7 @@ function SqlEditor({
 
 // ─── Query Executor ──────────────────────────────────────────────────────────
 function QueryExecutor({ tables }: { tables: string[] }) {
-  const [sql, setSql] = useState('SELECT * FROM users LIMIT 20')
+  const [sql, setSql] = useState('SELECT * FROM users')
   const [result, setResult] = useState<QueryResult | null>(null)
 
   const { mutate, isPending } = useMutation({
@@ -552,7 +552,7 @@ function QueryExecutor({ tables }: { tables: string[] }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', height: '100%' }}>
       <div style={{ fontSize: '0.65rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#006b8a' }}>
-        SELECT only · max 500 rows · <span style={{ color: '#009bb5' }}>Tab / Enter</span> to complete · <span style={{ color: '#009bb5' }}>Ctrl+Enter</span> to run
+        SELECT only · <span style={{ color: '#009bb5' }}>Tab / Enter</span> to complete · <span style={{ color: '#009bb5' }}>Ctrl+Enter</span> to run
       </div>
 
       <SqlEditor value={sql} onChange={setSql} onRun={handleRun} tables={tables} />
