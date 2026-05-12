@@ -66,7 +66,7 @@ const C = {
   border:       'var(--border)',
   borderHover:  'var(--border-hover)',
   borderFaint:  'var(--border-faint)',
-  sep:          'rgba(255,255,255,0.10)',   // visible divider for dark bg
+  sep:          'rgba(255,255,255,0.18)',   // visible divider for dark bg
   // Primary accent — driven by user pick
   cyan:         'var(--accent)',
   cyanDim:      'var(--accent-strong)',
