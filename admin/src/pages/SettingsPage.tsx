@@ -838,7 +838,7 @@ function AppearanceSection() {
             <Seg<FontScale>
               value={theme.fontScale}
               onChange={v => update({ fontScale: v })}
-              options={(Object.entries(FONT_SCALES) as [FontScale, typeof FONT_SCALES[FontScale]][]).map(([v, info]) => ({
+              options={(Object.keys(FONT_SCALES) as FontScale[]).map(v => ({
                 v, label: v.toUpperCase(),
               }))}
             />
