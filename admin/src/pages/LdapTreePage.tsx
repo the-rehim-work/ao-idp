@@ -85,7 +85,7 @@ const C = {
 }
 
 const FONT = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
-const ROW_H = 26
+const ROW_H = 30
 const INDENT = 16
 const LINE_COLOR = 'var(--border-faint)'
 const OVERSCAN = 5
@@ -1000,6 +1000,7 @@ const FlatTreeRow = React.memo(function FlatTreeRow(props: FlatTreeRowProps) {
           : isMultiSelected ? `2px solid ${C.purple}`
           : isFocused ? `2px solid ${C.borderHover}`
           : '2px solid transparent',
+        borderBottom: `1px solid ${C.borderFaint}`,
         transition: 'background 0.08s ease',
       }}
     >
