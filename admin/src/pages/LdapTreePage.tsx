@@ -1124,10 +1124,10 @@ function Stat({ label, value, accent }: { label: string; value: number; accent: 
 
 function Section({ label, children, action }: { label: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: 18 }}>
+    <div style={{ marginBottom: 20, paddingTop: 18, borderTop: `1px solid ${C.borderFaint}` }}>
       <div style={{
         fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase',
-        color: C.textMuted, marginBottom: 6,
+        color: C.textMuted, marginBottom: 8,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <span>{label}</span>
@@ -1191,7 +1191,7 @@ function ContainerDetail({ node, configId }: { node: TreeNode; configId: string 
 
   return (
     <div style={{ padding: '1.75rem 2rem' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 20, paddingBottom: 20, borderBottom: `1px solid ${C.border}` }}>
         <div style={{
           width: 52, height: 52, flexShrink: 0,
           border: `1px solid ${isOu ? 'rgba(240,180,41,0.35)' : isGroup ? 'rgba(170,136,255,0.35)' : C.border}`,
@@ -1260,7 +1260,7 @@ function UserDetail({
 }) {
   return (
     <div style={{ padding: '1.75rem 2rem' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 22 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 20, paddingBottom: 20, borderBottom: `1px solid ${C.border}` }}>
         <div style={{
           width: 64, height: 64, flexShrink: 0,
           border: `1px solid ${node.is_activated ? 'rgba(94,234,212,0.4)' : C.border}`,
@@ -1334,17 +1334,21 @@ function UserDetail({
         </div>
       </div>
 
-      <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-        gap: 0,
-        border: `1px solid ${C.border}`,
-        background: C.surface,
-        marginBottom: 18,
-      }}>
-        <KV label="uid" value={node.ldap_username} mono color={C.cyan} />
-        <KV label="mail" value={node.email} />
-        <KV label="title" value={node.title} />
-        <KV label="cn" value={node.rdn} mono />
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: C.textMuted, marginBottom: 8 }}>
+          attributes
+        </div>
+        <div style={{
+          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: 0,
+          border: `1px solid ${C.border}`,
+          background: C.surface,
+        }}>
+          <KV label="uid" value={node.ldap_username} mono color={C.cyan} />
+          <KV label="mail" value={node.email} />
+          <KV label="title" value={node.title} />
+          <KV label="cn" value={node.rdn} mono />
+        </div>
       </div>
 
       <Section label="distinguished_name">
