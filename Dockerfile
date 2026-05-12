@@ -44,7 +44,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 COPY --from=server-builder /build/build/libs/*.jar /app/app.jar
 COPY docker/start.sh /app/start.sh
-RUN chmod +x /app/start.sh \
+# Strip Windows CR so the shebang works even if git checked out CRLF on Windows
+RUN sed -i 's/\r$//' /app/start.sh && chmod +x /app/start.sh \
     && mkdir -p /var/lib/postgresql/data \
     && chown -R postgres:postgres /var/lib/postgresql
 

@@ -1,0 +1,40 @@
+# Enforce LF line endings for all text files to prevent CRLF issues on Windows
+* text=auto eol=lf
+
+# Explicitly force LF for shell scripts (critical — CRLF breaks shebangs in Linux containers)
+*.sh text eol=lf
+
+# Other text files
+*.java text eol=lf
+*.gradle text eol=lf
+*.properties text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.md text eol=lf
+*.conf text eol=lf
+*.sql text eol=lf
+*.txt text eol=lf
+Dockerfile text eol=lf
+gradlew text eol=lf
+
+# Binary files — never touch line endings
+*.jar binary
+*.woff2 binary
+*.woff binary
+*.ttf binary
+*.png binary
+*.jpg binary
+*.ico binary
+*.tar binary
+*.gz binary
+*.zip binary
+*.pem binary
+*.key binary
+*.crt binary

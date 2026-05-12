@@ -14,5 +14,8 @@ services:
       IDP_ISSUER: ${IDP_ISSUER}
       COOKIE_DOMAIN: ${COOKIE_DOMAIN}
     volumes:
-      - /var/lib/docker/ao-idp-postgres:/var/lib/postgresql/data
+      - ao-idp-postgres:/var/lib/postgresql/data
     restart: unless-stopped
+
+volumes:
+  ao-idp-postgres:
