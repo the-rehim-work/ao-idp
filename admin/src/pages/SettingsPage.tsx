@@ -745,12 +745,30 @@ function SecuritySection() {
 
 function AppearanceSection() {
   const [theme, setTheme] = useState<ThemeState>(() => loadTheme())
+  const [savedAt, setSavedAt] = useState<number | null>(null)
 
   const update = (patch: Partial<ThemeState>) => {
     const next = { ...theme, ...patch }
     setTheme(next)
     saveTheme(next)
     applyTheme(next)
+  }
+
+  const handleSave = () => {
+    saveTheme(theme)
+    applyTheme(theme)
+    setSavedAt(Date.now())
+    setTimeout(() => setSavedAt(prev => (prev && Date.now() - prev >= 1900 ? null : prev)), 2000)
+  }
+
+  const handleExport = () => {
+    const blob = new Blob([JSON.stringify(theme, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `ao-idp-theme-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const Card = ({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) => (
@@ -988,23 +1006,55 @@ function AppearanceSection() {
         </div>
       </Card>
 
-      <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <button
-          onClick={() => {
-            const reset: ThemeState = { mode: 'dark', accent: 'var(--accent)', density: 'comfortable', radius: 'soft', fontScale: 'base' }
-            update(reset)
-          }}
-          style={{
-            padding: '5px 10px', fontSize: '0.7rem',
-            background: 'transparent', color: 'var(--text-muted)',
-            border: '1px solid var(--border)', cursor: 'pointer',
-            fontFamily: 'inherit', borderRadius: 4,
-          }}
-        >
-          ↺ reset to defaults
-        </button>
-        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-          Stored locally · per-user preference
+      <div style={{
+        marginTop: '1rem', padding: '0.75rem 1rem',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 6,
+        gap: 12, flexWrap: 'wrap',
+      }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            onClick={handleSave}
+            style={{
+              padding: '7px 16px', fontSize: '0.72rem', fontWeight: 700,
+              background: savedAt ? 'var(--success, #34d399)' : 'var(--accent)',
+              color: 'var(--bg)',
+              border: 'none', cursor: 'pointer', letterSpacing: '0.04em',
+              fontFamily: 'inherit', borderRadius: 4,
+              boxShadow: savedAt ? 'none' : 'var(--accent-glow)',
+              transition: 'background 0.18s',
+            }}
+          >
+            {savedAt ? '✓ Saved' : '⬇ Save Appearance Settings'}
+          </button>
+          <button
+            onClick={handleExport}
+            style={{
+              padding: '7px 12px', fontSize: '0.7rem',
+              background: 'transparent', color: 'var(--accent)',
+              border: '1px solid var(--accent)', cursor: 'pointer',
+              fontFamily: 'inherit', borderRadius: 4,
+            }}
+          >
+            ⤓ Export JSON
+          </button>
+          <button
+            onClick={() => {
+              const reset: ThemeState = { mode: 'dark', accent: 'var(--accent)', density: 'comfortable', radius: 'soft', fontScale: 'base' }
+              update(reset)
+            }}
+            style={{
+              padding: '7px 12px', fontSize: '0.7rem',
+              background: 'transparent', color: 'var(--text-muted)',
+              border: '1px solid var(--border)', cursor: 'pointer',
+              fontFamily: 'inherit', borderRadius: 4,
+            }}
+          >
+            ↺ Reset to Defaults
+          </button>
+        </div>
+        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
+          {savedAt ? 'Settings saved to localStorage' : 'Changes auto-apply · Click Save to confirm'}
         </span>
       </div>
     </div>

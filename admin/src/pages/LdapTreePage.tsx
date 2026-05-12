@@ -2877,18 +2877,20 @@ export default function LdapTreePage() {
           width: panelWidth, flexShrink: 0,
           display: 'flex', flexDirection: 'column',
           borderRight: `1px solid ${C.border}`,
-          background: C.surface,
+          background: C.bg,
           minHeight: 0,
         }}>
-          {/* Search row — single primary input with clear/scope inside */}
+          {/* Search row — floating card style, fully detached from tree below */}
           <div style={{
-            padding: '12px 10px 14px',
-            borderBottom: `2px solid ${C.border}`,
+            margin: '10px 10px 0',
+            padding: '12px',
+            border: `1px solid ${C.border}`,
             background: C.surface2,
-            display: 'flex', flexDirection: 'column', gap: 8,
-            boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
+            display: 'flex', flexDirection: 'column', gap: 10,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.35)',
             position: 'relative',
-            zIndex: 1,
+            zIndex: 2,
+            borderRadius: 4,
           }}>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
@@ -3044,10 +3046,24 @@ export default function LdapTreePage() {
             </div>
           </div>
 
+          {/* Section label between toolbar card and tree list */}
+          <div style={{
+            margin: '14px 10px 6px',
+            display: 'flex', alignItems: 'center', gap: 8,
+            fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase',
+            color: C.textMuted,
+          }}>
+            <span style={{ flex: '0 0 auto' }}>directory tree</span>
+            <span style={{ flex: 1, height: 1, background: C.borderFaint }} />
+            <span style={{ flex: '0 0 auto', color: C.textDim, fontSize: '0.6rem' }}>
+              {flatNodes.filter(f => f.kind === 'node').length} visible
+            </span>
+          </div>
+
           {/* Virtual flat list */}
           <div
             ref={scrollRef}
-            style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', position: 'relative' }}
+            style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', position: 'relative', background: C.surface }}
           >
             {configsLoading ? (
               <div style={{ padding: '2rem 1rem', display: 'flex', alignItems: 'center', gap: 8 }}>
