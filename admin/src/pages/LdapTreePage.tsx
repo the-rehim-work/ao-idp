@@ -66,6 +66,7 @@ const C = {
   border:       'var(--border)',
   borderHover:  'var(--border-hover)',
   borderFaint:  'var(--border-faint)',
+  sep:          'rgba(255,255,255,0.10)',   // visible divider for dark bg
   // Primary accent — driven by user pick
   cyan:         'var(--accent)',
   cyanDim:      'var(--accent-strong)',
@@ -1000,7 +1001,7 @@ const FlatTreeRow = React.memo(function FlatTreeRow(props: FlatTreeRowProps) {
           : isMultiSelected ? `2px solid ${C.purple}`
           : isFocused ? `2px solid ${C.borderHover}`
           : '2px solid transparent',
-        borderBottom: `1px solid ${C.borderFaint}`,
+        borderBottom: `1px solid ${C.sep}`,
         transition: 'background 0.08s ease',
       }}
     >
@@ -1125,7 +1126,7 @@ function Stat({ label, value, accent }: { label: string; value: number; accent: 
 
 function Section({ label, children, action }: { label: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: 20, paddingTop: 18, borderTop: `1px solid ${C.borderFaint}` }}>
+    <div style={{ marginBottom: 20, paddingTop: 18, borderTop: `1px solid ${C.sep}` }}>
       <div style={{
         fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase',
         color: C.textMuted, marginBottom: 8,
@@ -1192,7 +1193,7 @@ function ContainerDetail({ node, configId }: { node: TreeNode; configId: string 
 
   return (
     <div style={{ padding: '1.75rem 2rem' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 20, paddingBottom: 20, borderBottom: `1px solid ${C.border}` }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 20, paddingBottom: 20, borderBottom: `1px solid ${C.sep}` }}>
         <div style={{
           width: 52, height: 52, flexShrink: 0,
           border: `1px solid ${isOu ? 'rgba(240,180,41,0.35)' : isGroup ? 'rgba(170,136,255,0.35)' : C.border}`,
@@ -1261,7 +1262,7 @@ function UserDetail({
 }) {
   return (
     <div style={{ padding: '1.75rem 2rem' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 20, paddingBottom: 20, borderBottom: `1px solid ${C.border}` }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 20, paddingBottom: 20, borderBottom: `1px solid ${C.sep}` }}>
         <div style={{
           width: 64, height: 64, flexShrink: 0,
           border: `1px solid ${node.is_activated ? 'rgba(94,234,212,0.4)' : C.border}`,
