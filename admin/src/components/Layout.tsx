@@ -88,8 +88,8 @@ export default function Layout() {
   const visibleItems = allNavItems.filter(item => hasPermission(item.section))
 
   return (
-    <div className="flex min-h-screen" style={{ background: 'transparent', color: 'var(--text)', fontFamily: '"JetBrains Mono", "Courier New", monospace' }}>
-      <nav className="w-52 flex flex-col shrink-0 border-r" style={{ borderColor: 'var(--border)', background: 'var(--surface-1)' }}>
+    <div className="flex h-screen overflow-hidden" style={{ background: 'transparent', color: 'var(--text)', fontFamily: '"JetBrains Mono", "Courier New", monospace' }}>
+      <nav className="w-52 flex flex-col shrink-0 border-r overflow-y-auto" style={{ borderColor: 'var(--border)', background: 'var(--surface-1)' }}>
         <div className="px-5 py-5 border-b" style={{ borderColor: 'var(--border-faint)' }}>
           <div className="font-bold text-base tracking-widest uppercase" style={{ color: 'var(--accent)', textShadow: '0 0 8px rgba(var(--accent-rgb),0.6), 0 0 20px rgba(var(--accent-rgb),0.3)' }}>AO IDP</div>
           <div className="text-xs mt-0.5 tracking-widest uppercase" style={{ color: 'var(--text-muted)' }}>admin panel</div>

@@ -52,4 +52,10 @@ export const ldapApi = {
   // Returns real LDAP schema attributes for a given server (attribute name -> sample value)
   attributesById: (configId: string) =>
     apiClient.get<Record<string, string>>(`/settings/ldap/${configId}/attributes`).then(r => r.data),
+
+  // Returns ALL attributes for a specific LDAP entry by DN
+  getEntry: (dn: string, configId?: string) =>
+    apiClient.get<Record<string, string | string[]>>('/ldap/entry', {
+      params: { dn, ...(configId ? { configId } : {}) },
+    }).then(r => r.data),
 }

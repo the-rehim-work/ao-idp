@@ -18,6 +18,9 @@ import org.springframework.ldap.filter.LikeFilter;
 import org.springframework.ldap.filter.OrFilter;
 import org.springframework.stereotype.Service;
 
+import javax.naming.NamingEnumeration;
+import javax.naming.directory.Attribute;
+import javax.naming.directory.Attributes;
 import javax.naming.directory.SearchControls;
 import java.time.Instant;
 import java.util.*;
@@ -211,6 +214,40 @@ public class LdapService {
 
         List<Map<String, String>> results = ldap.template().search("", filter.encode(), controls, mapper);
         return results.isEmpty() ? Map.of() : results.get(0);
+    }
+
+    /** Fetch all LDAP attributes for a specific DN entry. */
+    public Map<String, Object> getEntryAttributes(UUID configId, String dn) {
+        LdapServerConfig config = configId != null ? ldapConfigService.get(configId) : primaryConfig();
+        LdapProps props = propsFrom(config);
+        LdapTemplate template = forConfig(config).template();
+        String relativeDn = toRelativeDn(dn, props.baseDn());
+        try {
+            DirContextOperations dco = template.lookupContext(relativeDn.isEmpty() ? dn : relativeDn);
+            Attributes jndiAttrs = dco.getAttributes();
+            Map<String, Object> result = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+            NamingEnumeration<? extends Attribute> en = jndiAttrs.getAll();
+            while (en.hasMore()) {
+                Attribute attr = en.next();
+                String id = attr.getID();
+                if (id.equalsIgnoreCase("userPassword") || id.equalsIgnoreCase("unicodePwd")) continue; // never expose
+                if (attr.size() == 1) {
+                    Object v = attr.get();
+                    result.put(id, v instanceof byte[] ? "[binary]" : (v != null ? v.toString() : ""));
+                } else {
+                    List<String> vals = new ArrayList<>();
+                    for (int i = 0; i < attr.size(); i++) {
+                        Object v = attr.get(i);
+                        vals.add(v instanceof byte[] ? "[binary]" : (v != null ? v.toString() : ""));
+                    }
+                    result.put(id, vals);
+                }
+            }
+            return result;
+        } catch (Exception e) {
+            log.error("Failed to get entry attributes for dn={}: {}", dn, e.getMessage());
+            return Map.of();
+        }
     }
 
     public List<LdapUserResponse> listUsers(String search) {

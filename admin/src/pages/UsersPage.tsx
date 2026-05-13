@@ -1,24 +1,31 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usersApi } from '../api/users'
 import { appsApi } from '../api/apps'
+import { settingsApi } from '../api/settings'
 import { ConfirmModal } from '../components/ConfirmModal'
 import type { LdapUser, Application, User, AppAccess } from '../types'
 
 const C = {
-  bg: 'var(--bg)',
-  surface: 'var(--surface-1)',
-  surface2: 'var(--surface-2)',
-  border: 'var(--border)',
-  borderHover: 'var(--border-hover)',
-  green: 'var(--accent)',
-  greenDim: 'var(--accent-strong)',
-  text: 'var(--text)',
-  textDim: 'var(--text-dim)',
-  textMuted: 'var(--text-muted)',
-  red: 'var(--danger)',
-  amber: 'var(--warning)',
+  bg:           'var(--bg)',
+  surface:      'var(--surface-1)',
+  surface2:     'var(--surface-2)',
+  surface3:     'var(--surface-3)',
+  border:       'var(--border)',
+  borderFaint:  'var(--border-faint)',
+  borderHover:  'var(--border-hover)',
+  green:        'var(--accent)',
+  greenDim:     'var(--accent-strong)',
+  accentSoft:   'var(--accent-soft)',
+  text:         'var(--text)',
+  textDim:      'var(--text-dim)',
+  textMuted:    'var(--text-muted)',
+  red:          'var(--danger)',
+  amber:        'var(--warning)',
+  info:         'var(--info)',
+  purple:       'var(--purple)',
 }
+const SANS = "'Inter','Segoe UI',system-ui,-apple-system,sans-serif"
 
 const inputStyle = {
   padding: '.5rem .75rem', border: `1px solid ${C.border}`,
@@ -190,17 +197,72 @@ function LdapUserRow({ user, apps }: { user: LdapUser; apps: Application[] }) {
   )
 }
 
+function ServerStatusBadge({ serverId, serverName }: { serverId: string; serverName: string }) {
+  const [testing, setTesting] = useState(false)
+  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null)
+
+  const test = async () => {
+    setTesting(true)
+    setResult(null)
+    try {
+      const r = await settingsApi.ldap.testById(serverId)
+      setResult(r)
+    } catch {
+      setResult({ success: false, message: 'Request failed' })
+    } finally {
+      setTesting(false)
+    }
+  }
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 8,
+      padding: '6px 12px', borderRadius: 8,
+      border: `1px solid ${result ? (result.success ? 'rgba(52,211,153,0.3)' : 'rgba(248,113,113,0.3)') : C.borderFaint}`,
+      background: result ? (result.success ? 'rgba(52,211,153,0.06)' : 'rgba(248,113,113,0.06)') : C.surface2,
+      fontFamily: SANS, fontSize: '0.72rem',
+    }}>
+      <span style={{
+        width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
+        background: result ? (result.success ? C.green : C.red) : C.textMuted,
+      }} />
+      <span style={{ color: C.textDim, fontWeight: 500 }}>{serverName}</span>
+      {result && (
+        <span style={{ color: result.success ? C.green : C.red }}>
+          {result.success ? 'reachable' : result.message.slice(0, 40)}
+        </span>
+      )}
+      <button onClick={test} disabled={testing} style={{
+        marginLeft: 4, padding: '2px 8px', borderRadius: 4, cursor: 'pointer',
+        border: `1px solid ${C.borderFaint}`, background: 'none',
+        color: C.textMuted, fontSize: '0.68rem', fontFamily: SANS,
+      }}>
+        {testing ? '…' : 'Test'}
+      </button>
+    </div>
+  )
+}
+
 function DirectoryTab({ apps }: { apps: Application[] }) {
+  const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [filterActivated, setFilterActivated] = useState<'all' | 'activated' | 'not_activated'>('all')
+  const [filterServer, setFilterServer] = useState<string>('all')
+  const [filterOu, setFilterOu] = useState<string>('all')
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 400)
     return () => clearTimeout(t)
   }, [search])
 
-  const { data: allUsers = [], isLoading, error } = useQuery({
+  const { data: ldapServers = [] } = useQuery({
+    queryKey: ['ldap-configs'],
+    queryFn: () => settingsApi.ldap.list(),
+  })
+  const activeServers = ldapServers.filter(s => s.active)
+
+  const { data: allUsers = [], isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ['ldap-users', debouncedSearch],
     queryFn: () => usersApi.listLdap(debouncedSearch || undefined),
     retry: false,
@@ -208,9 +270,25 @@ function DirectoryTab({ apps }: { apps: Application[] }) {
 
   const notConfigured = (error as any)?.response?.status === 503
 
+  // Derive unique OUs from loaded users
+  const uniqueOus = useMemo(() => {
+    const ous = new Set<string>()
+    allUsers.forEach(u => { if (u.ou) ous.add(u.ou) })
+    return Array.from(ous).sort()
+  }, [allUsers])
+
+  // Derive unique servers from loaded users
+  const uniqueServers = useMemo(() => {
+    const srv = new Set<string>()
+    allUsers.forEach(u => { if (u.ldap_server_name) srv.add(u.ldap_server_name) })
+    return Array.from(srv).sort()
+  }, [allUsers])
+
   const filtered = allUsers.filter(u => {
-    if (filterActivated === 'activated') return u.is_activated
-    if (filterActivated === 'not_activated') return !u.is_activated
+    if (filterActivated === 'activated' && !u.is_activated) return false
+    if (filterActivated === 'not_activated' && u.is_activated) return false
+    if (filterServer !== 'all' && u.ldap_server_name !== filterServer) return false
+    if (filterOu !== 'all' && u.ou !== filterOu) return false
     return true
   })
 
@@ -218,46 +296,189 @@ function DirectoryTab({ apps }: { apps: Application[] }) {
   const activatedCount = allUsers.filter(u => u.is_activated).length
 
   return (
-    <div>
-      <div className="grid grid-cols-3 gap-3 mb-5">
+    <div style={{ fontFamily: SANS }}>
+      {/* Stats row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
         {[
-          { label: 'Total', value: total },
-          { label: 'Activated', value: activatedCount, accent: true },
-          { label: 'Pending', value: total - activatedCount },
+          { label: 'Total', value: total, color: C.text },
+          { label: 'Activated', value: activatedCount, color: C.green },
+          { label: 'Pending', value: total - activatedCount, color: C.amber },
         ].map(st => (
-          <div key={st.label} className="p-4 rounded border" style={{ background: C.surface, borderColor: C.border }}>
-            <div className="text-2xl font-bold tabular-nums" style={{ color: st.accent ? C.green : C.text }}>{st.value}</div>
-            <div className="text-xs mt-0.5" style={{ color: C.textMuted }}>{st.label}</div>
+          <div key={st.label} style={{
+            padding: '14px 16px', borderRadius: 10,
+            border: `1px solid ${C.border}`, background: C.surface,
+            display: 'flex', flexDirection: 'column', gap: 4,
+          }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: st.color, fontVariantNumeric: 'tabular-nums' }}>{st.value}</div>
+            <div style={{ fontSize: '0.7rem', color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{st.label}</div>
           </div>
         ))}
       </div>
 
-      <div className="flex gap-3 mb-4 flex-wrap">
-        <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Search name, username, email..."
-          style={{ ...inputStyle, width: '18rem' }}
-        />
+      {/* Server status row (show when no users found or when >1 active server) */}
+      {(activeServers.length > 0 && (total === 0 || activeServers.length > 1)) && (
+        <div style={{
+          marginBottom: 16, padding: '10px 14px', borderRadius: 10,
+          border: `1px solid ${C.borderFaint}`, background: C.surface2,
+          display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center',
+        }}>
+          <span style={{ fontSize: '0.7rem', color: C.textMuted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>
+            LDAP Servers
+          </span>
+          {activeServers.map(srv => (
+            <ServerStatusBadge key={srv.id} serverId={srv.id} serverName={srv.name} />
+          ))}
+        </div>
+      )}
+
+      {/* Toolbar */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* Search */}
+        <div style={{ position: 'relative', flex: '1 1 220px', minWidth: 180 }}>
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke={C.textMuted} strokeWidth="1.6"
+            style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+            <circle cx="9" cy="9" r="5" /><line x1="13" y1="13" x2="17" y2="17" strokeLinecap="round" />
+          </svg>
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search name, username, email..."
+            style={{ ...inputStyle, paddingLeft: 32, width: '100%' }}
+          />
+        </div>
+
+        {/* Status filter */}
         <select value={filterActivated} onChange={e => setFilterActivated(e.target.value as typeof filterActivated)}
-          style={{ ...inputStyle, width: 'auto', appearance: 'none' }}>
+          style={{ ...inputStyle, width: 'auto', minWidth: 130, appearance: 'none', paddingRight: 28, cursor: 'pointer' }}>
           <option value="all" style={{ background: C.surface }}>All users</option>
-          <option value="activated" style={{ background: C.surface }}>Activated</option>
-          <option value="not_activated" style={{ background: C.surface }}>Not activated</option>
+          <option value="activated" style={{ background: C.surface }}>✓ Activated</option>
+          <option value="not_activated" style={{ background: C.surface }}>○ Not activated</option>
         </select>
+
+        {/* Server filter — only if multiple servers have users */}
+        {uniqueServers.length > 1 && (
+          <select value={filterServer} onChange={e => setFilterServer(e.target.value)}
+            style={{ ...inputStyle, width: 'auto', minWidth: 130, appearance: 'none', paddingRight: 28, cursor: 'pointer' }}>
+            <option value="all" style={{ background: C.surface }}>All servers</option>
+            {uniqueServers.map(s => (
+              <option key={s} value={s} style={{ background: C.surface }}>{s}</option>
+            ))}
+          </select>
+        )}
+
+        {/* OU filter */}
+        {uniqueOus.length > 0 && (
+          <select value={filterOu} onChange={e => setFilterOu(e.target.value)}
+            style={{ ...inputStyle, width: 'auto', minWidth: 130, appearance: 'none', paddingRight: 28, cursor: 'pointer' }}>
+            <option value="all" style={{ background: C.surface }}>All departments</option>
+            {uniqueOus.map(ou => (
+              <option key={ou} value={ou} style={{ background: C.surface }}>{ou}</option>
+            ))}
+          </select>
+        )}
+
+        {/* Refresh button */}
+        <button onClick={() => { qc.invalidateQueries({ queryKey: ['ldap-users'] }); refetch() }}
+          disabled={isFetching}
+          style={{
+            padding: '0 14px', height: 34, borderRadius: 6, cursor: 'pointer',
+            border: `1px solid ${C.border}`, background: 'none',
+            color: isFetching ? C.textMuted : C.textDim, fontSize: '0.76rem', fontFamily: SANS,
+            display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
+            transition: 'color 0.15s',
+          }}>
+          <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"
+            style={{ transform: isFetching ? 'rotate(360deg)' : 'none', transition: isFetching ? 'transform 0.6s linear' : 'none' }}>
+            <path d="M16.5 4.5A8 8 0 1 0 18 10" strokeLinecap="round" />
+            <path d="M13 2l4 2.5-2.5 4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          {isFetching ? 'Syncing…' : 'Sync'}
+        </button>
       </div>
 
+      {/* Active filter chips */}
+      {(filterActivated !== 'all' || filterServer !== 'all' || filterOu !== 'all') && (
+        <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+          {filterActivated !== 'all' && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px',
+              borderRadius: 20, fontSize: '0.72rem', fontFamily: SANS,
+              background: C.accentSoft, color: C.green, border: '1px solid rgba(94,234,212,0.2)',
+            }}>
+              {filterActivated === 'activated' ? 'Activated' : 'Not activated'}
+              <span onClick={() => setFilterActivated('all')} style={{ cursor: 'pointer', opacity: 0.7 }}>×</span>
+            </span>
+          )}
+          {filterServer !== 'all' && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px',
+              borderRadius: 20, fontSize: '0.72rem', fontFamily: SANS,
+              background: 'rgba(139,92,246,0.08)', color: C.purple, border: '1px solid rgba(139,92,246,0.2)',
+            }}>
+              {filterServer}
+              <span onClick={() => setFilterServer('all')} style={{ cursor: 'pointer', opacity: 0.7 }}>×</span>
+            </span>
+          )}
+          {filterOu !== 'all' && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px',
+              borderRadius: 20, fontSize: '0.72rem', fontFamily: SANS,
+              background: 'rgba(59,130,246,0.08)', color: C.info, border: '1px solid rgba(59,130,246,0.2)',
+            }}>
+              {filterOu}
+              <span onClick={() => setFilterOu('all')} style={{ cursor: 'pointer', opacity: 0.7 }}>×</span>
+            </span>
+          )}
+          <button onClick={() => { setFilterActivated('all'); setFilterServer('all'); setFilterOu('all') }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.textMuted, fontSize: '0.72rem', fontFamily: SANS }}>
+            Clear all
+          </button>
+        </div>
+      )}
+
+      {/* Content */}
       {notConfigured ? (
-        <div className="rounded border p-10 text-center" style={{ borderColor: C.border, background: C.surface }}>
-          <div className="text-sm mb-2" style={{ color: '#ff8800' }}>No LDAP server configured</div>
-          <div className="text-xs" style={{ color: C.textMuted }}>
+        <div style={{
+          borderRadius: 10, padding: '40px 20px', textAlign: 'center',
+          border: `1px solid ${C.border}`, background: C.surface,
+        }}>
+          <div style={{ fontSize: '0.85rem', marginBottom: 8, color: C.amber, fontWeight: 600 }}>No LDAP server configured</div>
+          <div style={{ fontSize: '0.75rem', color: C.textMuted }}>
             Go to <span style={{ color: C.green }}>Settings → LDAP Server</span> to add and activate an LDAP connection.
           </div>
         </div>
       ) : (
-        <div className="rounded border overflow-hidden" style={{ borderColor: C.border, background: C.surface }}>
+        <div style={{ borderRadius: 10, border: `1px solid ${C.border}`, background: C.surface, overflow: 'hidden' }}>
           {isLoading ? (
-            <div className="p-6 text-xs" style={{ color: C.textMuted }}>Loading directory...</div>
+            <div style={{ padding: '32px 20px', textAlign: 'center', fontSize: '0.78rem', color: C.textMuted }}>
+              Loading directory…
+            </div>
+          ) : filtered.length === 0 && allUsers.length === 0 ? (
+            /* Empty — likely a connection issue */
+            <div style={{ padding: '32px 24px' }}>
+              <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                <div style={{ fontSize: '0.85rem', color: C.amber, fontWeight: 600, marginBottom: 6 }}>
+                  No users returned from LDAP
+                </div>
+                <div style={{ fontSize: '0.75rem', color: C.textMuted, maxWidth: 400, margin: '0 auto' }}>
+                  The LDAP servers are configured but returned 0 users. This usually means a connection issue,
+                  wrong credentials, or incorrect base DN. Use the Test button below to diagnose each server.
+                </div>
+              </div>
+              {activeServers.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 500, margin: '0 auto' }}>
+                  {activeServers.map(srv => (
+                    <ServerStatusBadge key={srv.id} serverId={srv.id} serverName={srv.name} />
+                  ))}
+                </div>
+              )}
+            </div>
           ) : filtered.length === 0 ? (
-            <div className="p-12 text-center text-xs" style={{ color: C.textMuted }}>No users found.</div>
+            <div style={{ padding: '40px 20px', textAlign: 'center', fontSize: '0.78rem', color: C.textMuted }}>
+              No users match the current filters.{' '}
+              <button onClick={() => { setFilterActivated('all'); setFilterServer('all'); setFilterOu('all'); setSearch('') }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.green, fontSize: '0.78rem', fontFamily: SANS }}>
+                Clear filters
+              </button>
+            </div>
           ) : (() => {
             const groups = new Map<string, typeof filtered>()
             for (const u of filtered) {
@@ -268,8 +489,20 @@ function DirectoryTab({ apps }: { apps: Application[] }) {
             }
             return Array.from(groups.entries()).map(([serverName, users]) => (
               <div key={serverName}>
-                <div className="px-4 py-2 text-xs font-semibold tracking-widest uppercase" style={{ background: 'var(--accent-soft)', color: 'var(--accent)', borderBottom: '1px solid var(--accent-border)' }}>
-                  {serverName} <span style={{ color: C.textMuted, fontWeight: 400 }}>({users.length})</span>
+                <div style={{
+                  padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8,
+                  background: C.accentSoft, borderBottom: `1px solid ${C.borderFaint}`,
+                }}>
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke={C.green} strokeWidth="1.5">
+                    <circle cx="10" cy="10" r="7.5"/><ellipse cx="10" cy="10" rx="3.5" ry="7.5"/>
+                    <line x1="2.5" y1="10" x2="17.5" y2="10"/>
+                  </svg>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: C.green, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    {serverName}
+                  </span>
+                  <span style={{ fontSize: '0.72rem', color: C.textMuted, fontWeight: 400 }}>
+                    {users.length} user{users.length !== 1 ? 's' : ''}
+                  </span>
                 </div>
                 {users.map(user => <LdapUserRow key={user.ldap_username} user={user} apps={apps} />)}
               </div>

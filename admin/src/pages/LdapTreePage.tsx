@@ -33,6 +33,7 @@ interface FlatNode {
   parentDepthFlags: boolean[]
   kind: 'node' | 'skeleton' | 'empty' | 'config'
   configRef?: LdapServerConfig
+  topOffset?: number   // computed cumulative pixel offset for absolute positioning
 }
 
 interface Selection {
@@ -66,7 +67,6 @@ const C = {
   border:       'var(--border)',
   borderHover:  'var(--border-hover)',
   borderFaint:  'var(--border-faint)',
-  sep:          'rgba(255,255,255,0.18)',   // visible divider for dark bg
   // Primary accent — driven by user pick
   cyan:         'var(--accent)',
   cyanDim:      'var(--accent-strong)',
@@ -86,7 +86,9 @@ const C = {
 }
 
 const FONT = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
+const SANS = "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif"
 const ROW_H = 30
+const CONFIG_ROW_H = 52   // server header rows — taller for visual grouping + top gap
 const INDENT = 16
 const LINE_COLOR = 'var(--border-faint)'
 const OVERSCAN = 5
@@ -808,40 +810,46 @@ function ContextMenu({
       ref={ref}
       style={{
         position: 'fixed', left: adj.x, top: adj.y, zIndex: 80,
-        minWidth: 200,
-        background: C.surface,
-        border: `1px solid ${C.borderHover}`,
-        boxShadow: '0 12px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(94,234,212,0.08)',
-        fontFamily: FONT,
+        minWidth: 210,
+        background: C.surface2,
+        border: `1px solid ${C.border}`,
+        borderRadius: 10,
+        boxShadow: '0 16px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)',
+        fontFamily: SANS,
+        overflow: 'hidden',
         animation: 'ldapFadeIn 0.1s ease',
       }}
     >
       <div style={{
-        padding: '4px 10px', fontSize: '0.55rem', letterSpacing: '0.18em',
-        textTransform: 'uppercase', color: C.textMuted,
-        borderBottom: `1px solid ${C.borderFaint}`, background: C.surface2,
+        padding: '8px 12px 6px',
+        fontSize: '0.65rem', fontWeight: 600,
+        color: C.textMuted,
+        borderBottom: `1px solid ${C.borderFaint}`,
       }}>
-        actions
+        Actions
       </div>
-      {items.map((it, i) => (
-        <div
-          key={i}
-          onClick={() => { if (!it.disabled) { it.onClick(); onClose() } }}
-          style={{
-            padding: '6px 10px', fontSize: '0.72rem',
-            cursor: it.disabled ? 'not-allowed' : 'pointer',
-            color: it.disabled ? C.textMuted : it.danger ? C.red : C.textDim,
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            borderBottom: i === items.length - 1 ? 'none' : `1px solid ${C.borderFaint}`,
-            opacity: it.disabled ? 0.5 : 1,
-          }}
-          onMouseEnter={e => { if (!it.disabled) e.currentTarget.style.background = 'var(--accent-soft)' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-        >
-          <span>{it.label}</span>
-          {it.hint && <span style={{ color: C.textMuted, fontSize: '0.6rem', marginLeft: 12 }}>{it.hint}</span>}
-        </div>
-      ))}
+      <div style={{ padding: '4px' }}>
+        {items.map((it, i) => (
+          <div
+            key={i}
+            onClick={() => { if (!it.disabled) { it.onClick(); onClose() } }}
+            style={{
+              padding: '7px 10px', fontSize: '0.78rem',
+              borderRadius: 6,
+              cursor: it.disabled ? 'not-allowed' : 'pointer',
+              color: it.disabled ? C.textMuted : it.danger ? C.red : C.text,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              opacity: it.disabled ? 0.4 : 1,
+              transition: 'background 0.08s',
+            }}
+            onMouseEnter={e => { if (!it.disabled) e.currentTarget.style.background = 'var(--accent-soft)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+          >
+            <span>{it.label}</span>
+            {it.hint && <span style={{ color: C.textMuted, fontSize: '0.65rem', marginLeft: 12 }}>{it.hint}</span>}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -926,35 +934,56 @@ const FlatTreeRow = React.memo(function FlatTreeRow(props: FlatTreeRowProps) {
   if (flatNode.kind === 'config' && flatNode.configRef) {
     const cfg = flatNode.configRef
     return (
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {/* Top separator gap — visually separates this server section from the one above */}
+        <div style={{
+          height: 10,
+          background: C.bg,
+          borderBottom: `2px solid ${C.border}`,
+        }} />
       <div
         onClick={() => onConfigToggle && onConfigToggle(cfg.id)}
         style={{
-          height: ROW_H + 8,
-          display: 'flex', alignItems: 'center', gap: 8,
-          padding: '0 10px',
+          height: CONFIG_ROW_H - 10,
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '0 14px 0 10px',
           cursor: 'pointer', userSelect: 'none',
-          borderTop: `1px solid ${C.borderFaint}`,
-          borderBottom: `1px solid ${C.borderFaint}`,
-          background: C.surface2,
+          borderLeft: `3px solid ${cfg.active ? C.cyan : C.borderFaint}`,
+          borderBottom: `1px solid ${C.border}`,
+          background: `linear-gradient(90deg, var(--accent-soft) 0%, ${C.surface2} 60%)`,
         }}
       >
         <Chevron expanded={isExpanded} size={11} />
-        <DomainIcon size={13} color={cfg.active ? C.cyan : C.textMuted} />
+        <DomainIcon size={15} color={cfg.active ? C.cyan : C.textMuted} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
-            fontSize: '0.72rem', fontWeight: 700,
+            fontSize: '0.78rem', fontWeight: 700,
+            fontFamily: SANS,
             color: cfg.active ? C.cyan : C.textDim,
-            letterSpacing: '0.02em',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
             {deriveDomain(cfg.baseDn)}
           </div>
+          <div style={{
+            fontSize: '0.62rem', fontFamily: SANS,
+            color: C.textMuted, marginTop: 1,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {cfg.url}
+          </div>
         </div>
         <span style={{
-          flexShrink: 0, width: 6, height: 6, borderRadius: '50%',
-          background: cfg.active ? C.green : C.textMuted,
-          boxShadow: cfg.active ? `0 0 6px ${C.green}` : 'none',
-        }} />
+          flexShrink: 0,
+          padding: '2px 7px',
+          borderRadius: 20,
+          fontSize: '0.58rem', fontFamily: SANS, fontWeight: 600,
+          background: cfg.active ? 'rgba(52,211,153,0.12)' : 'rgba(107,114,128,0.12)',
+          border: `1px solid ${cfg.active ? C.green : C.borderFaint}`,
+          color: cfg.active ? C.green : C.textMuted,
+        }}>
+          {cfg.active ? 'online' : 'off'}
+        </span>
+      </div>
       </div>
     )
   }
@@ -991,18 +1020,18 @@ const FlatTreeRow = React.memo(function FlatTreeRow(props: FlatTreeRowProps) {
         position: 'relative',
         paddingRight: 8,
         background: isSelected
-          ? 'linear-gradient(90deg, rgba(94,234,212,0.10) 0%, rgba(94,234,212,0.03) 100%)'
-          : isMultiSelected
-          ? 'rgba(170,136,255,0.10)'
-          : isFocused
           ? 'var(--accent-soft)'
+          : isMultiSelected
+          ? 'rgba(170,136,255,0.08)'
+          : isFocused
+          ? 'rgba(255,255,255,0.04)'
           : 'transparent',
-        borderLeft: isSelected ? `2px solid ${C.cyan}`
-          : isMultiSelected ? `2px solid ${C.purple}`
-          : isFocused ? `2px solid ${C.borderHover}`
-          : '2px solid transparent',
-        borderBottom: `1px solid ${C.sep}`,
-        transition: 'background 0.08s ease',
+        borderLeft: isSelected ? `3px solid ${C.cyan}`
+          : isMultiSelected ? `3px solid ${C.purple}`
+          : isFocused ? `3px solid ${C.borderHover}`
+          : '3px solid transparent',
+        borderBottom: '1px solid transparent',
+        transition: 'background 0.1s ease',
       }}
     >
       {/* Tree guide lines for ancestor levels */}
@@ -1059,10 +1088,11 @@ const FlatTreeRow = React.memo(function FlatTreeRow(props: FlatTreeRowProps) {
       </div>
 
       <span style={{
-        fontSize: '0.75rem',
+        fontSize: '0.78rem',
+        fontFamily: SANS,
         color: isSelected ? C.cyan
           : isOu ? C.ouGold
-          : isUser ? (node.is_activated ? C.cyan : C.textDim)
+          : isUser ? (node.is_activated ? C.text : C.textDim)
           : isGroup ? C.purple
           : C.textDim,
         fontWeight: isOu ? 600 : isSelected ? 600 : 400,
@@ -1104,20 +1134,22 @@ function Stat({ label, value, accent }: { label: string; value: number; accent: 
   return (
     <div style={{
       border: `1px solid ${C.border}`,
+      borderRadius: 10,
       background: C.surface,
-      padding: '0.75rem 0.875rem',
+      padding: '0.875rem 1rem',
       position: 'relative',
       overflow: 'hidden',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
     }}>
       <div style={{
-        position: 'absolute', top: 0, left: 0, height: 2, width: '100%',
+        position: 'absolute', top: 0, left: 0, height: 3, width: '60%',
         background: `linear-gradient(90deg, ${accent} 0%, transparent 100%)`,
-        opacity: 0.6,
+        opacity: 0.7, borderRadius: '10px 0 0 0',
       }} />
-      <div style={{ fontSize: '0.6rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: C.textMuted }}>
+      <div style={{ fontSize: '0.65rem', fontFamily: SANS, fontWeight: 500, color: C.textMuted, textTransform: 'capitalize' }}>
         {label}
       </div>
-      <div style={{ fontSize: '1.5rem', fontWeight: 700, color: accent, marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>
+      <div style={{ fontSize: '1.75rem', fontWeight: 700, color: accent, marginTop: 6, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
         {value.toLocaleString()}
       </div>
     </div>
@@ -1126,10 +1158,10 @@ function Stat({ label, value, accent }: { label: string; value: number; accent: 
 
 function Section({ label, children, action }: { label: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: 20, paddingTop: 18, borderTop: `1px solid ${C.sep}` }}>
+    <div style={{ marginBottom: 20, paddingTop: 18, borderTop: `1px solid ${C.borderFaint}` }}>
       <div style={{
-        fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase',
-        color: C.textMuted, marginBottom: 8,
+        fontSize: '0.7rem', fontFamily: SANS, fontWeight: 600,
+        color: C.textMuted, marginBottom: 10,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <span>{label}</span>
@@ -1143,35 +1175,14 @@ function Section({ label, children, action }: { label: string; children: React.R
 function Mini({ label, value, accent }: { label: string; value: number; accent: string }) {
   return (
     <div style={{
-      padding: '0.5rem 0.75rem',
+      padding: '0.5rem 0.875rem',
       border: `1px solid ${C.border}`,
+      borderRadius: 8,
       background: C.surface,
       minWidth: 80,
     }}>
-      <div style={{ fontSize: '0.55rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: C.textMuted }}>{label}</div>
-      <div style={{ fontSize: '1.15rem', fontWeight: 700, color: accent, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
-    </div>
-  )
-}
-
-function KV({ label, value, mono, color }: { label: string; value?: string; mono?: boolean; color?: string }) {
-  return (
-    <div style={{
-      padding: '0.625rem 0.875rem',
-      borderRight: `1px solid ${C.borderFaint}`,
-      borderBottom: `1px solid ${C.borderFaint}`,
-    }}>
-      <div style={{ fontSize: '0.55rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: C.textMuted }}>
-        {label}
-      </div>
-      <div style={{
-        fontSize: '0.8125rem', marginTop: 3,
-        color: value ? (color ?? C.textDim) : C.textMuted,
-        fontFamily: mono ? FONT : 'inherit',
-        wordBreak: 'break-word',
-      }}>
-        {value || <span style={{ color: C.textMuted, fontStyle: 'italic' }}>—</span>}
-      </div>
+      <div style={{ fontSize: '0.62rem', fontFamily: SANS, fontWeight: 500, color: C.textMuted }}>{label}</div>
+      <div style={{ fontSize: '1.25rem', fontWeight: 700, color: accent, fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>{value}</div>
     </div>
   )
 }
@@ -1193,11 +1204,12 @@ function ContainerDetail({ node, configId }: { node: TreeNode; configId: string 
 
   return (
     <div style={{ padding: '1.75rem 2rem' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 20, paddingBottom: 20, borderBottom: `1px solid ${C.sep}` }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 20, paddingBottom: 20, borderBottom: `1px solid ${C.border}` }}>
         <div style={{
           width: 52, height: 52, flexShrink: 0,
+          borderRadius: 12,
           border: `1px solid ${isOu ? 'rgba(240,180,41,0.35)' : isGroup ? 'rgba(170,136,255,0.35)' : C.border}`,
-          background: C.surface,
+          background: isOu ? 'rgba(240,180,41,0.08)' : isGroup ? 'rgba(170,136,255,0.08)' : C.surface,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           {isOu ? <OuFolderIcon expanded size={24} />
@@ -1205,10 +1217,10 @@ function ContainerDetail({ node, configId }: { node: TreeNode; configId: string 
             : <ContainerIcon size={22} />}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: '0.625rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: C.textMuted }}>
-            {isOu ? 'organizationalunit' : isGroup ? 'security_group' : 'container'}
+          <div style={{ fontSize: '0.65rem', fontFamily: SANS, fontWeight: 500, color: C.textMuted }}>
+            {isOu ? 'Organizational Unit' : isGroup ? 'Security Group' : 'Container'}
           </div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: isOu ? C.ouGold : isGroup ? C.purple : C.cyan, marginTop: 2, wordBreak: 'break-word' }}>
+          <div style={{ fontSize: '1.35rem', fontWeight: 700, fontFamily: SANS, color: isOu ? C.ouGold : isGroup ? C.purple : C.cyan, marginTop: 4, wordBreak: 'break-word', letterSpacing: '-0.01em' }}>
             {node.name}
           </div>
         </div>
@@ -1250,9 +1262,10 @@ function ContainerDetail({ node, configId }: { node: TreeNode; configId: string 
 }
 
 function UserDetail({
-  node, apps, isFavorite, isPinned, onActivate, onToggleFavorite, onTogglePin,
+  node, configId, apps, isFavorite, isPinned, onActivate, onToggleFavorite, onTogglePin,
 }: {
   node: TreeNode
+  configId: string
   apps: Application[]
   isFavorite: boolean
   isPinned: boolean
@@ -1260,129 +1273,146 @@ function UserDetail({
   onToggleFavorite: () => void
   onTogglePin: () => void
 }) {
+  const { data: allAttrs, isLoading: attrsLoading } = useQuery({
+    queryKey: ['ldap-entry', node.dn, configId],
+    queryFn: () => ldapApi.getEntry(node.dn, configId),
+    enabled: !!node.dn && !node.dn.startsWith('uid=') && !node.dn.startsWith('__'),
+    staleTime: 30_000,
+  })
+
+  // Skip meta attrs shown elsewhere
+  const SKIP = new Set(['objectclass', 'dn', 'entrydn', 'entryuuid', 'creatorsname', 'createtimestamp', 'modifiersname', 'modifytimestamp', 'structuralobjectclass', 'subschemasubentry', 'entrycsn'])
+  const filteredAttrs = allAttrs
+    ? Object.entries(allAttrs).filter(([k]) => !SKIP.has(k.toLowerCase()))
+    : []
+
   return (
-    <div style={{ padding: '1.75rem 2rem' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 20, paddingBottom: 20, borderBottom: `1px solid ${C.sep}` }}>
+    <div style={{ padding: '1.5rem 1.75rem' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 20, paddingBottom: 20, borderBottom: `1px solid ${C.border}` }}>
         <div style={{
           width: 64, height: 64, flexShrink: 0,
-          border: `1px solid ${node.is_activated ? 'rgba(94,234,212,0.4)' : C.border}`,
-          background: `linear-gradient(135deg, ${C.surface2} 0%, ${C.surface} 100%)`,
+          borderRadius: 16,
+          border: `1px solid ${node.is_activated ? 'rgba(94,234,212,0.35)' : C.border}`,
+          background: node.is_activated ? 'var(--accent-soft)' : C.surface2,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          position: 'relative',
-          boxShadow: node.is_activated ? '0 0 0 1px rgba(94,234,212,0.1), 0 0 24px rgba(94,234,212,0.08)' : 'none',
+          boxShadow: node.is_activated ? '0 0 0 3px var(--accent-soft)' : 'none',
         }}>
           <UserIcon activated={node.is_activated} size={32} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: '0.625rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: C.textMuted }}>
-            user &middot; {node.is_activated ? 'activated' : 'not_activated'}
+          <div style={{ fontSize: '0.65rem', fontFamily: SANS, fontWeight: 500, color: C.textMuted }}>
+            User · {node.is_activated ? 'Active' : 'Inactive'}
           </div>
-          <div style={{
-            fontSize: '1.35rem', fontWeight: 700,
-            color: node.is_activated ? C.cyan : C.textDim,
-            marginTop: 2, wordBreak: 'break-word',
-          }}>
+          <div style={{ fontSize: '1.3rem', fontWeight: 700, fontFamily: SANS, color: C.text, marginTop: 4, wordBreak: 'break-word', letterSpacing: '-0.01em' }}>
             {node.name}
           </div>
           {node.title && (
-            <div style={{ fontSize: '0.75rem', color: C.textDim, marginTop: 2 }}>{node.title}</div>
+            <div style={{ fontSize: '0.78rem', fontFamily: SANS, color: C.textDim, marginTop: 3 }}>{node.title}</div>
           )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
             <span style={{
-              fontSize: '0.625rem', letterSpacing: '0.12em', textTransform: 'uppercase',
-              padding: '3px 8px',
-              border: `1px solid ${node.is_activated ? C.green : C.border}`,
+              fontSize: '0.68rem', fontFamily: SANS, fontWeight: 600, padding: '4px 10px', borderRadius: 20,
+              border: `1px solid ${node.is_activated ? C.green : C.borderFaint}`,
               color: node.is_activated ? C.green : C.textMuted,
-              background: node.is_activated ? 'rgba(0,255,136,0.06)' : 'transparent',
+              background: node.is_activated ? 'rgba(52,211,153,0.1)' : 'transparent',
             }}>
-              {node.is_activated ? '● activated' : '○ inactive'}
+              {node.is_activated ? '● Active' : '○ Inactive'}
             </span>
             {apps.length > 0 && (
-              <button
-                onClick={onActivate}
-                disabled={!node.ldap_username}
-                style={{
-                  fontSize: '0.7rem', padding: '0.4rem 0.875rem',
-                  border: `1px solid ${C.cyan}`,
-                  background: C.cyan, color: '#000',
-                  cursor: 'pointer', fontFamily: FONT, fontWeight: 700,
-                  letterSpacing: '0.04em',
-                }}
-              >
-                + grant_app_access
-              </button>
+              <button onClick={onActivate} disabled={!node.ldap_username} style={{
+                fontSize: '0.73rem', fontFamily: SANS, fontWeight: 600, padding: '5px 14px',
+                border: 'none', background: C.cyan, color: '#000', cursor: 'pointer', borderRadius: 20,
+              }}>Grant App Access</button>
             )}
             <button onClick={onToggleFavorite} style={{
-              fontSize: '0.65rem', padding: '0.35rem 0.6rem',
-              border: `1px solid ${isFavorite ? C.amber : C.border}`,
-              background: 'none', color: isFavorite ? C.amber : C.textDim,
-              cursor: 'pointer', fontFamily: FONT,
-              display: 'flex', alignItems: 'center', gap: 4,
+              fontSize: '0.7rem', fontFamily: SANS, padding: '4px 10px',
+              border: `1px solid ${isFavorite ? C.amber : C.border}`, borderRadius: 20,
+              background: isFavorite ? 'rgba(251,191,36,0.08)' : 'none',
+              color: isFavorite ? C.amber : C.textDim, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 5,
             }}>
-              <StarIcon filled={isFavorite} size={10} />
-              {isFavorite ? 'favorited' : 'favorite'}
+              <StarIcon filled={isFavorite} size={11} />
+              {isFavorite ? 'Favorited' : 'Favorite'}
             </button>
             <button onClick={onTogglePin} style={{
-              fontSize: '0.65rem', padding: '0.35rem 0.6rem',
-              border: `1px solid ${isPinned ? C.cyan : C.border}`,
-              background: 'none', color: isPinned ? C.cyan : C.textDim,
-              cursor: 'pointer', fontFamily: FONT,
-              display: 'flex', alignItems: 'center', gap: 4,
+              fontSize: '0.7rem', fontFamily: SANS, padding: '4px 10px',
+              border: `1px solid ${isPinned ? C.cyan : C.border}`, borderRadius: 20,
+              background: isPinned ? 'var(--accent-soft)' : 'none',
+              color: isPinned ? C.cyan : C.textDim, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 5,
             }}>
               <PinIcon size={10} color={isPinned ? C.cyan : C.textDim} />
-              {isPinned ? 'pinned' : 'pin'}
+              {isPinned ? 'Pinned' : 'Pin'}
             </button>
           </div>
         </div>
       </div>
 
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: C.textMuted, marginBottom: 8 }}>
-          attributes
-        </div>
-        <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: 0,
-          border: `1px solid ${C.border}`,
-          background: C.surface,
-        }}>
-          <KV label="uid" value={node.ldap_username} mono color={C.cyan} />
-          <KV label="mail" value={node.email} />
-          <KV label="title" value={node.title} />
-          <KV label="cn" value={node.rdn} mono />
-        </div>
-      </div>
-
+      {/* DN */}
       <Section label="distinguished_name">
         <code style={{
-          display: 'block', padding: '0.5rem 0.75rem',
-          fontSize: '0.7rem', color: C.cyanDim, fontFamily: FONT,
-          background: C.bg, border: `1px solid ${C.border}`,
-          wordBreak: 'break-all', lineHeight: 1.6,
-        }}>
-          {node.dn}
-        </code>
+          display: 'block', padding: '0.5rem 0.75rem', fontSize: '0.7rem', color: C.cyanDim, fontFamily: FONT,
+          background: C.bg, border: `1px solid ${C.border}`, wordBreak: 'break-all', lineHeight: 1.6,
+        }}>{node.dn}</code>
       </Section>
 
+      {/* ALL LDAP Attributes */}
+      <Section label={`ldap attributes${filteredAttrs.length ? ` (${filteredAttrs.length})` : ''}`}>
+        {attrsLoading ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 0' }}>
+            <Spinner size={11} /><span style={{ fontSize: '0.72rem', color: C.textMuted, fontFamily: SANS }}>Loading attributes…</span>
+          </div>
+        ) : filteredAttrs.length === 0 ? (
+          <div style={{ fontSize: '0.72rem', color: C.textMuted, fontFamily: SANS, padding: '8px 0' }}>
+            {node.dn.startsWith('__') ? 'Select a tree node to view attributes' : 'No attributes returned'}
+          </div>
+        ) : (
+          <div style={{ border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden', background: C.surface }}>
+            {filteredAttrs.map(([key, val], idx) => {
+              const values = Array.isArray(val) ? val : [val ?? '']
+              const isMulti = values.length > 1
+              return (
+                <div key={key} style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 0,
+                  borderBottom: idx < filteredAttrs.length - 1 ? `1px solid ${C.borderFaint}` : 'none',
+                  background: idx % 2 === 0 ? 'transparent' : C.surface2,
+                }}>
+                  <div style={{
+                    width: 160, flexShrink: 0, padding: '7px 12px',
+                    fontSize: '0.68rem', fontFamily: FONT, color: C.textMuted, fontWeight: 600,
+                    wordBreak: 'break-all', borderRight: `1px solid ${C.borderFaint}`,
+                    background: 'rgba(0,0,0,0.1)',
+                  }}>{key}</div>
+                  <div style={{ flex: 1, minWidth: 0, padding: '7px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {values.map((v, vi) => (
+                      <span key={vi} style={{
+                        fontSize: '0.72rem', fontFamily: isMulti ? FONT : SANS,
+                        color: key === 'uid' || key === 'sAMAccountName' ? C.cyan : C.text,
+                        wordBreak: 'break-all', lineHeight: 1.5,
+                      }}>{v || <span style={{ color: C.textMuted, fontStyle: 'italic' }}>empty</span>}</span>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </Section>
+
+      {/* Groups */}
       {node.groups && node.groups.length > 0 && (
         <Section label={`memberof (${node.groups.length})`}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {node.groups.map(g => (
-              <span
-                key={g}
-                title={g}
-                style={{
-                  fontSize: '0.7rem',
-                  padding: '4px 10px',
-                  border: '1px solid rgba(170,136,255,0.3)',
-                  background: 'rgba(170,136,255,0.08)',
-                  color: C.purple,
-                  display: 'inline-flex', alignItems: 'center', gap: 6,
-                  maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}
-              >
-                <GroupShieldIcon size={11} />
-                {g}
+              <span key={g} title={g} style={{
+                fontSize: '0.7rem', padding: '4px 10px',
+                border: '1px solid rgba(170,136,255,0.3)', background: 'rgba(170,136,255,0.08)',
+                color: C.purple, display: 'inline-flex', alignItems: 'center', gap: 6,
+                maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                borderRadius: 6,
+              }}>
+                <GroupShieldIcon size={11} />{g}
               </span>
             ))}
           </div>
@@ -1408,13 +1438,13 @@ function NoSelectionPanel({
 }) {
   return (
     <div style={{ padding: '2rem 2.25rem', maxWidth: 820 }}>
-      <div style={{ fontSize: '0.625rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: C.textMuted }}>
-        directory_overview
+      <div style={{ fontSize: '0.7rem', fontFamily: SANS, fontWeight: 500, color: C.textMuted }}>
+        Directory Overview
       </div>
-      <div style={{ fontSize: '1.5rem', fontWeight: 700, color: C.cyan, marginTop: 4, letterSpacing: '-0.01em' }}>
+      <div style={{ fontSize: '1.75rem', fontWeight: 700, fontFamily: SANS, color: C.text, marginTop: 4, letterSpacing: '-0.02em' }}>
         Active Directory
       </div>
-      <div style={{ fontSize: '0.75rem', color: C.textDim, marginTop: 6, maxWidth: 540, lineHeight: 1.6 }}>
+      <div style={{ fontSize: '0.8rem', fontFamily: SANS, color: C.textDim, marginTop: 8, maxWidth: 540, lineHeight: 1.7 }}>
         Browse organizational units, users and security groups across your federated LDAP servers.
         Press <kbd style={kbdStyle}>/</kbd> to focus search,
         <kbd style={kbdStyle}>↑</kbd>/<kbd style={kbdStyle}>↓</kbd> to navigate,
@@ -1435,12 +1465,12 @@ function NoSelectionPanel({
       {pinned.length > 0 && (
         <div style={{ marginTop: 28 }}>
           <div style={{
-            fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase',
+            fontSize: '0.72rem', fontFamily: SANS, fontWeight: 600,
             color: C.cyanDim, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6,
           }}>
-            <PinIcon size={11} /> pinned ({pinned.length})
+            <PinIcon size={11} /> Pinned ({pinned.length})
           </div>
-          <div style={{ border: `1px solid ${C.border}`, background: C.surface }}>
+          <div style={{ border: `1px solid ${C.border}`, borderRadius: 8, background: C.surface, overflow: 'hidden' }}>
             {pinned.map((p, i) => (
               <NodeRefRow
                 key={p.node.dn}
@@ -1457,12 +1487,12 @@ function NoSelectionPanel({
       {favorites.length > 0 && (
         <div style={{ marginTop: 24 }}>
           <div style={{
-            fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase',
+            fontSize: '0.72rem', fontFamily: SANS, fontWeight: 600,
             color: C.amber, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6,
           }}>
-            <StarIcon filled size={11} /> favorites ({favorites.length})
+            <StarIcon filled size={11} /> Favorites ({favorites.length})
           </div>
-          <div style={{ border: `1px solid ${C.border}`, background: C.surface }}>
+          <div style={{ border: `1px solid ${C.border}`, borderRadius: 8, background: C.surface, overflow: 'hidden' }}>
             {favorites.map((p, i) => (
               <NodeRefRow
                 key={p.node.dn}
@@ -1479,12 +1509,12 @@ function NoSelectionPanel({
       {recent.length > 0 && (
         <div style={{ marginTop: 24 }}>
           <div style={{
-            fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase',
+            fontSize: '0.72rem', fontFamily: SANS, fontWeight: 600,
             color: C.textMuted, marginBottom: 8,
           }}>
-            recently viewed ({recent.length})
+            Recently Viewed ({recent.length})
           </div>
-          <div style={{ border: `1px solid ${C.border}`, background: C.surface }}>
+          <div style={{ border: `1px solid ${C.border}`, borderRadius: 8, background: C.surface, overflow: 'hidden' }}>
             {recent.map((r, i) => (
               <NodeRefRow
                 key={r.node.dn + r.ts}
@@ -1501,15 +1531,17 @@ function NoSelectionPanel({
       <div style={{
         marginTop: 32,
         border: `1px solid ${C.border}`,
+        borderRadius: 10,
         background: C.surface,
+        overflow: 'hidden',
       }}>
         <div style={{
-          padding: '0.55rem 0.875rem',
+          padding: '0.625rem 1rem',
           borderBottom: `1px solid ${C.border}`,
-          fontSize: '0.625rem', letterSpacing: '0.18em', textTransform: 'uppercase', color: C.textMuted,
+          fontSize: '0.7rem', fontFamily: SANS, fontWeight: 600, color: C.textMuted,
           background: C.surface2,
         }}>
-          configured_servers
+          Configured Servers
         </div>
         <div>
           {configs.map((c, i) => (
@@ -1542,14 +1574,15 @@ function NoSelectionPanel({
 
 const kbdStyle: React.CSSProperties = {
   display: 'inline-block',
-  padding: '1px 5px',
+  padding: '2px 6px',
   margin: '0 3px',
   fontSize: '0.65rem',
   fontFamily: FONT,
   border: `1px solid ${C.border}`,
   background: C.surface2,
   color: C.cyan,
-  borderRadius: 2,
+  borderRadius: 5,
+  boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
 }
 
 function NodeRefRow({
@@ -1572,7 +1605,7 @@ function NodeRefRow({
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '0.5rem 0.875rem',
         borderBottom: last ? 'none' : `1px solid ${C.borderFaint}`,
-        fontSize: '0.72rem', cursor: 'pointer',
+        fontSize: '0.75rem', fontFamily: SANS, cursor: 'pointer',
         transition: 'background 0.1s',
       }}
       onMouseEnter={e => e.currentTarget.style.background = 'var(--accent-soft)'}
@@ -1664,43 +1697,49 @@ function Breadcrumb({
 
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 6,
-      padding: '0.4rem 1rem',
-      fontSize: '0.7rem',
+      display: 'flex', alignItems: 'center', gap: 4,
+      padding: '0 1rem',
+      fontSize: '0.72rem',
+      fontFamily: SANS,
       color: C.textDim,
       borderBottom: `1px solid ${C.borderFaint}`,
       background: C.surface,
       flexShrink: 0,
-      minHeight: 32,
+      minHeight: 34,
       overflowX: 'auto',
       whiteSpace: 'nowrap',
     }}>
-      <span style={{ color: C.cyanDim, fontWeight: 600 }}>{domain}</span>
+      <span style={{ color: C.cyanDim, fontWeight: 600, fontSize: '0.68rem' }}>{domain}</span>
       {ordered.map(dn => {
         const n = allNodes.get(dn)
         const label = n ? n.name : dn.split(',')[0]
         const clickable = !!n
         return (
           <React.Fragment key={dn}>
-            <span style={{ color: C.textMuted }}>/</span>
+            <span style={{ color: C.borderHover, fontSize: '0.8rem', margin: '0 1px' }}>›</span>
             <span
               onClick={() => { if (n) onJump(selection.configId, n) }}
               style={{
                 cursor: clickable ? 'pointer' : 'default',
                 color: clickable ? C.textDim : C.textMuted,
-                fontWeight: 500,
+                padding: '2px 5px',
+                borderRadius: 4,
+                transition: 'all 0.1s',
               }}
-              onMouseEnter={e => { if (clickable) e.currentTarget.style.color = C.cyan }}
-              onMouseLeave={e => { if (clickable) e.currentTarget.style.color = C.textDim }}
+              onMouseEnter={e => { if (clickable) { e.currentTarget.style.color = C.cyan; e.currentTarget.style.background = 'var(--accent-soft)' } }}
+              onMouseLeave={e => { if (clickable) { e.currentTarget.style.color = C.textDim; e.currentTarget.style.background = 'transparent' } }}
             >
               {label}
             </span>
           </React.Fragment>
         )
       })}
-      <span style={{ color: C.textMuted }}>/</span>
-      <span style={{ color: C.cyan, fontWeight: 700 }}>{selection.node.name}</span>
-      {/* unused expandedDns kept for future highlighting */}
+      <span style={{ color: C.borderHover, fontSize: '0.8rem', margin: '0 1px' }}>›</span>
+      <span style={{
+        color: C.cyan, fontWeight: 600,
+        padding: '2px 7px', borderRadius: 4,
+        background: 'var(--accent-soft)',
+      }}>{selection.node.name}</span>
       <span style={{ display: 'none' }}>{expandedDns.size}</span>
     </div>
   )
@@ -1803,77 +1842,120 @@ function AttributePicker({
     <div
       ref={dropRef}
       style={{
-        position: 'fixed', top: dropPos.top, left: dropPos.left, zIndex: 9999,
-        width: 280, maxHeight: 360,
-        background: C.surface,
-        border: `1px solid ${C.borderHover}`,
-        borderRadius: 6,
-        boxShadow: '0 16px 40px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04)',
+        position: 'fixed', top: dropPos.top + 8, left: dropPos.left, zIndex: 9999,
+        width: 320,
+        background: 'linear-gradient(160deg, #1e2330 0%, #181c27 100%)',
+        border: `1px solid rgba(255,255,255,0.12)`,
+        borderRadius: 12,
+        boxShadow: '0 24px 64px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.06)',
         display: 'flex', flexDirection: 'column',
-        animation: 'ldapFadeIn 0.12s ease',
+        overflow: 'hidden',
+        animation: 'ldapFadeIn 0.14s ease',
         fontFamily: FONT,
       }}
     >
-      {/* search */}
-      <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.borderFaint}` }}>
-        <input
-          ref={searchRef}
-          value={q}
-          onChange={e => setQ(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === 'Enter' && flatList[activeIdx]) {
-              onChange(flatList[activeIdx].value); setOpen(false)
-            } else if (e.key === 'ArrowDown') {
-              e.preventDefault(); setActiveIdx(i => Math.min(flatList.length - 1, i + 1))
-            } else if (e.key === 'ArrowUp') {
-              e.preventDefault(); setActiveIdx(i => Math.max(0, i - 1))
-            }
-          }}
-          placeholder={`filter ${schemaOpts.length} attributes...`}
-          style={{
-            width: '100%', padding: '5px 8px',
-            background: C.bg, border: `1px solid ${C.borderFaint}`,
-            color: C.text, fontFamily: FONT, fontSize: '0.72rem',
-            outline: 'none', borderRadius: 3,
-          }}
-        />
+      {/* ── Header bar ── */}
+      <div style={{
+        padding: '12px 14px 10px',
+        borderBottom: '1px solid rgba(255,255,255,0.07)',
+        background: 'rgba(255,255,255,0.03)',
+      }}>
+        <div style={{ fontSize: '0.6rem', color: C.textMuted, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 8 }}>
+          Select Attribute
+        </div>
+        {/* Search row */}
+        <div style={{ position: 'relative' }}>
+          <svg width="13" height="13" viewBox="0 0 16 16" style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', opacity: 0.4, pointerEvents: 'none' }}>
+            <circle cx="6.5" cy="6.5" r="4.5" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+            <line x1="10.5" y1="10.5" x2="14" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+          <input
+            ref={searchRef}
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && flatList[activeIdx]) {
+                onChange(flatList[activeIdx].value); setOpen(false)
+              } else if (e.key === 'ArrowDown') {
+                e.preventDefault(); setActiveIdx(i => Math.min(flatList.length - 1, i + 1))
+              } else if (e.key === 'ArrowUp') {
+                e.preventDefault(); setActiveIdx(i => Math.max(0, i - 1))
+              }
+            }}
+            placeholder={`Search ${schemaOpts.length} attributes…`}
+            style={{
+              width: '100%', padding: '7px 10px 7px 30px',
+              background: 'rgba(0,0,0,0.28)',
+              border: '1px solid rgba(255,255,255,0.10)',
+              color: C.text, fontFamily: FONT, fontSize: '0.73rem',
+              outline: 'none', borderRadius: 7,
+              boxSizing: 'border-box',
+            }}
+          />
+        </div>
       </div>
 
-      {/* list */}
-      <div style={{ overflowY: 'auto', flex: 1 }}>
-        {quickFiltered.length > 0 && (
-          <>
-            <div style={{ padding: '6px 12px 3px', fontSize: '0.55rem', color: C.textMuted, letterSpacing: '0.16em', textTransform: 'uppercase' }}>
-              Quick
-            </div>
-            {quickFiltered.map((o, i) => (
-              <AttrRow key={o.value} opt={o} active={value === o.value} hover={activeIdx === i}
-                onPick={() => { onChange(o.value); setOpen(false) }}
-                onHover={() => setActiveIdx(i)}
-              />
-            ))}
-          </>
-        )}
-        {schemaFiltered.length > 0 && (
-          <>
-            <div style={{ padding: '6px 12px 3px', fontSize: '0.55rem', color: C.textMuted, letterSpacing: '0.16em', textTransform: 'uppercase' }}>
-              Server Schema · {schemaFiltered.length}
-            </div>
-            {schemaFiltered.map((o, i) => (
-              <AttrRow key={o.value} opt={o} active={value === o.value}
-                hover={activeIdx === (quickFiltered.length + i)}
-                onPick={() => { onChange(o.value); setOpen(false) }}
-                onHover={() => setActiveIdx(quickFiltered.length + i)}
-              />
-            ))}
-          </>
-        )}
-        {flatList.length === 0 && (
-          <div style={{ padding: '14px 12px', fontSize: '0.7rem', color: C.textMuted, textAlign: 'center' }}>
-            no matches
+      {/* ── Quick pill chips ── */}
+      {quickFiltered.length > 0 && (
+        <div style={{ padding: '10px 14px 8px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+          <div style={{ fontSize: '0.55rem', color: C.textMuted, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 7 }}>
+            Quick picks
           </div>
-        )}
-      </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+            {quickFiltered.map((o, i) => {
+              const isActive = value === o.value
+              const isHov = activeIdx === i
+              return (
+                <div
+                  key={o.value}
+                  onClick={() => { onChange(o.value); setOpen(false) }}
+                  onMouseEnter={() => setActiveIdx(i)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 20,
+                    fontSize: '0.68rem',
+                    cursor: 'pointer',
+                    fontFamily: FONT,
+                    background: isActive
+                      ? 'rgba(94,234,212,0.18)'
+                      : isHov
+                      ? 'rgba(255,255,255,0.10)'
+                      : 'rgba(255,255,255,0.06)',
+                    border: `1px solid ${isActive ? 'rgba(94,234,212,0.5)' : isHov ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)'}`,
+                    color: isActive ? C.cyan : C.text,
+                    fontWeight: isActive ? 600 : 400,
+                    transition: 'all 0.1s ease',
+                  }}
+                >
+                  {o.label}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Schema list ── */}
+      {schemaFiltered.length > 0 && (
+        <div style={{ overflowY: 'auto', flex: 1, maxHeight: 220, padding: '6px 8px 8px' }}>
+          <div style={{ fontSize: '0.55rem', color: C.textMuted, letterSpacing: '0.16em', textTransform: 'uppercase', padding: '4px 6px 6px' }}>
+            Schema · {schemaFiltered.length}
+          </div>
+          {schemaFiltered.map((o, i) => (
+            <AttrRow key={o.value} opt={o} active={value === o.value}
+              hover={activeIdx === (quickFiltered.length + i)}
+              onPick={() => { onChange(o.value); setOpen(false) }}
+              onHover={() => setActiveIdx(quickFiltered.length + i)}
+            />
+          ))}
+        </div>
+      )}
+
+      {flatList.length === 0 && (
+        <div style={{ padding: '20px 14px', fontSize: '0.7rem', color: C.textMuted, textAlign: 'center' }}>
+          No attributes match "{q}"
+        </div>
+      )}
     </div>,
     document.body
   ) : null
@@ -1886,17 +1968,17 @@ function AttributePicker({
         title={selected?.label}
         style={{
           display: 'flex', alignItems: 'center', gap: 6,
-          padding: '4px 8px 4px 9px',
+          padding: '5px 10px 5px 10px',
           background: value !== 'all' ? 'var(--accent-soft)' : C.surface2,
-          border: `1px solid ${open ? C.borderHover : value !== 'all' ? 'var(--accent-medium)' : C.border}`,
+          border: `1px solid ${open ? C.cyan : value !== 'all' ? 'var(--accent-medium)' : C.border}`,
           color: value !== 'all' ? C.cyan : C.textDim,
-          fontFamily: FONT, fontSize: '0.7rem',
-          cursor: 'pointer', borderRadius: 4,
+          fontFamily: SANS, fontSize: '0.73rem',
+          cursor: 'pointer', borderRadius: 6,
           transition: 'all 0.12s ease', maxWidth: 200,
         }}
       >
-        <span style={{ fontSize: '0.55rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: C.textMuted }}>attr</span>
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{triggerLabel}</span>
+        <span style={{ fontSize: '0.6rem', fontWeight: 500, color: C.textMuted }}>attr:</span>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: value !== 'all' ? 600 : 400 }}>{triggerLabel}</span>
         <svg width="9" height="9" viewBox="0 0 10 10" style={{ flexShrink: 0, transform: open ? 'rotate(180deg)' : '', transition: 'transform 0.15s' }}>
           <path d="M2 4l3 3 3-3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
         </svg>
@@ -1916,10 +1998,15 @@ function AttrRow({ opt, active, hover, onPick, onHover }: {
       onMouseEnter={onHover}
       style={{
         display: 'flex', alignItems: 'center', gap: 8,
-        padding: '5px 12px',
-        background: hover ? 'var(--accent-soft)' : active ? 'var(--accent-soft)' : 'transparent',
-        borderLeft: `2px solid ${active ? C.cyan : 'transparent'}`,
-        cursor: 'pointer', fontSize: '0.72rem',
+        padding: '6px 10px',
+        margin: '1px 0',
+        borderRadius: 7,
+        background: active
+          ? 'rgba(94,234,212,0.12)'
+          : hover
+          ? 'rgba(255,255,255,0.07)'
+          : 'transparent',
+        cursor: 'pointer',
         transition: 'background 0.08s',
       }}
     >
@@ -1927,18 +2014,16 @@ function AttrRow({ opt, active, hover, onPick, onHover }: {
         color: active ? C.cyan : C.text,
         fontWeight: active ? 600 : 400,
         fontFamily: FONT,
-        flexShrink: 0,
+        fontSize: '0.72rem',
+        flex: 1,
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
       }}>
         {opt.label}
       </span>
-      {false && opt.sample && (
-        <span style={{
-          color: C.textMuted, fontSize: '0.62rem',
-          marginLeft: 'auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          maxWidth: 130,
-        }}>
-          {opt.sample}
-        </span>
+      {active && (
+        <svg width="12" height="12" viewBox="0 0 12 12" style={{ flexShrink: 0, color: C.cyan }}>
+          <polyline points="1.5,6 4.5,9 10.5,3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
       )}
     </div>
   )
@@ -2084,11 +2169,13 @@ export default function LdapTreePage() {
     const saved = localStorage.getItem(LS_PANEL_WIDTH)
     if (saved) {
       const n = parseInt(saved, 10)
-      if (!Number.isNaN(n)) return Math.max(200, Math.min(600, n))
+      if (!Number.isNaN(n)) return Math.max(200, Math.min(700, n))
     }
     return 340
   })
   const [isDragging, setIsDragging] = useState(false)
+  const dragStartX = useRef(0)
+  const dragStartWidth = useRef(0)
 
   // Hydrate persisted state
   useEffect(() => {
@@ -2130,16 +2217,20 @@ export default function LdapTreePage() {
     return () => clearInterval(t)
   }, [])
 
-  // Resize drag handlers
+  // Resize drag handlers — delta-based so sidebar/padding offsets are irrelevant
   useEffect(() => {
     if (!isDragging) return
+    document.body.style.userSelect = 'none'
+    document.body.style.cursor = 'col-resize'
     const onMove = (e: MouseEvent) => {
-      const w = Math.max(200, Math.min(600, e.clientX))
+      const delta = e.clientX - dragStartX.current
+      const w = Math.max(180, Math.min(700, dragStartWidth.current + delta))
       setPanelWidth(w)
     }
     const onUp = () => {
       setIsDragging(false)
-      writeLS(LS_PANEL_WIDTH, panelWidth)
+      document.body.style.userSelect = ''
+      document.body.style.cursor = ''
       try { localStorage.setItem(LS_PANEL_WIDTH, String(panelWidth)) } catch { /* ignore */ }
     }
     window.addEventListener('mousemove', onMove)
@@ -2147,6 +2238,8 @@ export default function LdapTreePage() {
     return () => {
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
+      document.body.style.userSelect = ''
+      document.body.style.cursor = ''
     }
   }, [isDragging, panelWidth])
 
@@ -2407,6 +2500,13 @@ export default function LdapTreePage() {
         out.push(...tempOut)
       }
     })
+
+    // Compute cumulative top offsets — config rows are taller than regular rows
+    let offset = 0
+    for (const fn of out) {
+      fn.topOffset = offset
+      offset += fn.kind === 'config' ? CONFIG_ROW_H : ROW_H
+    }
 
     return out
   }, [activeConfigs, rootsMap, state.expandedDns, state.childMap, state.loadingDns, state.debouncedSearch, collapsedConfigs, filterType, filterActivated, searchAttr])
@@ -2750,13 +2850,15 @@ export default function LdapTreePage() {
       onKeyDown={handleKeyDown}
       style={{
         display: 'flex', flexDirection: 'column',
-        height: 'calc(100vh - 4rem)', minHeight: 560,
-        fontFamily: FONT,
+        height: '100%', minHeight: 560,
+        fontFamily: SANS,
         color: C.textDim,
         background: C.bg,
         border: `1px solid ${C.border}`,
+        borderRadius: 12,
         overflow: 'hidden',
         outline: 'none',
+        boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
       }}
     >
       <style>{`
@@ -2773,32 +2875,36 @@ export default function LdapTreePage() {
       {/* TOP BAR */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 14,
-        padding: '0.75rem 1rem',
+        padding: '0 1.25rem',
         borderBottom: `1px solid ${C.border}`,
-        background: `linear-gradient(180deg, ${C.surface2} 0%, ${C.surface} 100%)`,
+        background: C.surface2,
         flexShrink: 0,
-        minHeight: 54,
+        minHeight: 56,
       }}>
+        {/* Logo / Icon */}
         <div style={{
-          width: 32, height: 32, flexShrink: 0,
-          border: `1px solid ${C.border}`,
+          width: 34, height: 34, flexShrink: 0,
+          borderRadius: 8,
+          border: `1px solid var(--accent-medium)`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: C.bg,
+          background: 'var(--accent-soft)',
         }}>
           <DomainIcon size={18} />
         </div>
+
+        {/* Title */}
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: '0.6rem', letterSpacing: '0.22em', textTransform: 'uppercase', color: C.textMuted }}>
-            ldap_directory_browser
+          <div style={{ fontSize: '0.62rem', fontFamily: SANS, fontWeight: 500, color: C.textMuted }}>
+            Directory Browser
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 1 }}>
-            <span style={{ fontSize: '0.95rem', fontWeight: 700, color: C.cyan, letterSpacing: '0.02em' }}>
-              ACTIVE DIRECTORY
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: '1rem', fontWeight: 700, fontFamily: SANS, color: C.text, letterSpacing: '-0.01em' }}>
+              Active Directory
             </span>
             {selectedConfig && (
               <>
-                <span style={{ color: C.border }}>/</span>
-                <span style={{ fontSize: '0.75rem', color: C.textDim }}>{deriveDomain(selectedConfig.baseDn)}</span>
+                <span style={{ color: C.borderHover, fontSize: '0.8rem' }}>›</span>
+                <span style={{ fontSize: '0.78rem', fontFamily: SANS, color: C.cyan }}>{deriveDomain(selectedConfig.baseDn)}</span>
               </>
             )}
           </div>
@@ -2806,13 +2912,14 @@ export default function LdapTreePage() {
 
         <div style={{ flex: 1 }} />
 
+        {/* Multi-select bar */}
         {state.multiSelected.size > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{
-              padding: '4px 10px', fontSize: '0.7rem',
+              padding: '4px 12px', fontSize: '0.73rem', fontFamily: SANS, fontWeight: 600,
+              borderRadius: 20,
               border: `1px solid ${C.purple}`, color: C.purple,
               background: 'rgba(170,136,255,0.08)',
-              letterSpacing: '0.05em',
             }}>
               {state.multiSelected.size} selected
             </span>
@@ -2820,43 +2927,53 @@ export default function LdapTreePage() {
               <button
                 onClick={() => setShowBulkGrant(true)}
                 style={{
-                  padding: '4px 12px', fontSize: '0.7rem', fontWeight: 700,
-                  border: `1px solid ${C.cyan}`, background: C.cyan, color: '#000',
-                  cursor: 'pointer', fontFamily: FONT, letterSpacing: '0.04em',
+                  padding: '5px 14px', fontSize: '0.73rem', fontWeight: 600,
+                  border: 'none', background: C.cyan, color: '#000',
+                  cursor: 'pointer', fontFamily: SANS,
+                  borderRadius: 20,
                 }}
               >
-                + bulk_grant ({multiSelectedUsers.length})
+                Grant access ({multiSelectedUsers.length})
               </button>
             )}
             <button onClick={() => dispatch({ type: 'CLEAR_MULTISELECT' })} style={{
-              padding: '4px 8px', fontSize: '0.7rem',
+              padding: '4px 10px', fontSize: '0.73rem', fontFamily: SANS,
               border: `1px solid ${C.border}`, background: 'none', color: C.textDim,
-              cursor: 'pointer', fontFamily: FONT,
-            }}>clear</button>
+              cursor: 'pointer', borderRadius: 20,
+            }}>Clear</button>
           </div>
         )}
 
-        {/* Connection summary */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        {/* Connection status chips */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {activeConfigs.map(c => {
             const stat = counts[c.id]?.status ?? 'loading'
             const color = stat === 'error' ? C.red : stat === 'loading' ? C.amber : C.green
+            const bg = stat === 'error' ? 'rgba(248,113,113,0.1)' : stat === 'loading' ? 'rgba(251,146,60,0.1)' : 'rgba(52,211,153,0.1)'
             return (
-              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div key={c.id} style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '4px 10px',
+                borderRadius: 20,
+                background: bg,
+                border: `1px solid ${color}`,
+                opacity: 0.85,
+              }}>
                 <span style={{
-                  width: 7, height: 7, borderRadius: '50%',
+                  width: 6, height: 6, borderRadius: '50%',
                   background: color,
-                  boxShadow: stat === 'ok' ? `0 0 8px ${color}` : 'none',
+                  boxShadow: stat === 'ok' ? `0 0 6px ${color}` : 'none',
                   animation: stat === 'loading' ? 'ldapPulseDot 1s ease-in-out infinite' : 'none',
+                  flexShrink: 0,
                 }} />
-                <span style={{ fontSize: '0.7rem', color: C.textDim, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: '0.68rem', fontFamily: SANS, color: C.textDim, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {c.url}
                 </span>
               </div>
             )
           })}
           {activeConfigs.length === 0 && (
-            <span style={{ fontSize: '0.7rem', color: C.amber }}>● no_active_configs</span>
+            <span style={{ fontSize: '0.73rem', fontFamily: SANS, color: C.amber }}>No active servers</span>
           )}
         </div>
       </div>
@@ -2879,28 +2996,25 @@ export default function LdapTreePage() {
           width: panelWidth, flexShrink: 0,
           display: 'flex', flexDirection: 'column',
           borderRight: `1px solid ${C.border}`,
-          background: C.bg,
+          background: C.surface,
           minHeight: 0,
         }}>
-          {/* Search row — floating card style, fully detached from tree below */}
+          {/* Search panel */}
           <div style={{
-            margin: '10px 10px 0',
-            padding: '12px',
-            border: `1px solid ${C.border}`,
-            background: C.surface2,
-            display: 'flex', flexDirection: 'column', gap: 10,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.35)',
-            position: 'relative',
-            zIndex: 2,
-            borderRadius: 4,
+            padding: '10px 10px 8px',
+            borderBottom: `1px solid ${C.borderFaint}`,
+            background: C.surface,
+            display: 'flex', flexDirection: 'column', gap: 7,
           }}>
+            {/* Search input */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
               padding: '7px 10px',
               background: C.bg,
-              border: `1px solid ${state.searchQuery ? 'var(--accent-medium)' : C.border}`,
-              borderRadius: 6,
+              border: `1px solid ${state.searchQuery ? C.cyan : C.border}`,
+              borderRadius: 8,
               transition: 'border-color 0.15s',
+              boxShadow: state.searchQuery ? `0 0 0 3px var(--accent-soft)` : 'none',
             }}>
               <span style={{ color: C.textMuted, display: 'flex' }}><SearchIcon size={13} /></span>
               <input
@@ -2908,35 +3022,35 @@ export default function LdapTreePage() {
                 type="text"
                 value={state.searchQuery}
                 onChange={e => dispatch({ type: 'SET_SEARCH', query: e.target.value })}
-                placeholder={searchScope === 'server' ? 'Search directory (LDAP)…' : 'Filter visible…'}
+                placeholder={searchScope === 'server' ? 'Search directory (LDAP)…' : 'Filter tree…'}
                 style={{
                   flex: 1, minWidth: 0,
                   background: 'transparent', border: 'none',
-                  color: C.text, fontSize: '0.78rem',
-                  fontFamily: FONT, outline: 'none',
+                  color: C.text, fontSize: '0.8rem',
+                  fontFamily: SANS, outline: 'none',
                 }}
               />
               {state.searchQuery && (
                 <button onClick={() => dispatch({ type: 'SET_SEARCH', query: '' })} style={{
-                  background: 'var(--border-faint)', border: 'none', cursor: 'pointer',
-                  color: C.textDim, fontSize: '0.8rem', padding: '2px 7px',
-                  borderRadius: 3, lineHeight: 1,
+                  background: C.surface2, border: 'none', cursor: 'pointer',
+                  color: C.textDim, fontSize: '0.8rem', padding: '1px 6px',
+                  borderRadius: 4, lineHeight: 1,
                 }}>×</button>
               )}
               <kbd style={{
-                fontSize: '0.58rem', fontFamily: FONT,
-                padding: '1px 5px', color: C.textMuted,
-                background: 'var(--border-faint)',
-                border: `1px solid ${C.borderFaint}`, borderRadius: 3,
+                fontSize: '0.6rem', fontFamily: FONT,
+                padding: '2px 5px', color: C.textMuted,
+                background: C.surface2,
+                border: `1px solid ${C.borderFaint}`, borderRadius: 4,
               }}>/</kbd>
             </div>
 
-            {/* Row 1: scope segmented control + attribute picker */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Scope + Attribute row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <div style={{
                 display: 'flex', padding: 2,
                 background: C.surface2, border: `1px solid ${C.border}`,
-                borderRadius: 5,
+                borderRadius: 7,
               }}>
                 {([
                   { v: 'tree', label: 'Tree', hint: 'filter loaded nodes' },
@@ -2945,13 +3059,13 @@ export default function LdapTreePage() {
                   const active = searchScope === v
                   return (
                     <button key={v} onClick={() => setSearchScope(v)} title={hint} style={{
-                      padding: '3px 12px', fontSize: '0.7rem',
+                      padding: '4px 12px', fontSize: '0.72rem',
                       background: active ? (v === 'server' ? 'rgba(251,146,60,0.16)' : 'var(--accent-soft)') : 'transparent',
                       border: 'none',
                       color: active ? (v === 'server' ? C.amber : C.cyan) : C.textMuted,
-                      fontFamily: FONT, cursor: 'pointer', letterSpacing: '0.02em',
+                      fontFamily: SANS, cursor: 'pointer',
                       fontWeight: active ? 600 : 400,
-                      borderRadius: 3,
+                      borderRadius: 5,
                       transition: 'all 0.12s',
                     }}>
                       {label}
@@ -2978,18 +3092,18 @@ export default function LdapTreePage() {
                   onClick={() => { setFilterType('all'); setFilterActivated('all'); setSearchAttr('all'); setSearchScope('tree') }}
                   title="Reset all filters"
                   style={{
-                    marginLeft: 'auto', padding: '3px 8px', fontSize: '0.65rem',
+                    marginLeft: 'auto', padding: '4px 10px', fontSize: '0.68rem',
                     background: 'transparent', border: `1px solid ${C.borderFaint}`,
-                    color: C.textMuted, fontFamily: FONT, cursor: 'pointer',
-                    borderRadius: 4,
+                    color: C.textMuted, fontFamily: SANS, cursor: 'pointer',
+                    borderRadius: 6,
                   }}
                 >
-                  reset
+                  Reset
                 </button>
               )}
             </div>
 
-            {/* Row 2: type pills + (conditional) status pills */}
+            {/* Type + status filter pills */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
               {([
                 { v: 'all', label: 'All', color: C.textDim },
@@ -3004,11 +3118,11 @@ export default function LdapTreePage() {
                     key={v}
                     onClick={() => { setFilterType(v); if (v !== 'user' && v !== 'all') setFilterActivated('all') }}
                     style={{
-                      padding: '3px 10px', fontSize: '0.68rem',
-                      background: active ? `rgba(${rgba},0.12)` : 'transparent',
+                      padding: '3px 11px', fontSize: '0.7rem',
+                      background: active ? `rgba(${rgba},0.14)` : 'transparent',
                       border: `1px solid ${active ? color : C.borderFaint}`,
                       color: active ? color : C.textDim,
-                      fontFamily: FONT, cursor: 'pointer',
+                      fontFamily: SANS, cursor: 'pointer',
                       fontWeight: active ? 600 : 400,
                       borderRadius: 999,
                       transition: 'all 0.1s',
@@ -3021,20 +3135,20 @@ export default function LdapTreePage() {
 
               {(filterType === 'user' || filterType === 'all') && searchScope === 'tree' && (
                 <>
-                  <span style={{ width: 1, height: 14, background: C.borderFaint, margin: '0 4px' }} />
+                  <span style={{ width: 1, height: 14, background: C.borderFaint, margin: '0 2px' }} />
                   {([
-                    { v: 'all', label: 'any state', color: C.textDim, rgba: '255,255,255' },
-                    { v: 'active', label: '● active', color: C.green, rgba: '52,211,153' },
-                    { v: 'inactive', label: '○ inactive', color: C.textMuted, rgba: '107,115,131' },
+                    { v: 'all', label: 'Any', color: C.textDim, rgba: '255,255,255' },
+                    { v: 'active', label: '● Active', color: C.green, rgba: '52,211,153' },
+                    { v: 'inactive', label: '○ Inactive', color: C.textMuted, rgba: '107,115,131' },
                   ] as const).map(({ v, label, color, rgba }) => {
                     const active = filterActivated === v
                     return (
                       <button key={v} onClick={() => setFilterActivated(v)} style={{
-                        padding: '3px 10px', fontSize: '0.68rem',
-                        background: active ? `rgba(${rgba},0.12)` : 'transparent',
+                        padding: '3px 11px', fontSize: '0.7rem',
+                        background: active ? `rgba(${rgba},0.14)` : 'transparent',
                         border: `1px solid ${active ? color : C.borderFaint}`,
                         color: active ? color : C.textDim,
-                        fontFamily: FONT, cursor: 'pointer',
+                        fontFamily: SANS, cursor: 'pointer',
                         fontWeight: active ? 600 : 400,
                         borderRadius: 999,
                         transition: 'all 0.1s',
@@ -3048,24 +3162,10 @@ export default function LdapTreePage() {
             </div>
           </div>
 
-          {/* Section label between toolbar card and tree list */}
-          <div style={{
-            margin: '14px 10px 6px',
-            display: 'flex', alignItems: 'center', gap: 8,
-            fontSize: '0.6rem', letterSpacing: '0.18em', textTransform: 'uppercase',
-            color: C.textMuted,
-          }}>
-            <span style={{ flex: '0 0 auto' }}>directory tree</span>
-            <span style={{ flex: 1, height: 1, background: C.borderFaint }} />
-            <span style={{ flex: '0 0 auto', color: C.textDim, fontSize: '0.6rem' }}>
-              {flatNodes.filter(f => f.kind === 'node').length} visible
-            </span>
-          </div>
-
           {/* Virtual flat list */}
           <div
             ref={scrollRef}
-            style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', position: 'relative', background: C.surface }}
+            style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', position: 'relative' }}
           >
             {configsLoading ? (
               <div style={{ padding: '2rem 1rem', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -3119,7 +3219,12 @@ export default function LdapTreePage() {
                 {state.debouncedSearch ? `no matches for "${state.debouncedSearch}"` : 'directory is empty'}
               </div>
             ) : (
-              <div style={{ height: flatNodes.length * ROW_H + 8, position: 'relative' }}>
+              <div style={{
+                height: flatNodes.length === 0 ? 0
+                  : (flatNodes[flatNodes.length - 1].topOffset ?? 0)
+                    + (flatNodes[flatNodes.length - 1].kind === 'config' ? CONFIG_ROW_H : ROW_H) + 8,
+                position: 'relative',
+              }}>
                 {visibleSlice.map((flatNode, i) => {
                   const idx = startIdx + i
                   const isNode = flatNode.kind === 'node'
@@ -3139,7 +3244,9 @@ export default function LdapTreePage() {
 
                   return (
                     <div key={dnKey} style={{
-                      position: 'absolute', top: idx * ROW_H, left: 0, right: 0,
+                      position: 'absolute',
+                      top: flatNode.topOffset ?? idx * ROW_H,
+                      left: 0, right: 0,
                     }}>
                       <FlatTreeRow
                         flatNode={flatNode}
@@ -3165,20 +3272,33 @@ export default function LdapTreePage() {
 
           {/* Tree footer */}
           <div style={{
-            padding: '0.5rem 0.75rem',
-            borderTop: `1px solid ${C.border}`,
-            fontSize: '0.65rem', color: C.textMuted,
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '0.4rem 0.875rem',
+            borderTop: `1px solid ${C.borderFaint}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
             background: C.surface2, flexShrink: 0,
           }}>
-            <span>{activeConfigs.length} server{activeConfigs.length !== 1 ? 's' : ''}</span>
-            <span>{flatNodes.filter(f => f.kind === 'node').length} visible</span>
+            <span style={{ fontSize: '0.68rem', fontFamily: SANS, color: C.textMuted }}>
+              {activeConfigs.length} server{activeConfigs.length !== 1 ? 's' : ''}
+            </span>
+            <span style={{
+              fontSize: '0.65rem', fontFamily: SANS,
+              padding: '2px 8px', borderRadius: 20,
+              background: C.surface, border: `1px solid ${C.borderFaint}`,
+              color: C.textMuted,
+            }}>
+              {flatNodes.filter(f => f.kind === 'node').length} visible
+            </span>
           </div>
         </div>
 
         {/* Resize handle */}
         <div
-          onMouseDown={() => setIsDragging(true)}
+          onMouseDown={e => {
+            e.preventDefault()
+            dragStartX.current = e.clientX
+            dragStartWidth.current = panelWidth
+            setIsDragging(true)
+          }}
           style={{
             position: 'absolute',
             left: panelWidth - 2, top: 0, bottom: 0,
@@ -3196,7 +3316,7 @@ export default function LdapTreePage() {
         <div style={{
           flex: 1, minWidth: 0,
           overflowY: 'auto',
-          background: `radial-gradient(ellipse at top right, rgba(94,234,212,0.025) 0%, transparent 60%), ${C.bg}`,
+          background: C.bg,
         }}>
           <div key={state.selection?.node.dn ?? 'none'} style={{ animation: 'ldapSlideIn 0.18s ease' }}>
             {!state.selection ? (
@@ -3213,6 +3333,7 @@ export default function LdapTreePage() {
             ) : selectedNode?.type === 'user' ? (
               <UserDetail
                 node={selectedNode}
+                configId={state.selection?.configId ?? ''}
                 apps={apps}
                 isFavorite={state.favorites.has(selectedNode.dn)}
                 isPinned={state.pinnedNodes.has(selectedNode.dn)}
@@ -3229,29 +3350,40 @@ export default function LdapTreePage() {
 
       {/* STATUS BAR */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 14,
-        padding: '0.4rem 1rem',
-        borderTop: `1px solid ${C.border}`,
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '0 1rem',
+        borderTop: `1px solid ${C.borderFaint}`,
         background: C.surface2,
-        fontSize: '0.65rem', color: C.textMuted,
-        flexShrink: 0, minHeight: 28,
+        flexShrink: 0, minHeight: 30,
       }}>
+        {/* Status badge */}
         <span style={{
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          padding: '2px 8px', borderRadius: 20,
+          fontSize: '0.65rem', fontFamily: SANS, fontWeight: 600,
+          background: anyConnError ? 'rgba(248,113,113,0.1)' : anyLoading ? 'rgba(251,146,60,0.1)' : 'rgba(52,211,153,0.1)',
+          border: `1px solid ${anyConnError ? C.red : anyLoading ? C.amber : C.green}`,
           color: anyConnError ? C.red : anyLoading ? C.amber : C.green,
-          letterSpacing: '0.08em', textTransform: 'uppercase',
         }}>
-          {anyConnError ? '● error' : anyLoading ? '● syncing' : '● online'}
+          <span style={{
+            width: 5, height: 5, borderRadius: '50%', flexShrink: 0,
+            background: anyConnError ? C.red : anyLoading ? C.amber : C.green,
+            animation: anyLoading ? 'ldapPulseDot 1s ease-in-out infinite' : 'none',
+          }} />
+          {anyConnError ? 'Error' : anyLoading ? 'Syncing' : 'Online'}
         </span>
-        <span style={{ color: C.border }}>│</span>
-        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: C.textDim, fontFamily: FONT }}>
-          {selectedNode ? selectedNode.dn : 'no_selection'}
+
+        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.68rem', color: C.textMuted, fontFamily: FONT }}>
+          {selectedNode ? selectedNode.dn : '—'}
         </span>
-        <span style={{ color: C.border }}>│</span>
-        <span>{totalCount} obj</span>
-        <span style={{ color: C.border }}>│</span>
-        <span>LDAP</span>
-        <span style={{ color: C.border }}>│</span>
-        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{stamp}</span>
+
+        <span style={{ fontSize: '0.65rem', fontFamily: SANS, color: C.textMuted, flexShrink: 0 }}>
+          {totalCount} objects
+        </span>
+        <span style={{ width: 1, height: 12, background: C.borderFaint }} />
+        <span style={{ fontSize: '0.65rem', fontFamily: FONT, color: C.textMuted, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+          {stamp}
+        </span>
       </div>
 
       {/* Modals */}

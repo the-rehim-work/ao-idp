@@ -59,6 +59,18 @@ public class AdminUserController {
         return ResponseEntity.ok(ldapService.listOus());
     }
 
+    @GetMapping("/ldap/entry")
+    public ResponseEntity<?> ldapEntry(
+            @RequestParam String dn,
+            @RequestParam(required = false) UUID configId) {
+        if (!ldapConfigService.isConfigured()) return ResponseEntity.status(503).body(LDAP_NOT_CONFIGURED);
+        try {
+            return ResponseEntity.ok(ldapService.getEntryAttributes(configId, dn));
+        } catch (Exception e) {
+            return ResponseEntity.status(503).body(Map.of("error", "fetch_failed", "message", e.getMessage()));
+        }
+    }
+
     @GetMapping("/ldap/users")
     public ResponseEntity<?> ldapUsers(
             @RequestParam(required = false) String search,
