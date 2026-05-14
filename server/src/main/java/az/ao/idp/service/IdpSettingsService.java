@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.Map;
 
 @Service
@@ -94,6 +95,24 @@ public class IdpSettingsService {
     }
 
     public List<ClaimMapping> getClaimMappings() {
+        return getClaimMappings(null);
+    }
+
+    /**
+     * Returns claim mappings for a specific LDAP server (by id), falling back to the
+     * active server's mappings, then to the global idp_setting key.
+     */
+    public List<ClaimMapping> getClaimMappings(java.util.UUID ldapServerId) {
+        // 1. Try the specific server the user authenticated against
+        if (ldapServerId != null) {
+            try {
+                String json = ldapConfigService.get(ldapServerId).getClaimMappings();
+                if (json != null && !json.isBlank()) {
+                    return objectMapper.readValue(json, new TypeReference<List<ClaimMapping>>() {});
+                }
+            } catch (Exception ignored) {}
+        }
+        // 2. Fall back to first active server's mappings
         String json = ldapConfigService.getActive()
                 .map(az.ao.idp.entity.LdapServerConfig::getClaimMappings)
                 .filter(s -> s != null && !s.isBlank())

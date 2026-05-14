@@ -187,16 +187,33 @@ public class LdapService {
     }
 
     public Map<String, String> getClaimAttributes(String username, List<String> ldapAttrs, UUID ldapServerId) {
-        if (ldapAttrs.isEmpty()) return Map.of();
+        if (ldapAttrs == null || ldapAttrs.isEmpty()) return Map.of();
         LdapServerConfig config = ldapServerId != null
                 ? ldapConfigService.get(ldapServerId)
                 : primaryConfig();
         LdapProps props = propsFrom(config);
         CachedLdap ldap = forConfig(config);
 
+        // Use the same broad objectClass filter as authenticate() so mixed-class entries are found
+        OrFilter ocFilter = new OrFilter();
+        ocFilter.or(new EqualsFilter("objectClass", props.userObjectClass()));
+        for (String oc : PERSON_CLASSES) ocFilter.or(new EqualsFilter("objectClass", oc));
+
+        // Try configured username attribute first, then fall back to common alternatives
+        OrFilter unFilter = new OrFilter();
+        unFilter.or(new EqualsFilter(props.usernameAttribute(), username));
+        for (String attr : USERNAME_ATTRS) {
+            if (!attr.equalsIgnoreCase(props.usernameAttribute())) {
+                unFilter.or(new EqualsFilter(attr, username));
+            }
+        }
+
         AndFilter filter = new AndFilter();
-        filter.and(new EqualsFilter("objectClass", props.userObjectClass()));
-        filter.and(new EqualsFilter(props.usernameAttribute(), username));
+        filter.and(ocFilter);
+        filter.and(unFilter);
+        if (props.additionalFilter() != null && !props.additionalFilter().isBlank()) {
+            filter.and(new HardcodedFilter(props.additionalFilter()));
+        }
 
         SearchControls controls = new SearchControls();
         controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
@@ -212,8 +229,14 @@ public class LdapService {
             return result;
         };
 
-        List<Map<String, String>> results = ldap.template().search("", filter.encode(), controls, mapper);
-        return results.isEmpty() ? Map.of() : results.get(0);
+        try {
+            List<Map<String, String>> results = ldap.template().search("", filter.encode(), controls, mapper);
+            return results.isEmpty() ? Map.of() : results.get(0);
+        } catch (Exception e) {
+            log.warn("getClaimAttributes failed for user={} server={}: {}", username,
+                    config.getName(), e.getMessage());
+            return Map.of();
+        }
     }
 
     /** Fetch all LDAP attributes for a specific DN entry. */

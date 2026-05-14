@@ -220,35 +220,45 @@ public class OidcService {
     }
 
     private Map<String, Object> buildClaims(User user) {
-        List<IdpSettingsService.ClaimMapping> mappings = settingsService.getClaimMappings();
+        // Use the LDAP server the user last authenticated against (stored on User entity)
+        UUID ldapServerId = user.getLdapServerId();
+
+        List<IdpSettingsService.ClaimMapping> mappings = settingsService.getClaimMappings(ldapServerId);
+
+        // Always include base identity claims regardless of mapping config
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("ldap_username", user.getLdapUsername());
+        if (user.getEmail() != null && !user.getEmail().isBlank()) result.put("email", user.getEmail());
+        if (user.getDisplayName() != null && !user.getDisplayName().isBlank()) result.put("display_name", user.getDisplayName());
+
         if (mappings.isEmpty()) {
-            return Map.of(
-                    "ldap_username", user.getLdapUsername(),
-                    "email", user.getEmail() != null ? user.getEmail() : "",
-                    "display_name", user.getDisplayName() != null ? user.getDisplayName() : ""
-            );
+            return result;
         }
 
+        // Collect LDAP attribute names that need to be fetched from the directory
         Set<String> storedClaims = Set.of("ldap_username", "email", "display_name");
         List<String> extraAttrs = mappings.stream()
                 .filter(m -> m.enabled() && !storedClaims.contains(m.claim()))
                 .map(IdpSettingsService.ClaimMapping::ldapAttr)
+                .filter(attr -> attr != null && !attr.isBlank())
+                .distinct()
                 .collect(Collectors.toList());
 
+        // Fetch extra attributes from the correct LDAP server
         Map<String, String> ldapValues = extraAttrs.isEmpty()
                 ? Map.of()
-                : ldapService.getClaimAttributes(user.getLdapUsername(), extraAttrs);
+                : ldapService.getClaimAttributes(user.getLdapUsername(), extraAttrs, ldapServerId);
 
-        Map<String, Object> result = new LinkedHashMap<>();
+        // Apply all enabled mappings (stored claims override base values; extra come from LDAP)
         for (IdpSettingsService.ClaimMapping m : mappings) {
             if (!m.enabled()) continue;
             switch (m.claim()) {
                 case "ldap_username" -> result.put("ldap_username", user.getLdapUsername());
-                case "email" -> { if (user.getEmail() != null) result.put("email", user.getEmail()); }
+                case "email"        -> { if (user.getEmail() != null) result.put("email", user.getEmail()); }
                 case "display_name" -> { if (user.getDisplayName() != null) result.put("display_name", user.getDisplayName()); }
                 default -> {
                     String val = ldapValues.get(m.ldapAttr());
-                    if (val != null) result.put(m.claim(), val);
+                    if (val != null && !val.isBlank()) result.put(m.claim(), val);
                 }
             }
         }
