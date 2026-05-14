@@ -12,10 +12,10 @@
   --cd:   #d94d10;
   --cm:   #f05a1a;
   --cb:   #94a3b8;
-  --bg:   #f1f1f1;
+  --bg:   #fdf6f2;
   --s:    #ffffff;
-  --s2:   #f8f8f8;
-  --br:   rgba(0,0,0,0.08);
+  --s2:   #fff8f5;
+  --br:   rgba(240,90,26,0.15);
   --glow: none;
   --font: 'Inter', system-ui, -apple-system, sans-serif;
   --txt:  #1e293b;
@@ -23,7 +23,7 @@
 
 /* ── Page ────────────────────────────────────────────────────────────────── */
 html, body {
-  background: #efefef;
+  background: #fdf6f2;
   font-family: var(--font);
   color: var(--txt);
 }
@@ -198,28 +198,29 @@ body::after {
   width: 100%;
   border-radius: 9px;
   padding: 0.65rem 0.9rem;
-  background: #f8fafc;
-  border: 1.5px solid #e2e8f0;
+  background: rgba(240, 90, 26, 0.05);
+  border: 1.5px solid rgba(240, 90, 26, 0.2);
   color: #1e293b;
   font-family: var(--font);
   font-size: 0.9rem;
   outline: none;
   caret-color: #f05a1a;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
 
 .field input::placeholder {
-  color: #cbd5e1;
+  color: rgba(240, 90, 26, 0.35);
 }
 
 .field input:hover {
-  border-color: #cbd5e1;
+  border-color: rgba(240, 90, 26, 0.4);
+  background: rgba(240, 90, 26, 0.07);
 }
 
 .field input:focus {
   border-color: #f05a1a;
-  background: #fff;
-  box-shadow: 0 0 0 3px rgba(240,90,26,0.12);
+  background: rgba(240, 90, 26, 0.06);
+  box-shadow: 0 0 0 3px rgba(240, 90, 26, 0.12);
 }
 
 /* ── Submit button ───────────────────────────────────────────────────────── */
