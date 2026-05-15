@@ -446,6 +446,8 @@
 })();
 
 (function() {
+    var continueAsEnabled = /*[[${continueAsEnabled}]]*/ true;
+    if (!continueAsEnabled) return;
     function getCookie(name) {
         var m = document.cookie.match('(?:^|; )' + name + '=([^;]*)');
         return m ? decodeURIComponent(m[1]) : null;

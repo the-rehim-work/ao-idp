@@ -129,6 +129,7 @@ public class OidcController {
         model.addAttribute("brandingWelcomeText", nvl(branding.welcomeText(), ""));
         model.addAttribute("brandingFooterText", nvl(branding.footerText(), ""));
         model.addAttribute("brandingCustomCss", nvl(branding.customCss(), ""));
+        model.addAttribute("continueAsEnabled", branding.continueAsEnabled());
         return "login";
     }
 

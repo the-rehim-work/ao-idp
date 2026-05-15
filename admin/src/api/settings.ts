@@ -49,6 +49,7 @@ export interface LoginBranding {
   welcomeText: string
   footerText: string
   customCss: string
+  continueAsEnabled: boolean
 }
 
 export interface SecuritySettings {

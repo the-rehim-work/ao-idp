@@ -745,12 +745,20 @@ function SecuritySection() {
 
 function AppearanceSection() {
   const [theme, setTheme] = useState<ThemeState>(() => loadTheme())
+  const [savedMsg, setSavedMsg] = useState(false)
 
   const update = (patch: Partial<ThemeState>) => {
     const next = { ...theme, ...patch }
     setTheme(next)
     saveTheme(next)
     applyTheme(next)
+  }
+
+  const handleSave = () => {
+    saveTheme(theme)
+    applyTheme(theme)
+    setSavedMsg(true)
+    setTimeout(() => setSavedMsg(false), 2000)
   }
 
   const Card = ({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) => (
@@ -1063,19 +1071,89 @@ function AppearanceSection() {
         <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
           Stored locally · per-user preference
         </span>
+
+        <button
+          onClick={handleSave}
+          style={{
+            padding: '6px 18px', fontSize: '0.75rem', fontWeight: 700,
+            background: savedMsg ? 'var(--accent-soft)' : 'var(--accent)',
+            color: savedMsg ? 'var(--accent)' : 'var(--bg)',
+            border: `1px solid var(--accent)`,
+            cursor: 'pointer', fontFamily: 'inherit',
+            borderRadius: 5, transition: 'all 0.15s',
+          }}
+        >
+          {savedMsg ? '✓ saved' : '> save appearance'}
+        </button>
       </div>
     </div>
   )
 }
+
+const ORANGE_CSS_TEMPLATE = `/* AO IDP — Orange / Light Login Theme */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+:root { --font: 'Inter', system-ui, sans-serif; }
+html, body { background: #fdf6f2; font-family: var(--font); color: #1e293b; }
+body::before, body::after { display: none; }
+.wrap { max-width: 380px; animation: loginFadeUp 0.4s cubic-bezier(0.22,1,0.36,1) both; }
+@keyframes loginFadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+.hd-dot { border-radius:14px; background:#f05a1a; border:none; box-shadow:0 4px 16px rgba(240,90,26,0.35); }
+.hd-dot svg { filter:none; stroke:#fff; }
+.hd-title { font-size:1.2rem; font-weight:700; letter-spacing:0; text-transform:none; color:#1e293b; text-shadow:none; }
+.hd-sub { font-size:0.78rem; letter-spacing:0; text-transform:none; color:#64748b; }
+.app-banner { border-radius:14px 14px 0 0; border:none; background:linear-gradient(135deg,#f05a1a 0%,#e04510 100%); color:rgba(255,255,255,0.85); }
+.app-banner svg { stroke:rgba(255,255,255,0.7); }
+.app-banner strong { display:block; font-size:1.2rem; font-weight:700; color:#fff; }
+.app-banner ~ .card, .app-banner + .card { border-radius:0 0 16px 16px; }
+.card { background:#fff; border:none; border-radius:16px; box-shadow:0 8px 32px rgba(0,0,0,0.12); }
+.card-label { color:#94a3b8; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.04em; }
+.card-prompt { color:#1e293b; font-size:1rem; font-weight:700; text-shadow:none; letter-spacing:-0.01em; }
+.err { border-radius:8px; border:1px solid rgba(239,68,68,0.25); background:rgba(239,68,68,0.06); color:#dc2626; box-shadow:none; }
+.field label { font-size:0.72rem; letter-spacing:0; text-transform:none; font-weight:600; color:#475569; }
+.field input { border-radius:9px; background:rgba(240,90,26,0.05); border:1.5px solid rgba(240,90,26,0.2); color:#1e293b; font-family:var(--font); }
+.field input::placeholder { color:rgba(240,90,26,0.35); }
+.field input:hover { border-color:rgba(240,90,26,0.4); background:rgba(240,90,26,0.07); }
+.field input:focus { border-color:#f05a1a; background:rgba(240,90,26,0.06); box-shadow:0 0 0 3px rgba(240,90,26,0.12); }
+.btn { border-radius:10px; background:linear-gradient(135deg,#f05a1a 0%,#e04510 100%); border:none; color:#fff; font-family:var(--font); font-size:0.9rem; font-weight:700; letter-spacing:0; text-transform:none; box-shadow:0 2px 8px rgba(240,90,26,0.3); }
+.btn:hover { background:linear-gradient(135deg,#ff6a2a 0%,#f05a1a 100%); box-shadow:0 4px 16px rgba(240,90,26,0.45); transform:translateY(-1px); color:#fff; }
+.meta { border-top:1px solid #f1f5f9; color:#94a3b8; font-size:0.68rem; letter-spacing:0; text-transform:none; }
+.meta-dot { background:rgba(240,90,26,0.4); }
+.continue-panel { border-radius:12px; border:1.5px solid #e2e8f0 !important; border-left:3px solid #f05a1a !important; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+.continue-avatar { border-radius:9px; border:1.5px solid rgba(240,90,26,0.3); background:rgba(240,90,26,0.06); color:#f05a1a; font-weight:700; }
+.continue-name { color:#1e293b; font-weight:600; }
+.continue-chevron { color:#f05a1a; }
+.continue-sep::before, .continue-sep::after { background:#e2e8f0; }
+.bottom { font-size:0.7rem; letter-spacing:0; text-transform:none; color:#94a3b8; }
+.wrap > .app-banner { border-radius:16px 16px 0 0; }
+`
+
+const DARK_CSS_TEMPLATE = `/* AO IDP — Dark Glassmorphism Theme */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+:root { --font: 'Inter', system-ui, sans-serif; }
+html, body { background:#060810; font-family:var(--font); }
+body { background:radial-gradient(ellipse 80% 60% at 20% 10%,rgba(94,234,212,0.08) 0%,transparent 60%),radial-gradient(ellipse 60% 80% at 80% 100%,rgba(56,189,248,0.06) 0%,transparent 60%),#060810; }
+body::before { display:none; }
+.wrap { max-width:400px; animation:loginFadeUp 0.45s cubic-bezier(0.22,1,0.36,1) both; }
+@keyframes loginFadeUp { from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);} }
+.hd-dot { width:52px;height:52px;border-radius:14px;border:1px solid rgba(94,234,212,0.25);background:rgba(94,234,212,0.07);backdrop-filter:blur(8px);box-shadow:0 0 0 1px rgba(94,234,212,0.08),0 8px 24px rgba(0,0,0,0.4),0 0 20px rgba(94,234,212,0.12); }
+.hd-title { font-size:1.35rem;font-weight:700;letter-spacing:-0.01em;text-transform:none;color:#f0faf8;text-shadow:0 0 20px rgba(94,234,212,0.4); }
+.hd-sub { font-size:0.75rem;letter-spacing:0.03em;text-transform:none;color:rgba(148,163,184,0.7);margin-top:0.35rem; }
+.card { border-radius:16px;border:1px solid rgba(94,234,212,0.12);background:rgba(15,20,30,0.75);backdrop-filter:blur(20px) saturate(1.4);padding:2rem;box-shadow:0 0 0 1px rgba(255,255,255,0.04),0 20px 60px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.06); }
+.field input { border-radius:8px;padding:0.65rem 0.9rem;background:rgba(255,255,255,0.04);border:1px solid rgba(94,234,212,0.15);color:#e2fdf8;font-family:var(--font);font-size:0.9rem; }
+.field input:focus { border-color:rgba(94,234,212,0.55);background:rgba(94,234,212,0.04);box-shadow:0 0 0 3px rgba(94,234,212,0.08); }
+.btn { border-radius:9px;background:var(--c);border:1px solid var(--c);color:#060810;font-family:var(--font);font-size:0.875rem;font-weight:700;letter-spacing:0.02em;text-transform:none;box-shadow:0 0 20px rgba(94,234,212,0.25),0 4px 12px rgba(0,0,0,0.3); }
+.btn:hover { background:#7ff4e4;border-color:#7ff4e4;box-shadow:0 0 30px rgba(94,234,212,0.5);transform:translateY(-1px); }
+`
 
 function LoginBrandingSection() {
   const qc = useQueryClient()
   const { data } = useQuery({ queryKey: ['login-branding'], queryFn: settingsApi.loginBranding.get })
   const [form, setForm] = useState<LoginBranding>({
     logoUrl: '', primaryColor: '#5eead4', bgColor: '#0a0c10', textColor: '#e7ebf0',
-    welcomeText: '', footerText: '', customCss: '',
+    welcomeText: '', footerText: '', customCss: '', continueAsEnabled: true,
   })
   const [saved, setSaved] = useState(false)
+  const [cssExpanded, setCssExpanded] = useState(false)
 
   useEffect(() => { if (data) setForm(data) }, [data])
 
@@ -1083,6 +1161,29 @@ function LoginBrandingSection() {
     mutationFn: () => settingsApi.loginBranding.update(form),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['login-branding'] }); setSaved(true); setTimeout(() => setSaved(false), 2000) },
   })
+
+  const Toggle = ({ value, onClick, label, hint }: { value: boolean; onClick: () => void; label: string; hint?: string }) => (
+    <div onClick={onClick} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.45rem 0' }}>
+      <div style={{
+        width: 28, height: 16, borderRadius: 8, position: 'relative',
+        background: value ? 'var(--accent-medium)' : 'var(--accent-soft)',
+        border: `1px solid ${value ? C : 'rgba(94,234,212,0.2)'}`,
+        transition: 'all 0.15s', flexShrink: 0,
+      }}>
+        <div style={{
+          width: 10, height: 10, borderRadius: 5, position: 'absolute',
+          top: 2, left: value ? 14 : 2,
+          background: value ? C : CB,
+          boxShadow: value ? '0 0 6px rgba(94,234,212,0.8)' : 'none',
+          transition: 'left 0.15s',
+        }} />
+      </div>
+      <div>
+        <div style={{ fontSize: '0.75rem', color: value ? CD : CM, fontWeight: 600 }}>{label}</div>
+        {hint && <div style={{ fontSize: '0.62rem', color: CB, marginTop: 1 }}>{hint}</div>}
+      </div>
+    </div>
+  )
 
   return (
     <div>
@@ -1106,40 +1207,49 @@ function LoginBrandingSection() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
         {/* LEFT — Form */}
-        <div style={{ background: SURFACE, border: `1px solid var(--border)`, padding: '1rem', borderRadius: 5 }}>
-          <Field label="Logo URL (optional)">
-            <input style={inputStyle} value={form.logoUrl}
-              onChange={e => setForm(f => ({ ...f, logoUrl: e.target.value }))}
-              placeholder="https://example.com/logo.png" />
-          </Field>
-          <Field label="Welcome / Heading text">
-            <input style={inputStyle} value={form.welcomeText}
-              onChange={e => setForm(f => ({ ...f, welcomeText: e.target.value }))}
-              placeholder="Sign in to AO IDP" />
-          </Field>
-          <Field label="Footer text">
-            <input style={inputStyle} value={form.footerText}
-              onChange={e => setForm(f => ({ ...f, footerText: e.target.value }))}
-              placeholder="© 2026 AO" />
-          </Field>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginTop: '0.4rem' }}>
-            <ColorField label="Primary" value={form.primaryColor} onChange={v => setForm(f => ({ ...f, primaryColor: v }))} />
-            <ColorField label="Background" value={form.bgColor} onChange={v => setForm(f => ({ ...f, bgColor: v }))} />
-            <ColorField label="Text" value={form.textColor} onChange={v => setForm(f => ({ ...f, textColor: v }))} />
+          {/* Basic info */}
+          <div style={{ background: SURFACE, border: `1px solid var(--border)`, padding: '1rem', borderRadius: 5 }}>
+            <div style={{ fontSize: '0.6rem', color: CB, letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: 700, marginBottom: '0.75rem' }}>Identity & Text</div>
+            <Field label="Logo URL (optional)">
+              <input style={inputStyle} value={form.logoUrl}
+                onChange={e => setForm(f => ({ ...f, logoUrl: e.target.value }))}
+                placeholder="https://example.com/logo.png" />
+            </Field>
+            <Field label="Welcome / Heading text">
+              <input style={inputStyle} value={form.welcomeText}
+                onChange={e => setForm(f => ({ ...f, welcomeText: e.target.value }))}
+                placeholder="Sign in to AO IDP" />
+            </Field>
+            <Field label="Footer text">
+              <input style={inputStyle} value={form.footerText}
+                onChange={e => setForm(f => ({ ...f, footerText: e.target.value }))}
+                placeholder="© 2026 AO" />
+            </Field>
           </div>
 
-          <Field label="Custom CSS (advanced — appended to the page)">
-            <textarea
-              value={form.customCss}
-              onChange={e => setForm(f => ({ ...f, customCss: e.target.value }))}
-              rows={5}
-              spellCheck={false}
-              style={{ ...inputStyle, fontFamily: "'JetBrains Mono', monospace", fontSize: '0.72rem', resize: 'vertical' }}
-              placeholder="/* e.g. */
-.login-card { border-radius: 12px; }"
+          {/* Colors */}
+          <div style={{ background: SURFACE, border: `1px solid var(--border)`, padding: '1rem', borderRadius: 5 }}>
+            <div style={{ fontSize: '0.6rem', color: CB, letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: 700, marginBottom: '0.75rem' }}>Color Palette</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
+              <ColorField label="Primary" value={form.primaryColor} onChange={v => setForm(f => ({ ...f, primaryColor: v }))} />
+              <ColorField label="Background" value={form.bgColor} onChange={v => setForm(f => ({ ...f, bgColor: v }))} />
+              <ColorField label="Text" value={form.textColor} onChange={v => setForm(f => ({ ...f, textColor: v }))} />
+            </div>
+          </div>
+
+          {/* Behaviour */}
+          <div style={{ background: SURFACE, border: `1px solid var(--border)`, padding: '1rem', borderRadius: 5 }}>
+            <div style={{ fontSize: '0.6rem', color: CB, letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: 700, marginBottom: '0.5rem' }}>Session Behaviour</div>
+            <Toggle
+              value={form.continueAsEnabled}
+              onClick={() => setForm(f => ({ ...f, continueAsEnabled: !f.continueAsEnabled }))}
+              label="Show 'Continue as' panel"
+              hint="When a user has a previous session cookie, show their profile on the login page (like Google). Disabling hides this panel entirely."
             />
-          </Field>
+          </div>
+
         </div>
 
         {/* RIGHT — Live preview */}
@@ -1148,43 +1258,124 @@ function LoginBrandingSection() {
           border: `1px solid var(--border)`, borderRadius: 5,
           padding: '2rem 1.5rem',
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          minHeight: 360,
+          minHeight: 400,
         }}>
-          <div style={{ fontSize: '0.55rem', letterSpacing: '0.2em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 12 }}>preview</div>
+          <div style={{ fontSize: '0.55rem', letterSpacing: '0.2em', textTransform: 'uppercase', opacity: 0.5, marginBottom: 14 }}>live preview</div>
+
+          {/* Continue as panel (if enabled) */}
+          {form.continueAsEnabled && (
+            <div style={{
+              width: '100%', maxWidth: 260, marginBottom: 10,
+              border: `1.5px solid ${form.primaryColor}30`, borderLeft: `3px solid ${form.primaryColor}`,
+              borderRadius: 10, padding: '10px 12px', background: 'rgba(255,255,255,0.05)',
+              display: 'flex', alignItems: 'center', gap: 10,
+            }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: 8,
+                background: `${form.primaryColor}15`, border: `1px solid ${form.primaryColor}40`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: form.primaryColor, fontWeight: 700, fontSize: '0.9rem', flexShrink: 0,
+              }}>J</div>
+              <div>
+                <div style={{ fontSize: '0.6rem', color: form.textColor, opacity: 0.5 }}>continue as</div>
+                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: form.textColor }}>John Smith</div>
+              </div>
+              <div style={{ marginLeft: 'auto', color: form.primaryColor, fontSize: '0.8rem' }}>›</div>
+            </div>
+          )}
+
           {form.logoUrl ? (
             <img src={form.logoUrl} alt="logo" style={{ maxWidth: 120, maxHeight: 50, marginBottom: 14 }}
               onError={e => ((e.target as HTMLImageElement).style.display = 'none')} />
           ) : (
             <div style={{
-              width: 48, height: 48, borderRadius: 8,
-              background: form.primaryColor, marginBottom: 14,
+              width: 48, height: 48, borderRadius: 10,
+              background: form.primaryColor, marginBottom: 12,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: form.bgColor, fontWeight: 800, fontSize: '1.3rem',
+              color: form.bgColor, fontWeight: 800, fontSize: '1.2rem',
             }}>AO</div>
           )}
           <div style={{ fontSize: '1rem', fontWeight: 700, marginBottom: 4 }}>
             {form.welcomeText || 'Sign in to AO IDP'}
           </div>
-          <div style={{ width: '100%', maxWidth: 240, marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ width: '100%', maxWidth: 260, marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <input placeholder="Username" readOnly style={{
-              padding: '8px 10px', borderRadius: 4, fontSize: '0.78rem',
+              padding: '8px 10px', borderRadius: 6, fontSize: '0.78rem',
               background: 'rgba(255,255,255,0.06)', border: `1px solid ${form.primaryColor}33`,
-              color: form.textColor, outline: 'none',
+              color: form.textColor, outline: 'none', fontFamily: 'inherit',
             }} />
             <input placeholder="Password" type="password" readOnly style={{
-              padding: '8px 10px', borderRadius: 4, fontSize: '0.78rem',
+              padding: '8px 10px', borderRadius: 6, fontSize: '0.78rem',
               background: 'rgba(255,255,255,0.06)', border: `1px solid ${form.primaryColor}33`,
-              color: form.textColor, outline: 'none',
+              color: form.textColor, outline: 'none', fontFamily: 'inherit',
             }} />
             <button style={{
-              padding: '8px 10px', borderRadius: 4, fontSize: '0.78rem', fontWeight: 700,
+              padding: '8px 10px', borderRadius: 6, fontSize: '0.78rem', fontWeight: 700,
               background: form.primaryColor, color: form.bgColor, border: 'none', cursor: 'default',
             }}>Sign In</button>
           </div>
-          <div style={{ fontSize: '0.62rem', opacity: 0.5, marginTop: 'auto', paddingTop: 20 }}>
+          <div style={{ fontSize: '0.62rem', opacity: 0.45, marginTop: 'auto', paddingTop: 20 }}>
             {form.footerText || '© AO IDP'}
           </div>
         </div>
+      </div>
+
+      {/* Custom CSS editor — full width */}
+      <div style={{ background: SURFACE, border: `1px solid var(--border)`, borderRadius: 5, overflow: 'hidden' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0.6rem 1rem', borderBottom: `1px solid var(--border)`,
+          background: 'var(--surface-2)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.62rem', color: CB, letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: 700 }}>Custom CSS</span>
+            <span style={{ fontSize: '0.62rem', color: CB, opacity: 0.6 }}>— injected at the end of &lt;style&gt; on the login page</span>
+          </div>
+          <div style={{ display: 'flex', gap: '0.4rem' }}>
+            <button style={{ ...btnSecondary, padding: '3px 9px', fontSize: '0.6rem' }}
+              onClick={() => setForm(f => ({ ...f, customCss: ORANGE_CSS_TEMPLATE }))}
+              title="Load orange/light theme template">
+              ⊙ orange theme
+            </button>
+            <button style={{ ...btnSecondary, padding: '3px 9px', fontSize: '0.6rem' }}
+              onClick={() => setForm(f => ({ ...f, customCss: DARK_CSS_TEMPLATE }))}
+              title="Load dark glassmorphism template">
+              ⊙ dark theme
+            </button>
+            <button style={{ ...btnSecondary, padding: '3px 9px', fontSize: '0.6rem' }}
+              onClick={() => setForm(f => ({ ...f, customCss: '' }))}>
+              ✕ clear
+            </button>
+            <button style={{ ...btnSecondary, padding: '3px 9px', fontSize: '0.6rem' }}
+              onClick={() => setCssExpanded(x => !x)}>
+              {cssExpanded ? '↑ collapse' : '↕ expand'}
+            </button>
+          </div>
+        </div>
+        <textarea
+          value={form.customCss}
+          onChange={e => setForm(f => ({ ...f, customCss: e.target.value }))}
+          rows={cssExpanded ? 32 : 14}
+          spellCheck={false}
+          style={{
+            ...inputStyle, width: '100%', display: 'block',
+            fontFamily: "'JetBrains Mono', 'Courier New', monospace",
+            fontSize: '0.75rem', lineHeight: 1.6,
+            resize: 'vertical', border: 'none', borderRadius: 0,
+            padding: '0.85rem 1rem',
+            boxSizing: 'border-box',
+          }}
+          placeholder={`/* Paste full CSS overrides here. Example:
+.card { border-radius: 16px; }
+.btn { font-family: 'Inter', sans-serif; }
+
+Click a theme button above to load a complete ready-made design. */`}
+        />
+        {form.customCss && (
+          <div style={{ padding: '0.4rem 1rem', borderTop: `1px solid var(--border)`, background: 'var(--surface-2)', fontSize: '0.6rem', color: CB }}>
+            {form.customCss.split('\n').length} lines · {form.customCss.length} chars
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.75rem', marginTop: '1rem', flexWrap: 'wrap' }}>

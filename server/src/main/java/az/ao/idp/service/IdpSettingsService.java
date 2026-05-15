@@ -34,6 +34,7 @@ public class IdpSettingsService {
     private static final String KEY_LOGIN_WELCOME = "login_welcome_text";
     private static final String KEY_LOGIN_FOOTER = "login_footer_text";
     private static final String KEY_LOGIN_CUSTOM_CSS = "login_custom_css";
+    private static final String KEY_LOGIN_CONTINUE_AS_ENABLED = "login_continue_as_enabled";
 
     // Security settings keys
     private static final String KEY_LOCKOUT_ENABLED = "sec_lockout_enabled";
@@ -176,7 +177,8 @@ public class IdpSettingsService {
             String textColor,
             String welcomeText,
             String footerText,
-            String customCss
+            String customCss,
+            boolean continueAsEnabled
     ) {}
 
     public LoginBranding getLoginBranding() {
@@ -187,7 +189,8 @@ public class IdpSettingsService {
                 getOrDefault(KEY_LOGIN_TEXT_COLOR, "#e7ebf0"),
                 getOrDefault(KEY_LOGIN_WELCOME, ""),
                 getOrDefault(KEY_LOGIN_FOOTER, ""),
-                getOrDefault(KEY_LOGIN_CUSTOM_CSS, "")
+                getOrDefault(KEY_LOGIN_CUSTOM_CSS, ""),
+                Boolean.parseBoolean(getOrDefault(KEY_LOGIN_CONTINUE_AS_ENABLED, "true"))
         );
     }
 
@@ -200,6 +203,7 @@ public class IdpSettingsService {
         set(KEY_LOGIN_WELCOME, b.welcomeText() == null ? "" : b.welcomeText());
         set(KEY_LOGIN_FOOTER, b.footerText() == null ? "" : b.footerText());
         set(KEY_LOGIN_CUSTOM_CSS, b.customCss() == null ? "" : b.customCss());
+        set(KEY_LOGIN_CONTINUE_AS_ENABLED, String.valueOf(b.continueAsEnabled()));
         return getLoginBranding();
     }
 

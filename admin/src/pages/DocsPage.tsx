@@ -8,11 +8,7 @@ const BORDER = 'rgba(94,234,212,0.2)'
 const SURFACE = 'var(--surface-1)'
 const SURFACE2 = 'var(--surface-2)'
 
-interface Section {
-  id: string
-  title: string
-  content: React.ReactNode
-}
+interface Section { id: string; title: string; content: React.ReactNode }
 
 function Code({ children }: { children: string }) {
   return (
@@ -22,222 +18,654 @@ function Code({ children }: { children: string }) {
   )
 }
 
-function Block({ children }: { children: string }) {
+function Block({ title, children }: { title?: string; children: string }) {
   return (
-    <pre style={{ background: SURFACE2, border: `1px solid ${BORDER}`, padding: '1rem', fontSize: '0.8rem', color: CD, overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', margin: '0.75rem 0', fontFamily: 'inherit' }}>
-      {children}
-    </pre>
+    <div style={{ margin: '0.75rem 0' }}>
+      {title && <div style={{ fontSize: '0.55rem', color: CB, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '0.35rem' }}>{title}</div>}
+      <pre style={{ background: SURFACE2, border: `1px solid ${BORDER}`, padding: '1rem', fontSize: '0.8rem', color: CD, overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontFamily: 'inherit', margin: 0 }}>
+        {children}
+      </pre>
+    </div>
   )
 }
 
 function H3({ children }: { children: string }) {
-  return <div className="text-xs font-bold tracking-widest uppercase mt-5 mb-2" style={{ color: C }}>{children}</div>
+  return <div style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: '1.25rem', marginBottom: '0.5rem', color: C }}>{children}</div>
 }
 
 function P({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs leading-relaxed mb-2" style={{ color: CM }}>{children}</p>
+  return <p style={{ fontSize: '0.82rem', lineHeight: 1.7, marginBottom: '0.6rem', color: CM }}>{children}</p>
 }
 
-const sections: Section[] = [
+function Ul({ items }: { items: React.ReactNode[] }) {
+  return (
+    <ul style={{ listStyle: 'none', padding: 0, margin: '0.5rem 0 1rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+      {items.map((item, i) => (
+        <li key={i} style={{ fontSize: '0.82rem', color: CM, display: 'flex', gap: '0.5rem' }}>
+          <span style={{ color: C, flexShrink: 0 }}>›</span>{item}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function Note({ children, type = 'info' }: { children: React.ReactNode; type?: 'info' | 'warn' | 'tip' }) {
+  const colors = {
+    info: { bg: 'rgba(94,234,212,0.05)', border: 'rgba(94,234,212,0.25)', text: C },
+    warn: { bg: 'rgba(251,191,36,0.05)', border: 'rgba(251,191,36,0.35)', text: 'var(--warning)' },
+    tip:  { bg: 'rgba(52,211,153,0.05)', border: 'rgba(52,211,153,0.3)',  text: 'var(--success)' },
+  }
+  const { bg, border, text } = colors[type]
+  const icons = { info: 'ℹ', warn: '⚠', tip: '💡' }
+  return (
+    <div style={{ margin: '0.75rem 0', padding: '0.6rem 0.85rem', background: bg, border: `1px solid ${border}`, borderRadius: 5, display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+      <span style={{ color: text, flexShrink: 0, fontSize: '0.75rem' }}>{icons[type]}</span>
+      <div style={{ fontSize: '0.8rem', color: CM, lineHeight: 1.6 }}>{children}</div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+//  IDP GUIDE SECTIONS
+// ─────────────────────────────────────────────
+const idpSections: Section[] = [
   {
-    id: 'overview',
+    id: 'idp-overview',
     title: 'Overview',
     content: (
       <div>
-        <P>AO IDP is a self-hosted OpenID Connect (OIDC) and OAuth 2.0 Identity Provider. It authenticates users against your LDAP/Active Directory, issues JWTs, and manages per-application access control.</P>
+        <P>AO IDP is a self-hosted Identity Provider (IdP) that bridges your LDAP/Active Directory with modern OAuth 2.0 / OpenID Connect applications. It handles authentication so your apps never touch directory credentials.</P>
+        <H3>Architecture</H3>
+        <Block>{`┌─────────────────────────────────────────────┐
+│                 AO IDP Server                │
+│                                              │
+│  ┌──────────┐    ┌──────────┐   ┌─────────┐ │
+│  │  Login   │    │  OAuth2  │   │  Admin  │ │
+│  │  Page    │───▶│  Engine  │   │  Panel  │ │
+│  └──────────┘    └──────────┘   └─────────┘ │
+│        │               │              │      │
+│        ▼               ▼              ▼      │
+│  ┌──────────┐    ┌──────────┐   ┌─────────┐ │
+│  │   LDAP   │    │   JWT    │   │  DB     │ │
+│  │ Service  │    │  Service │   │ (Postgres│ │
+│  └──────────┘    └──────────┘   └─────────┘ │
+└─────────────────────────────────────────────┘
+         │
+   ┌─────┴──────┐
+   ▼            ▼
+Active       Registered
+Directory    Applications`}</Block>
         <H3>Key capabilities</H3>
-        <ul className="text-xs space-y-1 mb-3" style={{ color: CM, listStyle: 'none', padding: 0 }}>
-          {[
-            '✓ Authorization Code flow with PKCE (RFC 6749 / RFC 7636)',
-            '✓ LDAP / Active Directory authentication',
-            '✓ Per-application user access control',
-            '✓ JWT access tokens + refresh tokens',
-            '✓ JWKS endpoint for public key distribution',
-            '✓ Configurable JWT claim mappings from LDAP attributes',
-            '✓ Admin panel with role-based access',
-            '✓ Audit log for all admin and user events',
-          ].map(item => <li key={item}>{item}</li>)}
-        </ul>
+        <Ul items={[
+          'Authorization Code flow with PKCE (RFC 6749 / RFC 7636)',
+          'LDAP / Active Directory authentication with multi-server support',
+          'Per-application user access control list',
+          'RS256-signed JWT access tokens + refresh tokens',
+          'JWKS endpoint for stateless token validation by resource servers',
+          'Configurable JWT claim mappings from any LDAP attribute',
+          'Admin panel with role-based access (idp_admin / app_admin)',
+          'Login page branding: colors, logo, welcome text, custom CSS',
+          'Audit log for all login and admin events',
+          'Brute-force protection with configurable lockout',
+        ]} />
       </div>
     ),
   },
   {
-    id: 'oidc-flow',
-    title: 'OIDC Authorization Code Flow',
+    id: 'idp-deployment',
+    title: 'Deployment',
     content: (
       <div>
-        <P>Your application redirects users to the IDP authorization endpoint. After successful login the IDP redirects back with a short-lived code that the app exchanges for tokens.</P>
-        <H3>Step 1 — redirect to authorization endpoint</H3>
-        <Block>{`GET /oauth2/authorize
-  ?client_id=<your_client_id>
-  &redirect_uri=https://app.example.com/callback
-  &response_type=code
-  &state=<random_state>
-  &scope=openid profile
-  &code_challenge=<S256_challenge>
-  &code_challenge_method=S256`}</Block>
-        <H3>Step 2 — exchange code for tokens</H3>
-        <Block>{`POST /oauth2/token
-Content-Type: application/x-www-form-urlencoded
-
-grant_type=authorization_code
-&code=<auth_code>
-&redirect_uri=https://app.example.com/callback
-&client_id=<your_client_id>
-&code_verifier=<pkce_verifier>`}</Block>
-        <H3>Response</H3>
-        <Block>{`{
-  "access_token": "eyJ...",
-  "token_type": "Bearer",
-  "expires_in": 3600,
-  "refresh_token": "...",
-  "scope": "openid profile"
-}`}</Block>
-        <H3>Step 3 — refresh access token</H3>
-        <Block>{`POST /oauth2/token
-Content-Type: application/x-www-form-urlencoded
-
-grant_type=refresh_token
-&refresh_token=<refresh_token>
-&client_id=<your_client_id>`}</Block>
+        <P>AO IDP is distributed as a single Docker image. A <Code>docker-compose.yml</Code> file is provided that starts the server, Postgres, and Nginx in one command.</P>
+        <H3>Quick start</H3>
+        <Block title="1. Copy the compose file and start">{`git clone https://github.com/your-org/ao-idp.git
+cd ao-idp
+docker compose up -d`}</Block>
+        <Block title="2. Import image from tar (air-gapped)">{`docker load -i ao-idp-server.tar
+docker tag ao-images/ao-idp-server:latest ao-images/ao-idp-server:latest
+docker compose up -d`}</Block>
+        <H3>Environment variables</H3>
+        <Ul items={[
+          <><Code>IDP_ISSUER</Code> — public base URL, e.g. <Code>https://auth.company.com</Code>. Must be reachable by browsers and resource servers.</>,
+          <><Code>IDP_DB_URL</Code> — JDBC URL, e.g. <Code>jdbc:postgresql://db:5432/idp</Code></>,
+          <><Code>IDP_DB_USERNAME</Code> / <Code>IDP_DB_PASSWORD</Code> — database credentials</>,
+          <><Code>IDP_COOKIE_DOMAIN</Code> — cookie domain (e.g. <Code>.company.com</Code> for SSO across subdomains)</>,
+          <><Code>IDP_JWT_KEY_PATH</Code> — path to RSA private key PEM (auto-generated on first start if absent)</>,
+        ]} />
+        <Note type="warn">Set <Code>IDP_ISSUER</Code> to the exact URL your users will hit. The issuer is embedded in every JWT and must match the <Code>iss</Code> claim validated by resource servers.</Note>
+        <H3>First run</H3>
+        <P>On first start with a fresh database, a default <Code>admin</Code> account is created with a random password printed to stdout. Change it immediately via Settings → Admin.</P>
       </div>
     ),
   },
   {
-    id: 'userinfo',
-    title: 'UserInfo Endpoint',
-    content: (
-      <div>
-        <P>Fetch identity claims for the authenticated user using the Bearer access token.</P>
-        <Block>{`GET /oauth2/userinfo
-Authorization: Bearer <access_token>`}</Block>
-        <H3>Response</H3>
-        <Block>{`{
-  "sub": "550e8400-...",
-  "ldap_username": "jsmith",
-  "email": "jsmith@example.com",
-  "display_name": "John Smith"
-}`}</Block>
-        <P>Additional claims can be mapped from LDAP attributes in Settings → Claim Mappings.</P>
-      </div>
-    ),
-  },
-  {
-    id: 'logout',
-    title: 'Logout / End Session',
-    content: (
-      <div>
-        <P>Initiate RP-initiated logout by redirecting the user&apos;s browser to the logout endpoint.</P>
-        <H3>GET logout (browser redirect)</H3>
-        <Block>{`GET /oauth2/logout
-  ?id_token_hint=<id_token>
-  &client_id=<your_client_id>
-  &post_logout_redirect_uri=https://app.example.com/logged-out`}</Block>
-        <P>The <Code>post_logout_redirect_uri</Code> must be registered in the application settings (Post Logout Redirect URIs field). The IDP validates it before redirecting.</P>
-        <H3>POST logout (API)</H3>
-        <Block>{`POST /oauth2/logout
-Content-Type: application/x-www-form-urlencoded
-
-refresh_token=<refresh_token>
-&client_id=<your_client_id>`}</Block>
-        <H3>Token revocation (RFC 7009)</H3>
-        <Block>{`POST /oauth2/token/revoke
-Content-Type: application/x-www-form-urlencoded
-
-token=<refresh_token>
-&token_type_hint=refresh_token
-&client_id=<your_client_id>
-&client_secret=<your_client_secret>`}</Block>
-      </div>
-    ),
-  },
-  {
-    id: 'jwks',
-    title: 'JWKS & Token Validation',
-    content: (
-      <div>
-        <P>Access tokens are signed RS256 JWTs. Validate them using the public keys from the JWKS endpoint.</P>
-        <Block>{`GET /.well-known/jwks.json`}</Block>
-        <P>Use a JWT library (e.g. <Code>jsonwebtoken</Code> for Node.js, <Code>java-jwt</Code> for Java, <Code>python-jose</Code> for Python) to verify the signature, expiry, issuer, and audience claims.</P>
-        <H3>Required validation checks</H3>
-        <ul className="text-xs space-y-1 mb-3" style={{ color: CM, listStyle: 'none', padding: 0 }}>
-          <li>✓ Signature valid (RS256, key from JWKS)</li>
-          <li>✓ <Code>exp</Code> — not expired</li>
-          <li>✓ <Code>iss</Code> — matches your IDP issuer URL</li>
-          <li>✓ <Code>aud</Code> — contains your <Code>client_id</Code></li>
-        </ul>
-      </div>
-    ),
-  },
-  {
-    id: 'applications',
-    title: 'Registering Applications',
-    content: (
-      <div>
-        <P>Go to <strong style={{ color: CD }}>Applications</strong> in the sidebar to register a new OAuth2 client.</P>
-        <H3>Confidential client (server-side app)</H3>
-        <P>Has a <Code>client_secret</Code>. The secret is hashed and shown only once at creation. Use it in the token exchange step instead of PKCE.</P>
-        <H3>Public client (SPA / mobile)</H3>
-        <P>No client secret. Must use PKCE (<Code>code_challenge</Code> / <Code>code_verifier</Code>). Suitable for single-page apps and native mobile clients.</P>
-        <H3>Fields</H3>
-        <ul className="text-xs space-y-1 mb-3" style={{ color: CM, listStyle: 'none', padding: 0 }}>
-          <li><Code>redirect_uris</Code> — allowed callback URLs after login</li>
-          <li><Code>allowed_origins</Code> — CORS origins for browser-based token requests</li>
-          <li><Code>post_logout_redirect_uris</Code> — allowed redirect URLs after logout (validated server-side)</li>
-        </ul>
-      </div>
-    ),
-  },
-  {
-    id: 'users',
-    title: 'User Activation',
-    content: (
-      <div>
-        <P>Users must be explicitly activated before they can log in. This is separate from their LDAP account — a user can exist in the directory but not yet have IDP access.</P>
-        <H3>Activating a user</H3>
-        <P>Go to <strong style={{ color: CD }}>Users</strong> or <strong style={{ color: CD }}>Directory</strong>. Click a user and activate them. This creates an IDP account linked to their LDAP username.</P>
-        <H3>Per-app access</H3>
-        <P>Even after activation, a user must be granted access to each application individually. Go to the <strong style={{ color: CD }}>Applications</strong> page → Users section of an app to manage access.</P>
-        <H3>Deactivation</H3>
-        <P>Deactivating a user prevents future logins but preserves audit history and app access records. Re-activating restores access.</P>
-      </div>
-    ),
-  },
-  {
-    id: 'ldap',
+    id: 'idp-ldap',
     title: 'LDAP Configuration',
     content: (
       <div>
-        <P>Go to <strong style={{ color: CD }}>Settings → LDAP</strong> to configure one or more directory servers. Multiple active servers are searched in order — the first successful authentication wins.</P>
-        <H3>Key fields</H3>
-        <ul className="text-xs space-y-1 mb-3" style={{ color: CM, listStyle: 'none', padding: 0 }}>
-          <li><Code>url</Code> — e.g. <Code>ldap://dc.example.com:389</Code> or <Code>ldaps://...</Code></li>
-          <li><Code>base_dn</Code> — e.g. <Code>DC=example,DC=com</Code></li>
-          <li><Code>service_account_dn</Code> — DN used to bind for directory searches</li>
-          <li><Code>username_attribute</Code> — attribute holding the login name (e.g. <Code>sAMAccountName</Code>, <Code>uid</Code>)</li>
-          <li><Code>user_object_class</Code> — e.g. <Code>person</Code>, <Code>inetOrgPerson</Code>, <Code>user</Code></li>
-          <li><Code>additional_user_filter</Code> — optional extra LDAP filter applied to all user searches</li>
-        </ul>
+        <P>Go to <strong style={{ color: CD }}>Settings → LDAP Server</strong> to configure one or more directory servers.</P>
+        <H3>Required fields</H3>
+        <Ul items={[
+          <><Code>URL</Code> — <Code>ldap://host:389</Code> or <Code>ldaps://host:636</Code> (TLS recommended)</>,
+          <><Code>Base DN</Code> — root of the user search, e.g. <Code>DC=company,DC=com</Code></>,
+          <><Code>Service Account DN</Code> — a read-only bind account used to search the directory</>,
+          <><Code>Service Account Password</Code> — stored encrypted at rest</>,
+          <><Code>User Object Class</Code> — e.g. <Code>user</Code> (AD) or <Code>inetOrgPerson</Code> (OpenLDAP)</>,
+        ]} />
+        <H3>Optional fields</H3>
+        <Ul items={[
+          <><Code>Additional Filter</Code> — extra LDAP filter applied to all user searches, e.g. <Code>(department=Engineering)</Code></>,
+          <><Code>Username Attribute</Code> — default <Code>sAMAccountName</Code>; use <Code>uid</Code> for OpenLDAP</>,
+          <><Code>Email Attribute</Code> — default <Code>mail</Code></>,
+        ]} />
+        <H3>Testing the connection</H3>
+        <P>Use the <strong style={{ color: CD }}>Test Connection</strong> button inside the form. A successful test also loads the available LDAP attributes, which you can immediately add as JWT claim mappings.</P>
+        <H3>Multiple servers</H3>
+        <P>You can register multiple servers. At login, AO IDP tries each active server in order; the first successful authentication wins. This is useful for migrations or multi-domain environments.</P>
+        <Note type="tip">For AD environments, use <Code>ldaps://</Code> on port 636 with a trusted certificate. Self-signed certs require adding the CA to the JVM truststore.</Note>
       </div>
     ),
   },
   {
-    id: 'admins',
-    title: 'Admin Roles & Permissions',
+    id: 'idp-users',
+    title: 'User Lifecycle',
     content: (
       <div>
-        <P>Two admin types are supported:</P>
+        <P>Users exist in your LDAP directory but must be explicitly <strong style={{ color: CD }}>activated</strong> in AO IDP before they can log in. This gives you fine-grained control over who can authenticate, independent of the directory.</P>
+        <H3>Activating a user</H3>
+        <Ul items={[
+          'Go to Directory → find the user in the LDAP tree or search by name/email',
+          'Open the user detail panel on the right',
+          'Click Activate — an IDP account is created linked to their LDAP username',
+          'The user can now log in to any application they have access to',
+        ]} />
+        <H3>Per-application access</H3>
+        <P>After activation, access to individual applications must be granted separately. Go to <strong style={{ color: CD }}>Applications → [App Name] → Users</strong> and add the user.</P>
+        <Note type="info">Users without app access will see "Bu tətbiqə girişiniz yoxdur" (access denied) on the login page even if their credentials are correct.</Note>
+        <H3>Bulk import</H3>
+        <P>Use the <strong style={{ color: CD }}>Import Users</strong> button in the Users page to activate multiple users from a CSV or from a selected LDAP OU.</P>
+        <H3>Deactivation</H3>
+        <P>Deactivating a user prevents new logins. Existing sessions and refresh tokens remain valid until they expire. To force immediate logout, also revoke their refresh tokens from the user detail panel.</P>
+      </div>
+    ),
+  },
+  {
+    id: 'idp-apps',
+    title: 'Registering Applications',
+    content: (
+      <div>
+        <P>Every system that uses AO IDP for authentication must be registered as an <strong style={{ color: CD }}>Application</strong>.</P>
+        <H3>Confidential client</H3>
+        <P>Has a <Code>client_secret</Code>. Suitable for server-side apps (Spring Boot, Django, Express) where the secret can be kept private. The secret is hashed and shown only once at creation.</P>
+        <H3>Public client</H3>
+        <P>No secret. Must use PKCE. Suitable for SPAs (React, Vue, Angular) and native mobile apps where a secret cannot be kept safely.</P>
+        <H3>Required fields</H3>
+        <Ul items={[
+          <><Code>Name</Code> — display name shown to users on the login page</>,
+          <><Code>Redirect URIs</Code> — comma-separated list of allowed callback URLs after login (validated server-side)</>,
+          <><Code>Post Logout Redirect URIs</Code> — allowed URLs after logout</>,
+          <><Code>Allowed Origins</Code> — CORS origins for browser token requests (SPA/mobile only)</>,
+        ]} />
+        <H3>Disabling an app</H3>
+        <P>Set the app to <em>inactive</em> in the Applications list. All logins for that <Code>client_id</Code> will fail with "Application is disabled".</P>
+      </div>
+    ),
+  },
+  {
+    id: 'idp-claims',
+    title: 'JWT Claim Mappings',
+    content: (
+      <div>
+        <P>By default every JWT contains <Code>sub</Code> (user UUID), <Code>ldap_username</Code>, <Code>email</Code>, and <Code>display_name</Code>. Additional LDAP attributes can be mapped to custom claims per LDAP server.</P>
+        <H3>Adding a claim mapping</H3>
+        <Ul items={[
+          'Go to Settings → JWT Claims and find the LDAP server',
+          'Click an available attribute (loaded automatically if the server is active)',
+          'Or click "+ add row" and type the LDAP attribute name and desired claim name',
+          'Enable the toggle on the left, then click Save Claims',
+        ]} />
+        <H3>Example</H3>
+        <Block>{`LDAP attribute: department
+JWT claim:      department
+Sample value:   Engineering
+
+LDAP attribute: telephoneNumber
+JWT claim:      phone
+Sample value:   +994501234567`}</Block>
+        <P>Mappings are per-server. If a user authenticates against a server with no claim mappings, only the default claims are included.</P>
+        <Note type="tip">After saving, the next token issued for that user will include the new claims. No restart needed — changes are effective immediately.</Note>
+      </div>
+    ),
+  },
+  {
+    id: 'idp-security',
+    title: 'Security Settings',
+    content: (
+      <div>
+        <P>Go to <strong style={{ color: CD }}>Settings → Security</strong> to configure brute-force protection, session timeouts, PKCE enforcement, and network restrictions.</P>
+        <H3>Brute-force / lockout</H3>
+        <Ul items={[
+          'Max attempts — number of failed logins before lockout (default: 5)',
+          'Window — time window in which the attempts are counted (default: 15 min)',
+          'Duration — how long the account/IP is locked out (default: 30 min)',
+          'Lockout is per username + IP pair, so locking one IP does not affect other IPs',
+        ]} />
+        <H3>Session timeouts</H3>
+        <Ul items={[
+          'Idle timeout — log out after N minutes of inactivity (default: 30 min)',
+          'Absolute max — hard cap regardless of activity (default: 12 h)',
+        ]} />
+        <H3>PKCE</H3>
+        <P>When enabled, public clients (SPAs, mobile apps) must send a valid <Code>code_challenge</Code> / <Code>code_verifier</Code> pair. Confidential clients using a client secret are exempt.</P>
+        <H3>IP allowlist</H3>
+        <P>Restrict admin panel access to specific CIDR ranges. Leave empty to allow all IPs. Separate multiple ranges with commas.</P>
+        <Note type="warn">Force HTTPS should only be enabled when the server is running behind a TLS-terminating reverse proxy (Nginx, Caddy). Enabling it without HTTPS will break all logins.</Note>
+      </div>
+    ),
+  },
+  {
+    id: 'idp-branding',
+    title: 'Login Branding',
+    content: (
+      <div>
+        <P>Go to <strong style={{ color: CD }}>Settings → Login Branding</strong> to customize the OAuth2 login page that all users see.</P>
+        <H3>Basic settings</H3>
+        <Ul items={[
+          'Logo URL — shown above the login card (leave blank for the default lock icon)',
+          'Welcome text — large heading inside the card',
+          'Footer text — small text at the bottom of the page',
+          'Primary / Background / Text colors — applied via CSS variables',
+        ]} />
+        <H3>Continue As panel</H3>
+        <P>When enabled, returning users will see a "Continue as [Name]" card on the login page (like Google). This reads a profile cookie set after the previous login. Toggle it off if you want a clean login form every time.</P>
+        <H3>Custom CSS</H3>
+        <P>The Custom CSS field is injected at the end of the <Code>&lt;style&gt;</Code> tag on the login page, after all default styles. You can override any class.</P>
+        <Ul items={[
+          <>Use the <strong style={{ color: CD }}>orange theme</strong> or <strong style={{ color: CD }}>dark theme</strong> template buttons to load a complete ready-made design</>,
+          'All standard classes are available: .card, .btn, .field input, .hd-dot, .app-banner, etc.',
+          'Changes are effective on the next page load (no restart required)',
+        ]} />
+        <Note type="tip">After pasting CSS, click "Preview Login Page" to open <Code>/login</Code> in a new tab and see the result live.</Note>
+      </div>
+    ),
+  },
+  {
+    id: 'idp-audit',
+    title: 'Audit Logs',
+    content: (
+      <div>
+        <P>Every significant event in AO IDP is written to the audit log. Go to <strong style={{ color: CD }}>Audit</strong> in the sidebar to query, filter, and export logs.</P>
+        <H3>Logged events</H3>
+        <Ul items={[
+          'User login (success + failure with reason)',
+          'Token exchange, refresh, revocation',
+          'User activation / deactivation',
+          'Application create / update / delete',
+          'LDAP config create / update / delete',
+          'Admin login, logout, password change',
+          'Settings updates',
+        ]} />
+        <H3>Retention</H3>
+        <P>Logs older than the configured retention period (default 10 days) are automatically deleted at 03:00 UTC daily. Change the retention in Settings → Login Settings.</P>
+        <H3>Export</H3>
+        <P>Use the Export button in the Audit page to download logs as CSV. Filter by actor, event type, or date range before exporting.</P>
+      </div>
+    ),
+  },
+  {
+    id: 'idp-admins',
+    title: 'Admin Roles',
+    content: (
+      <div>
+        <P>AO IDP has two admin roles:</P>
         <H3>idp_admin</H3>
-        <P>Full access to all sections — users, applications, LDAP, settings, logs, database, and docs.</P>
+        <P>Full unrestricted access to all sections: users, applications, LDAP, settings, audit, logs, and docs. Can create and manage other admin accounts.</P>
         <H3>app_admin</H3>
-        <P>Scoped access. The <Code>idp_admin</Code> can grant specific sections per admin: users, applications, directory, audit, logs, database, docs.</P>
-        <P>Permissions are enforced both in the sidebar (sections hidden if no permission) and on the API (403 if the token lacks the required scope).</P>
+        <P>Scoped access. An <Code>idp_admin</Code> grants specific sections per admin account. Permissions are enforced both in the sidebar (sections hidden if not granted) and on the API (returns 403 if the token lacks the required scope).</P>
+        <H3>Creating an admin</H3>
+        <Block>{`Settings → Management → Admins → "+ Create Admin"
+Fill in: username, display name, initial password, role
+For app_admin: select which sections to grant`}</Block>
+        <H3>Password policy</H3>
+        <P>Admin passwords are bcrypt-hashed. Admins can change their own password via the profile menu (top right). <Code>idp_admin</Code> can reset any admin's password.</P>
       </div>
     ),
   },
 ]
 
-// Strips React elements to plain text recursively
+// ─────────────────────────────────────────────
+//  OAUTH2 INTEGRATION SECTIONS
+// ─────────────────────────────────────────────
+const oauth2Sections: Section[] = [
+  {
+    id: 'oauth-quickstart',
+    title: 'Quick Start',
+    content: (
+      <div>
+        <P>Integrate any application with AO IDP in under 5 minutes using the OIDC discovery document.</P>
+        <H3>1. Register your app</H3>
+        <P>Create an Application in the admin panel. Note the <Code>client_id</Code> and (for confidential clients) the <Code>client_secret</Code>.</P>
+        <H3>2. Point your library at the discovery URL</H3>
+        <Block title="Spring Boot">{`spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://auth.company.com
+# That's it — Spring auto-fetches JWKS and validates tokens.`}</Block>
+        <Block title="Node.js (passport-jwt / jose)">{`import { createRemoteJWKSet, jwtVerify } from 'jose'
+
+const JWKS = createRemoteJWKSet(
+  new URL('https://auth.company.com/jwks')
+)
+
+async function verify(token) {
+  const { payload } = await jwtVerify(token, JWKS, {
+    issuer: 'https://auth.company.com',
+    audience: 'your-client-id',
+  })
+  return payload
+}`}</Block>
+        <Block title="Python (python-jose)">{`from jose import jwt, jwk
+import requests
+
+jwks = requests.get('https://auth.company.com/jwks').json()
+keys = {k['kid']: jwk.construct(k) for k in jwks['keys']}
+
+def verify(token):
+    header = jwt.get_unverified_header(token)
+    key = keys[header['kid']]
+    return jwt.decode(token, key, algorithms=['RS256'],
+                      audience='your-client-id',
+                      issuer='https://auth.company.com')`}</Block>
+        <Note type="tip">Use the OIDC discovery document at <Code>/.well-known/openid-configuration</Code> to auto-configure any standard OIDC library. Most libraries accept a single <Code>issuer-uri</Code>.</Note>
+      </div>
+    ),
+  },
+  {
+    id: 'oauth-discovery',
+    title: 'Discovery & JWKS',
+    content: (
+      <div>
+        <P>AO IDP exposes two standard endpoints for automatic client configuration:</P>
+        <H3>OIDC Discovery Document</H3>
+        <Block>{`GET /.well-known/openid-configuration`}</Block>
+        <Block title="Response">{`{
+  "issuer": "https://auth.company.com",
+  "authorization_endpoint": "https://auth.company.com/oauth2/authorize",
+  "token_endpoint": "https://auth.company.com/oauth2/token",
+  "userinfo_endpoint": "https://auth.company.com/oauth2/userinfo",
+  "jwks_uri": "https://auth.company.com/jwks",
+  "end_session_endpoint": "https://auth.company.com/oauth2/logout",
+  "response_types_supported": ["code"],
+  "grant_types_supported": ["authorization_code", "refresh_token"],
+  "id_token_signing_alg_values_supported": ["RS256"],
+  "code_challenge_methods_supported": ["S256"]
+}`}</Block>
+        <H3>JWKS Endpoint</H3>
+        <Block>{`GET /jwks`}</Block>
+        <P>Returns the RSA public key(s) used to sign JWTs. Resource servers fetch this once (or cache it) and use the keys to verify tokens locally — no call to the IDP is needed per request.</P>
+        <Note type="info">Keys are identified by <Code>kid</Code> (Key ID) in the JWT header. The JWKS endpoint may serve multiple keys during key rotation. Your JWT library should select the right key by matching <Code>kid</Code>.</Note>
+      </div>
+    ),
+  },
+  {
+    id: 'oauth-authcode',
+    title: 'Authorization Code + PKCE',
+    content: (
+      <div>
+        <P>The Authorization Code flow with PKCE is the recommended flow for all client types.</P>
+        <H3>Step 1 — Generate PKCE pair</H3>
+        <Block title="JavaScript">{`// 1. Generate code_verifier (43-128 random chars)
+const verifier = crypto.randomUUID().replace(/-/g, '') +
+                 crypto.randomUUID().replace(/-/g, '')
+
+// 2. Compute code_challenge = BASE64URL(SHA256(verifier))
+const digest = await crypto.subtle.digest(
+  'SHA-256',
+  new TextEncoder().encode(verifier)
+)
+const challenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
+  .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')`}</Block>
+        <H3>Step 2 — Redirect to authorization endpoint</H3>
+        <Block>{`GET /oauth2/authorize
+  ?client_id=your-client-id
+  &redirect_uri=https://app.example.com/callback
+  &response_type=code
+  &state=RANDOM_STATE_VALUE
+  &scope=openid profile
+  &code_challenge=BASE64URL_SHA256_OF_VERIFIER
+  &code_challenge_method=S256`}</Block>
+        <P>The user is shown the login page. After successful authentication they are redirected to your <Code>redirect_uri</Code> with <Code>?code=AUTH_CODE&state=RANDOM_STATE_VALUE</Code>.</P>
+        <Note type="warn">Always verify the <Code>state</Code> parameter matches what you sent. This prevents CSRF attacks.</Note>
+        <H3>Step 3 — Exchange code for tokens</H3>
+        <Block>{`POST /oauth2/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code
+&code=AUTH_CODE
+&redirect_uri=https://app.example.com/callback
+&client_id=your-client-id
+&code_verifier=ORIGINAL_VERIFIER    ← PKCE
+# For confidential clients, omit code_verifier and use:
+# &client_secret=YOUR_SECRET`}</Block>
+        <Block title="Success response">{`{
+  "access_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6Ii4uLiJ9...",
+  "token_type": "Bearer",
+  "expires_in": 900,
+  "refresh_token": "4a7b3c2d...",
+  "scope": "openid profile"
+}`}</Block>
+      </div>
+    ),
+  },
+  {
+    id: 'oauth-tokens',
+    title: 'Token Management',
+    content: (
+      <div>
+        <P>AO IDP issues RS256-signed JWTs as access tokens. They are stateless — resource servers verify them locally using the public key from <Code>/jwks</Code>.</P>
+        <H3>Access token payload</H3>
+        <Block>{`{
+  "sub": "550e8400-e29b-41d4-a716-446655440000",  // User UUID
+  "iss": "https://auth.company.com",
+  "aud": "your-client-id",
+  "iat": 1716000000,
+  "exp": 1716000900,
+  "jti": "unique-token-id",
+  "ldap_username": "jsmith",
+  "email": "jsmith@company.com",
+  "display_name": "John Smith",
+  // ... any extra claims from JWT Claim Mappings
+  "department": "Engineering"
+}`}</Block>
+        <H3>Refreshing the access token</H3>
+        <Block>{`POST /oauth2/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=refresh_token
+&refresh_token=4a7b3c2d...
+&client_id=your-client-id
+# &client_secret=YOUR_SECRET  ← confidential clients only`}</Block>
+        <H3>Revoking a token (RFC 7009)</H3>
+        <Block>{`POST /oauth2/token/revoke
+Content-Type: application/x-www-form-urlencoded
+
+token=REFRESH_TOKEN
+&token_type_hint=refresh_token
+&client_id=your-client-id
+&client_secret=YOUR_SECRET`}</Block>
+        <P>Returns <Code>200 OK</Code> even if the token was already expired or invalid (per RFC 7009 §2.2).</P>
+        <Note type="info">Access token expiry is configurable in Settings → Token Expiry (default 15 minutes). Refresh token expiry defaults to 7 days. Store refresh tokens securely — they are equivalent to credentials.</Note>
+      </div>
+    ),
+  },
+  {
+    id: 'oauth-validate',
+    title: 'Validating Tokens',
+    content: (
+      <div>
+        <P>Resource servers (your APIs) must validate every incoming access token. Validation is entirely local — no network call to the IDP needed per request.</P>
+        <H3>Validation checklist</H3>
+        <Ul items={[
+          <><Code>alg</Code> — must be <Code>RS256</Code> (reject HS256 or "none")</>,
+          <>Signature — verify using the public key matching <Code>kid</Code> from <Code>/jwks</Code></>,
+          <><Code>exp</Code> — must be in the future</>,
+          <><Code>iss</Code> — must equal your IDP base URL</>,
+          <><Code>aud</Code> — must contain your <Code>client_id</Code></>,
+        ]} />
+        <H3>Spring Boot (auto-config)</H3>
+        <Block>{`# application.yml
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://auth.company.com
+          # Spring fetches JWKS automatically and caches it.`}</Block>
+        <H3>Manual validation (Node.js)</H3>
+        <Block>{`import { createRemoteJWKSet, jwtVerify } from 'jose'
+
+const JWKS = createRemoteJWKSet(
+  new URL('https://auth.company.com/jwks')
+)
+
+export async function authenticate(req, res, next) {
+  const auth = req.headers.authorization ?? ''
+  if (!auth.startsWith('Bearer ')) return res.status(401).end()
+  try {
+    const { payload } = await jwtVerify(auth.slice(7), JWKS, {
+      issuer: 'https://auth.company.com',
+      audience: 'your-client-id',
+    })
+    req.user = payload
+    next()
+  } catch {
+    res.status(401).json({ error: 'invalid_token' })
+  }
+}`}</Block>
+        <H3>JWKS caching</H3>
+        <P>Fetch and cache the JWKS at startup. Only re-fetch when a token presents an unknown <Code>kid</Code> — this handles key rotation gracefully without re-fetching on every request.</P>
+      </div>
+    ),
+  },
+  {
+    id: 'oauth-userinfo',
+    title: 'UserInfo Endpoint',
+    content: (
+      <div>
+        <P>Fetch identity claims for the authenticated user using their access token. Useful when you need up-to-date data without decoding the JWT.</P>
+        <Block>{`GET /oauth2/userinfo
+Authorization: Bearer ACCESS_TOKEN`}</Block>
+        <Block title="Response">{`{
+  "sub": "550e8400-e29b-41d4-a716-446655440000",
+  "ldap_username": "jsmith",
+  "email": "jsmith@company.com",
+  "display_name": "John Smith"
+}`}</Block>
+        <Note type="info">The userinfo response contains the same claims as the access token. Prefer reading claims from the JWT directly (no network call) unless you need to guarantee freshness after a user update.</Note>
+      </div>
+    ),
+  },
+  {
+    id: 'oauth-logout',
+    title: 'Logout / End Session',
+    content: (
+      <div>
+        <P>AO IDP supports RP-initiated logout per the OIDC Session Management spec.</P>
+        <H3>Browser redirect logout (recommended)</H3>
+        <P>Redirect the user's browser to end the IDP session. This clears the SSO session cookie so other apps won't be auto-logged in.</P>
+        <Block>{`GET /oauth2/logout
+  ?client_id=your-client-id
+  &post_logout_redirect_uri=https://app.example.com/logged-out
+  &id_token_hint=PREVIOUSLY_ISSUED_ID_TOKEN`}</Block>
+        <P>The <Code>post_logout_redirect_uri</Code> must be registered in the application's Post Logout Redirect URIs. The IDP validates it before redirecting.</P>
+        <H3>API logout (no browser redirect)</H3>
+        <Block>{`POST /oauth2/logout
+Content-Type: application/x-www-form-urlencoded
+
+refresh_token=REFRESH_TOKEN
+&client_id=your-client-id`}</Block>
+        <P>Invalidates the refresh token and the session. Use this from a server-side endpoint when you want to log the user out programmatically.</P>
+        <Note type="tip">Always revoke the refresh token on logout, even for browser-redirect logout flows. Otherwise the token remains valid until it expires.</Note>
+      </div>
+    ),
+  },
+  {
+    id: 'oauth-sso',
+    title: 'Single Sign-On (SSO)',
+    content: (
+      <div>
+        <P>AO IDP provides SSO across all registered applications via an <strong style={{ color: CD }}>HttpOnly session cookie</strong> set on the IDP domain.</P>
+        <H3>How it works</H3>
+        <Ul items={[
+          'User logs into App A — IDP sets a session cookie on the IDP domain',
+          'User navigates to App B and clicks "Sign In"',
+          "App B redirects to /oauth2/authorize — IDP detects the session cookie",
+          'IDP immediately issues an authorization code and redirects back — no login form shown',
+          'App B exchanges the code for tokens — user is logged in transparently',
+        ]} />
+        <H3>Requirements</H3>
+        <Ul items={[
+          <>All apps must redirect to the <strong>same IDP domain</strong> for authentication</>,
+          <>The <Code>IDP_COOKIE_DOMAIN</Code> must be set to a parent domain (e.g. <Code>.company.com</Code>) if apps are on different subdomains</>,
+          'Apps must correctly implement the authorization code flow (not store tokens in URLs)',
+        ]} />
+        <H3>Continue As panel</H3>
+        <P>When SSO is not active (session expired) but the user has a profile cookie, the login page shows a "Continue as [Name]" card. Clicking it pre-fills the username so the user only needs to enter their password. Enable/disable this in Settings → Login Branding.</P>
+        <Note type="info">The SSO session is separate from the access token. A user can have a valid SSO session (meaning they won't see the login form) but their access tokens may have expired (and need to be refreshed).</Note>
+      </div>
+    ),
+  },
+  {
+    id: 'oauth-errors',
+    title: 'Error Reference',
+    content: (
+      <div>
+        <P>AO IDP returns standard OAuth 2.0 error responses.</P>
+        <H3>Authorization endpoint errors (redirect)</H3>
+        <Block>{`https://app.example.com/callback
+  ?error=unsupported_response_type
+  &state=YOUR_STATE
+
+# Other error codes:
+# invalid_client — unknown client_id
+# invalid_request — missing required parameter`}</Block>
+        <H3>Token endpoint errors (JSON)</H3>
+        <Block>{`{
+  "error": "invalid_grant",
+  "error_description": "Invalid or expired authorization code"
+}
+
+# Other codes:
+# invalid_client      — wrong client_id / client_secret
+# invalid_token       — bad/expired refresh token
+# pkce_failed         — code_verifier does not match code_challenge
+# unsupported_grant_type`}</Block>
+        <H3>Resource server errors</H3>
+        <Block>{`HTTP 401 Unauthorized
+WWW-Authenticate: Bearer error="invalid_token",
+  error_description="Token has expired"
+
+# Causes:
+# expired access token → use refresh_token to get a new one
+# wrong audience (aud) → check client_id matches
+# wrong issuer (iss)   → check IDP_ISSUER env var`}</Block>
+        <H3>Login page errors</H3>
+        <Ul items={[
+          '"İstifadəçi adı və ya şifrə yanlışdır" — invalid credentials',
+          '"Hesab aktivləşdirilməyib" — user not activated in AO IDP',
+          '"Bu tətbiqə girişiniz yoxdur" — no access granted to this application',
+          '"Too many failed attempts" — brute-force lockout active',
+        ]} />
+      </div>
+    ),
+  },
+]
+
+// ─────────────────────────────────────────────
+//  Markdown export helper
+// ─────────────────────────────────────────────
 function extractText(node: React.ReactNode): string {
   if (node === null || node === undefined || typeof node === 'boolean') return ''
   if (typeof node === 'string' || typeof node === 'number') return String(node)
@@ -258,70 +686,113 @@ function extractText(node: React.ReactNode): string {
   return ''
 }
 
-function buildMarkdown(): string {
-  return sections.map(s => {
-    const body = extractText(s.content)
-      .replace(/\n{3,}/g, '\n\n')
-      .trim()
-    return `# ${s.title}\n\n${body}`
+function buildMarkdown(book: 'idp' | 'oauth2'): string {
+  const secs = book === 'idp' ? idpSections : oauth2Sections
+  const title = book === 'idp' ? '# AO IDP — Server & Operations Guide\n\n' : '# AO IDP — OAuth2 Integration Guide\n\n'
+  return title + secs.map(s => {
+    const body = extractText(s.content).replace(/\n{3,}/g, '\n\n').trim()
+    return `## ${s.title}\n\n${body}`
   }).join('\n\n---\n\n')
 }
 
-function exportDocs() {
-  const md = buildMarkdown()
+function exportDocs(book: 'idp' | 'oauth2') {
+  const md = buildMarkdown(book)
   const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = 'ao-idp-docs.md'
+  a.download = book === 'idp' ? 'ao-idp-server-guide.md' : 'ao-idp-oauth2-integration.md'
   a.click()
   URL.revokeObjectURL(url)
 }
 
+// ─────────────────────────────────────────────
+//  Component
+// ─────────────────────────────────────────────
 export default function DocsPage() {
-  const [active, setActive] = useState('overview')
-  const current = sections.find(s => s.id === active)
+  const [book, setBook] = useState<'idp' | 'oauth2'>('idp')
+  const sections = book === 'idp' ? idpSections : oauth2Sections
+  const [active, setActive] = useState(sections[0].id)
+
+  // Reset active section when switching books
+  const switchBook = (b: 'idp' | 'oauth2') => {
+    setBook(b)
+    setActive(b === 'idp' ? idpSections[0].id : oauth2Sections[0].id)
+  }
+
+  const currentSections = book === 'idp' ? idpSections : oauth2Sections
+  const current = currentSections.find(s => s.id === active)
 
   return (
     <div>
-      <div className="mb-6" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
         <div>
-          <div className="text-xs tracking-widest uppercase mb-1" style={{ color: CB }}>reference</div>
-          <h1 className="text-xl font-bold tracking-wider" style={{ color: C }}>{'> '}documentation</h1>
+          <div style={{ fontSize: '0.625rem', color: CB, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '0.25rem' }}>reference</div>
+          <h1 style={{ fontSize: '1.125rem', fontWeight: 700, color: C, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{'> '}documentation</h1>
         </div>
-        <button
-          onClick={exportDocs}
-          style={{
-            padding: '0.45rem 0.9rem', background: 'transparent',
-            border: `1px solid ${BORDER}`, color: CM,
-            fontFamily: 'inherit', fontSize: '0.7rem', fontWeight: 700,
-            letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer',
-          }}
-          title="Export all docs as Markdown"
-        >
-          ↓ export .md
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            onClick={() => exportDocs(book)}
+            style={{
+              padding: '0.45rem 0.9rem', background: 'transparent',
+              border: `1px solid ${BORDER}`, color: CM,
+              fontFamily: 'inherit', fontSize: '0.7rem', fontWeight: 700,
+              letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer',
+            }}
+            title="Export current guide as Markdown"
+          >
+            ↓ export .md
+          </button>
+        </div>
       </div>
 
-      <div className="flex gap-6">
-        <nav className="shrink-0 w-44">
-          <div className="space-y-0.5">
-            {sections.map(s => (
+      {/* Book selector */}
+      <div style={{ display: 'flex', gap: 0, marginBottom: '1.5rem', border: `1px solid ${BORDER}`, borderRadius: 6, overflow: 'hidden', alignSelf: 'flex-start', width: 'fit-content' }}>
+        {([
+          { key: 'idp',    label: '⚙ IDP Server Guide',      hint: 'Setup, config, users, apps, security' },
+          { key: 'oauth2', label: '🔗 OAuth2 Integration',    hint: 'Complete guide for app developers' },
+        ] as const).map(({ key, label, hint }) => (
+          <button
+            key={key}
+            onClick={() => switchBook(key)}
+            title={hint}
+            style={{
+              padding: '0.6rem 1.4rem', background: book === key ? C : 'transparent',
+              border: 'none', color: book === key ? 'var(--bg)' : CM,
+              fontFamily: 'inherit', fontSize: '0.75rem', fontWeight: book === key ? 700 : 400,
+              letterSpacing: '0.05em', cursor: 'pointer',
+              transition: 'all 0.12s',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: '1.5rem' }}>
+        {/* Sidebar nav */}
+        <nav style={{ flexShrink: 0, width: 180 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {currentSections.map(s => (
               <button key={s.id} onClick={() => setActive(s.id)}
-                className="w-full text-left px-3 py-2 text-xs tracking-wide transition-all"
                 style={{
+                  width: '100%', textAlign: 'left', padding: '0.45rem 0.75rem',
+                  fontSize: '0.75rem', letterSpacing: '0.03em',
                   color: active === s.id ? 'var(--bg)' : CM,
                   background: active === s.id ? C : 'transparent',
-                  border: 'none', cursor: 'pointer',
+                  border: 'none', cursor: 'pointer', borderRadius: 4,
+                  transition: 'all 0.1s',
                 }}>
-                {active === s.id ? '> ' : '  '}{s.title.toLowerCase()}
+                {active === s.id ? '› ' : '  '}{s.title}
               </button>
             ))}
           </div>
         </nav>
 
-        <div className="flex-1 min-w-0 border p-6" style={{ background: SURFACE, borderColor: BORDER }}>
-          <div className="text-sm font-bold tracking-wider mb-4" style={{ color: C }}>
+        {/* Content */}
+        <div style={{ flex: 1, minWidth: 0, border: `1px solid ${BORDER}`, padding: '1.5rem', background: SURFACE, borderRadius: 5 }}>
+          <div style={{ fontSize: '0.875rem', fontWeight: 700, letterSpacing: '0.05em', marginBottom: '1rem', color: C }}>
             {'// '}{current?.title}
           </div>
           <div>{current?.content}</div>

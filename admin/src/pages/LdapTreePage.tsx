@@ -2164,6 +2164,14 @@ export default function LdapTreePage() {
   // 'tree' = filter what's already loaded; 'server' = call /ldap/users for a directory-wide LDAP search
   const [searchScope, setSearchScope] = useState<'tree' | 'server'>('tree')
 
+  // Auto-switch to server scope when a raw schema attribute (not a quick attr) is selected
+  const QUICK_ATTRS = useMemo(() => new Set(['all', 'name', 'username', 'email', 'title']), [])
+  useEffect(() => {
+    if (!QUICK_ATTRS.has(searchAttr)) {
+      setSearchScope('server')
+    }
+  }, [searchAttr, QUICK_ATTRS])
+
   // Panel width (resizable)
   const [panelWidth, setPanelWidth] = useState<number>(() => {
     const saved = localStorage.getItem(LS_PANEL_WIDTH)
@@ -2457,16 +2465,16 @@ export default function LdapTreePage() {
           // (use server scope to actually filter by an attribute not exposed on the tree node)
           let matchesSearch = true
           if (search) {
-            if (searchAttr === 'name') {
+            if (searchAttr === 'name' || searchAttr === 'cn' || searchAttr === 'displayName' || searchAttr === 'givenName' || searchAttr === 'sn') {
               matchesSearch = n.name.toLowerCase().includes(search)
-            } else if (searchAttr === 'username') {
+            } else if (searchAttr === 'username' || searchAttr === 'sAMAccountName' || searchAttr === 'uid' || searchAttr === 'samaccountname') {
               matchesSearch = (n.ldap_username?.toLowerCase().includes(search) ?? false)
-            } else if (searchAttr === 'email') {
+            } else if (searchAttr === 'email' || searchAttr === 'mail' || searchAttr === 'userPrincipalName') {
               matchesSearch = (n.email?.toLowerCase().includes(search) ?? false)
             } else if (searchAttr === 'title') {
               matchesSearch = (n.title?.toLowerCase().includes(search) ?? false)
             } else {
-              // 'all' or any unknown server-schema attribute → match across all locally-known fields
+              // 'all' or any other raw LDAP attribute → match across all locally-known fields
               matchesSearch = n.name.toLowerCase().includes(search) ||
                 (n.ldap_username?.toLowerCase().includes(search) ?? false) ||
                 (n.email?.toLowerCase().includes(search) ?? false) ||
