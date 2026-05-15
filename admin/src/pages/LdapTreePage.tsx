@@ -2164,13 +2164,20 @@ export default function LdapTreePage() {
   // 'tree' = filter what's already loaded; 'server' = call /ldap/users for a directory-wide LDAP search
   const [searchScope, setSearchScope] = useState<'tree' | 'server'>('tree')
 
-  // Auto-switch to server scope when a raw schema attribute (not a quick attr) is selected
+  // Auto-switch scope:
+  //   • any non-empty query  → server (query the actual directory)
+  //   • schema attr selected → server (raw LDAP attrs can't be matched on in-memory tree nodes)
+  //   • query cleared + quick attr → back to tree (browsing mode)
   const QUICK_ATTRS = useMemo(() => new Set(['all', 'name', 'username', 'email', 'title']), [])
   useEffect(() => {
-    if (!QUICK_ATTRS.has(searchAttr)) {
+    const hasQuery = !!state.debouncedSearch.trim()
+    const isSchemaAttr = !QUICK_ATTRS.has(searchAttr)
+    if (hasQuery || isSchemaAttr) {
       setSearchScope('server')
+    } else {
+      setSearchScope('tree')
     }
-  }, [searchAttr, QUICK_ATTRS])
+  }, [searchAttr, state.debouncedSearch, QUICK_ATTRS])
 
   // Panel width (resizable)
   const [panelWidth, setPanelWidth] = useState<number>(() => {
@@ -2267,7 +2274,7 @@ export default function LdapTreePage() {
 
   // Server-side LDAP search (only enabled when scope=server and there is a query)
   const { data: serverHits = [], isFetching: serverSearching } = useQuery({
-    queryKey: ['ldap-server-search', state.debouncedSearch, searchAttr],
+    queryKey: ['ldap-server-search', state.debouncedSearch, searchAttr, searchScope],
     queryFn: () => ldapApi.getUsers(
       undefined,
       state.debouncedSearch,
