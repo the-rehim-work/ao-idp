@@ -15,7 +15,14 @@ services:
       COOKIE_DOMAIN: ${COOKIE_DOMAIN}
     volumes:
       - ao-idp-postgres:/var/lib/postgresql/data
+    networks:
+      - ao-net
+      - default
     restart: unless-stopped
 
 volumes:
   ao-idp-postgres:
+
+networks:
+  ao-net:
+    external: true
