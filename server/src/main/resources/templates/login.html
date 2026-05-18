@@ -355,6 +355,106 @@
             font-size: 0.75rem;
             color: var(--text-muted);
         }
+
+        /* ── Loading overlay & button state ─────────────────────────────── */
+        @keyframes lo-spin   { to { transform: rotate(360deg); } }
+        @keyframes lo-pulse  {
+            0%,100% { opacity:.55; transform:scale(.94); }
+            50%      { opacity:1;  transform:scale(1.06); }
+        }
+        @keyframes lo-fade-in { from { opacity:0; } to { opacity:1; } }
+        @keyframes lo-bounce  {
+            0%,80%,100% { transform:translateY(0);   opacity:.3; }
+            40%          { transform:translateY(-3px); opacity:1; }
+        }
+
+        .card { position: relative; overflow: hidden; }
+
+        .lo-overlay {
+            position: absolute; inset: 0;
+            border-radius: var(--radius);
+            background: rgba(11,15,23,0.91);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.875rem;
+            z-index: 20;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.22s ease;
+        }
+        .lo-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .lo-avatar-wrap {
+            position: relative;
+            width: 62px; height: 62px;
+        }
+        .lo-avatar-lg {
+            width: 62px; height: 62px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; font-weight: 700;
+            color: #071412;
+            animation: lo-pulse 1.9s ease-in-out infinite;
+        }
+        .lo-ring {
+            position: absolute; inset: -5px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            border-top-color: var(--primary);
+            animation: lo-spin 0.85s linear infinite;
+        }
+        .lo-name-lg {
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: var(--text);
+            max-width: 240px;
+            text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            letter-spacing: -0.01em;
+        }
+        .lo-status {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .lo-dot {
+            width: 4px; height: 4px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: inline-block;
+            animation: lo-bounce 1.3s ease-in-out infinite;
+        }
+        .lo-dot:nth-child(2) { animation-delay: .18s; }
+        .lo-dot:nth-child(3) { animation-delay: .36s; }
+
+        /* Button spinner (appended via JS) */
+        .btn-spinner {
+            display: inline-block;
+            width: 14px; height: 14px;
+            border: 2.5px solid rgba(7,20,18,0.22);
+            border-top-color: #071412;
+            border-radius: 50%;
+            animation: lo-spin 0.7s linear infinite;
+            vertical-align: middle;
+            margin-right: 0.5rem;
+            flex-shrink: 0;
+        }
+        .btn.btn-busy {
+            cursor: wait;
+            opacity: 0.82;
+            pointer-events: none;
+        }
     </style>
     <style th:if="${brandingCustomCss != null && !#strings.isEmpty(brandingCustomCss)}" th:text="${brandingCustomCss}"></style>
 </head>
@@ -425,6 +525,20 @@
     </div>
 
     <!-- ── Continue-as: stored accounts ─────────────────────────────── -->
+    <!-- Login-completing overlay (shown on form submit + continue-as click) -->
+    <div class="lo-overlay" id="lo-overlay" aria-live="polite" aria-label="Giriş tamamlanır">
+        <div class="lo-avatar-wrap">
+            <div class="lo-avatar-lg" id="lo-avatar">⟳</div>
+            <div class="lo-ring"></div>
+        </div>
+        <div class="lo-name-lg" id="lo-name">Giriş tamamlanır</div>
+        <div class="lo-status">
+            <span class="lo-dot"></span>
+            <span class="lo-dot"></span>
+            <span class="lo-dot"></span>
+        </div>
+    </div>
+
     <div id="continue-section" style="display:none">
         <div id="accounts-list" class="accounts-list"></div>
         <div class="divider">və ya başqa hesabla</div>
@@ -479,7 +593,7 @@
                    placeholder="Şifrənizi daxil edin"/>
         </div>
 
-        <button type="submit" class="btn">Daxil ol</button>
+        <button type="submit" class="btn" id="login-btn">Daxil ol</button>
 
         <!-- Shown only in password-only mode (continue-as selected) -->
         <button type="button" id="switch-btn" class="switch-link"
@@ -497,6 +611,44 @@
 </div><!-- /wrap -->
 
 <script>
+// ── Login-completing overlay ───────────────────────────────────────────
+function showLoginOverlay(initial, name) {
+    var av  = document.getElementById('lo-avatar');
+    var nm  = document.getElementById('lo-name');
+    var ov  = document.getElementById('lo-overlay');
+    if (av) av.textContent = initial || '⟳';
+    if (nm) nm.textContent = name    || 'Giriş tamamlanır';
+    if (ov) ov.classList.add('active');
+}
+
+function setBtnBusy() {
+    var btn = document.getElementById('login-btn');
+    if (!btn) return;
+    btn.classList.add('btn-busy');
+    btn.innerHTML = '<span class="btn-spinner"></span>Giriş tamamlanır...';
+}
+
+// Show button loading on password form submit
+(function() {
+    var form = document.querySelector('form[action*="/login"]');
+    if (!form) return;
+    form.addEventListener('submit', function() {
+        var un = document.getElementById('username');
+        var nm = document.getElementById('sel-name');
+        var displayName = (nm && nm.textContent) || (un && un.value) || '';
+        var initial = displayName.charAt(0).toUpperCase() || '›';
+        // If we're in password-only mode (selected user shown) use the overlay;
+        // otherwise just transform the button
+        var selUser = document.getElementById('selected-user');
+        var selVisible = selUser && selUser.style.display !== 'none';
+        if (selVisible && displayName) {
+            showLoginOverlay(initial, displayName);
+        } else {
+            setBtnBusy();
+        }
+    });
+})();
+
 // ── Identifier mode dynamic label ──────────────────────────────────────
 (function() {
     var mf = document.getElementById('identifier_mode');
@@ -595,12 +747,15 @@ function renderAccounts(profiles) {
 // Otherwise → hide account list, show selected-user header + password field only.
 function selectAccount(username, displayName, rt) {
     if (rt) {
-        // Passwordless path: submit the continue-as form with the remember token
+        // Passwordless path: show overlay then submit the continue-as form
+        var initial = (displayName || username).charAt(0).toUpperCase();
+        showLoginOverlay(initial, displayName || username);
         var caForm = document.getElementById('continue-as-form');
         var caToken = document.getElementById('ca-remember-token');
         if (caForm && caToken) {
             caToken.value = rt;
-            caForm.submit();
+            // Small delay so the overlay renders before navigation begins
+            setTimeout(function() { caForm.submit(); }, 80);
         }
         return;
     }

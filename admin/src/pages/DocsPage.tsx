@@ -592,6 +592,117 @@ refresh_token=REFRESH_TOKEN
     ),
   },
   {
+    id: 'oauth-prompt-login',
+    title: 'prompt=login',
+    content: (
+      <div>
+        <P><Code>prompt=login</Code> is an OIDC Core §3.1.2.1 parameter that forces the IDP to skip the existing SSO session and show the login page — even when the user is already authenticated.</P>
+        <H3>When to use</H3>
+        <Ul items={[
+          'After your app clears its own local session without calling IDP logout',
+          'Before sensitive operations requiring fresh credential confirmation',
+          'When the user clicks "Sign in with a different account" in your UI',
+          'After a long period of inactivity in your app (regardless of IDP session state)',
+        ]} />
+        <H3>How to add it</H3>
+        <Block>{`GET /oauth2/authorize
+  ?client_id=YOUR_CLIENT_ID
+  &redirect_uri=https://yourapp.example.com/callback
+  &response_type=code
+  &scope=openid profile
+  &state=RANDOM_STATE
+  &code_challenge=BASE64URL_ENCODED_CHALLENGE
+  &code_challenge_method=S256
+  &prompt=login`}</Block>
+        <P>The existing IDP session is <strong style={{ color: CD }}>NOT destroyed</strong> — its auto-authorization is only bypassed for this request. After re-authentication a fresh session is created; the old one expires naturally.</P>
+        <Note type="warn"><strong>Important:</strong> <Code>prompt=login</Code> bypasses the SSO session but does NOT prevent passwordless continue-as. If the user has a stored remember token, they will still see the one-click panel and can authenticate without typing a password. If you truly require explicit credential entry, implement a re-auth step in your own UI.</Note>
+        <H3>Recommended logout patterns</H3>
+        <Block title="Option A — browser redirect logout (preferred)">{`# Clears the IDP session cookie. Remember token survives
+# (user can still click continue-as on next visit).
+GET /oauth2/logout
+  ?client_id=YOUR_CLIENT_ID
+  &post_logout_redirect_uri=https://yourapp.example.com/signed-out`}</Block>
+        <Block title="Option B — prompt=login only">{`# Use when you cannot do a browser redirect (API-only context).
+# The user will see the Continue As panel (passwordless available).
+GET /oauth2/authorize?...&prompt=login`}</Block>
+        <Block title="Option C — redirect logout then prompt=login">{`# Step 1: redirect to logout → user lands on your /signed-out page
+GET /oauth2/logout?...&post_logout_redirect_uri=https://app/re-auth
+
+# Step 2: from /re-auth, redirect to authorize with prompt=login
+GET /oauth2/authorize?...&prompt=login`}</Block>
+        <H3>JavaScript example</H3>
+        <Block title="React / SPA — force re-auth">{`function forceReAuth() {
+  const verifier = generateCodeVerifier()    // store in sessionStorage
+  const challenge = await computeChallenge(verifier)
+
+  const params = new URLSearchParams({
+    client_id:             'YOUR_CLIENT_ID',
+    redirect_uri:          window.location.origin + '/callback',
+    response_type:         'code',
+    scope:                 'openid profile',
+    state:                 crypto.randomUUID(),
+    code_challenge:        challenge,
+    code_challenge_method: 'S256',
+    prompt:                'login',           // ← force re-auth
+  })
+  window.location.href = 'https://auth.company.com/oauth2/authorize?' + params
+}`}</Block>
+      </div>
+    ),
+  },
+  {
+    id: 'oauth-continue-as',
+    title: 'Passwordless Continue As',
+    content: (
+      <div>
+        <P>AO IDP stores a <strong style={{ color: CD }}>remember token</strong> in the browser after every successful login. On the next visit, stored accounts appear as one-click cards — no password required. This works even after the SSO session has expired.</P>
+        <H3>How it works</H3>
+        <Ul items={[
+          'User logs in with username + password → IDP issues a 48-byte remember token',
+          'Raw token stored in the ao-user cookie (not HttpOnly); SHA-256 hash stored in DB with 30-day TTL',
+          'Next visit: login page reads the cookie, renders stored accounts',
+          'User clicks an account → browser submits POST /oauth2/continue-as with the raw token',
+          'IDP hashes the token, finds the match, rotates it (old invalidated, new issued), creates session',
+          'Auth code issued → user is logged in. Zero password interaction.',
+        ]} />
+        <H3>/oauth2/continue-as endpoint</H3>
+        <Block>{`POST /oauth2/continue-as
+Content-Type: application/x-www-form-urlencoded
+
+remember_token=RAW_48_BYTE_TOKEN
+client_id=YOUR_CLIENT_ID
+redirect_uri=https://yourapp.example.com/callback
+state=RANDOM_STATE
+scope=openid%20profile
+code_challenge=BASE64URL_CHALLENGE
+code_challenge_method=S256`}</Block>
+        <Block title="Success (OAuth2 flow)">{`HTTP 302 → https://yourapp.example.com/callback?code=AUTH_CODE&state=STATE
+# Token exchange is identical to a normal login`}</Block>
+        <Block title="Failure — token expired or invalid">{`HTTP 302 → /login?error=Sessiya+müddəti+bitib...&client_id=...
+# User is shown the normal login form`}</Block>
+        <H3>Security properties</H3>
+        <Ul items={[
+          '384-bit random token — unguessable, no rate limiting needed',
+          'DB stores only the SHA-256 hash — cookie theft does not expose DB values',
+          'Token rotation on each use — replaying a used token fails immediately',
+          'Logout clears the SSO session but preserves remember tokens (Google-style)',
+          'Removing an account in the UI deletes it from the cookie; server token expires naturally after 30 days',
+        ]} />
+        <H3>ao-user cookie format</H3>
+        <Block>{`# Base64url-encoded JSON array (up to 5 accounts)
+[
+  { "u": "jsmith",  "n": "John Smith",  "rt": "BASE64URL_REMEMBER_TOKEN" },
+  { "u": "ajones",  "n": "Alice Jones", "rt": "BASE64URL_REMEMBER_TOKEN" }
+]
+
+# Accounts without rt (old format or manual edits) fall back
+# to the password-only view when clicked.`}</Block>
+        <Note type="tip">You do not need to implement anything to support this — it is handled entirely by the IDP login page. Your app's callback and token exchange code is unchanged. If a user uses continue-as, the resulting auth code and tokens are identical to a normal login.</Note>
+        <Note type="warn">The ao-user cookie is readable by JavaScript (not HttpOnly). If your deployment has strict XSS risks, disable the Continue As panel in Settings → Login Branding — this prevents remember tokens from being issued and clears the stored profiles.</Note>
+      </div>
+    ),
+  },
+  {
     id: 'oauth-sso',
     title: 'Single Sign-On (SSO)',
     content: (
@@ -611,9 +722,9 @@ refresh_token=REFRESH_TOKEN
           <>The <Code>IDP_COOKIE_DOMAIN</Code> must be set to a parent domain (e.g. <Code>.company.com</Code>) if apps are on different subdomains</>,
           'Apps must correctly implement the authorization code flow (not store tokens in URLs)',
         ]} />
-        <H3>Continue As panel</H3>
-        <P>When SSO is not active (session expired) but the user has a profile cookie, the login page shows a "Continue as [Name]" card. Clicking it pre-fills the username so the user only needs to enter their password. Enable/disable this in Settings → Login Branding.</P>
-        <Note type="info">The SSO session is separate from the access token. A user can have a valid SSO session (meaning they won't see the login form) but their access tokens may have expired (and need to be refreshed).</Note>
+        <H3>Continue As — passwordless one-click login</H3>
+        <P>When the SSO session has expired but the user has a profile cookie with a remember token, the login page shows stored accounts. Clicking an account submits instantly — <strong style={{ color: CD }}>no password required</strong>. This is powered by a 30-day remember token (hashed in the DB) that rotates on each use. Enable/disable the panel in Settings → Login Branding.</P>
+        <Note type="info">The SSO session is separate from the access token. A user can have a valid SSO session (no login form shown) but their access tokens may have expired and need refreshing separately.</Note>
       </div>
     ),
   },
@@ -671,17 +782,36 @@ function extractText(node: React.ReactNode): string {
   if (typeof node === 'string' || typeof node === 'number') return String(node)
   if (Array.isArray(node)) return node.map(extractText).join('')
   if (React.isValidElement(node)) {
-    const el = node as React.ReactElement<{ children?: React.ReactNode }>
-    const tag = typeof el.type === 'string' ? el.type : ''
+    const el = node as React.ReactElement<{ children?: React.ReactNode; title?: string; items?: React.ReactNode[]; type?: string }>
     const inner = extractText(el.props.children)
-    if (tag === 'pre') return '\n```\n' + inner + '\n```\n'
-    if (tag === 'code') return '`' + inner + '`'
-    if (tag === 'li') return '\n  • ' + inner
+
+    // Handle known custom components by identity
+    if (el.type === H3) return '\n\n### ' + inner.trim() + '\n'
+    if (el.type === P)  return '\n' + inner + '\n'
+    if (el.type === Block) {
+      const t = el.props.title
+      const fence = t ? `\n\`\`\`\n# ${t}\n${inner.trim()}\n\`\`\`\n` : `\n\`\`\`\n${inner.trim()}\n\`\`\`\n`
+      return fence
+    }
+    if (el.type === Note) {
+      return '\n> ' + inner.trim().replace(/\n/g, '\n> ') + '\n'
+    }
+    if (el.type === Ul) {
+      const items = el.props.items ?? []
+      return '\n' + (items as React.ReactNode[]).map(i => '- ' + extractText(i).trim()).join('\n') + '\n'
+    }
+    if (el.type === Code) return '`' + inner + '`'
+
+    // Native HTML tags
+    const tag = typeof el.type === 'string' ? el.type : ''
+    if (tag === 'pre')    return '\n```\n' + inner + '\n```\n'
+    if (tag === 'code')   return '`' + inner + '`'
+    if (tag === 'li')     return '- ' + inner.trim()
     if (tag === 'ul' || tag === 'ol') return inner + '\n'
-    if (tag === 'p') return inner + '\n'
-    if (tag === 'div' && inner) return inner + '\n'
+    if (tag === 'p')      return inner + '\n'
     if (tag === 'strong' || tag === 'b') return '**' + inner + '**'
-    return inner
+    if (tag === 'em')     return '_' + inner + '_'
+    if (inner)            return inner
   }
   return ''
 }
