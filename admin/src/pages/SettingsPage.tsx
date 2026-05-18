@@ -1471,6 +1471,143 @@ const CSS_THEMES = [
   { key: 'morning-sky',     label: 'Morning Sky (Light)',      css: MORNING_SKY_CSS },
 ]
 
+function buildLoginPreviewHtml(f: LoginBranding): string {
+  const pc  = f.primaryColor || '#5eead4'
+  const bg  = f.bgColor      || '#0a0c10'
+  const tc  = f.textColor    || '#f1f5f9'
+  const ff  = f.fontFamily   ? `'${f.fontFamily}', 'Inter', system-ui, sans-serif` : `'Inter', system-ui, sans-serif`
+  const welcome   = f.welcomeText || 'Hesabınıza daxil olun'
+  const footer    = f.footerText  || 'AO Identity Provider · 2026'
+  const showContinue = f.continueAsEnabled
+
+  const logoHtml = f.logoUrl
+    ? `<img class="hd-logo-img" src="${f.logoUrl}" alt="logo" style="height:52px;max-width:180px;object-fit:contain;display:block;margin:0 auto 0.875rem"/>`
+    : `<div class="hd-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1.5" fill="var(--primary)" stroke="none"/></svg></div>`
+
+  const continueHtml = showContinue ? `
+    <div class="accounts-list" style="margin-bottom:1rem">
+      <div class="account-row">
+        <div class="account-main" style="display:flex;align-items:center;gap:.75rem;flex:1;padding:.6875rem .875rem;cursor:default">
+          <div class="account-avatar">Ə</div>
+          <div class="account-info">
+            <div class="account-name">Əli Həsənov</div>
+            <div class="account-uname">alhasanov</div>
+          </div>
+          <svg class="account-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <button class="account-remove" style="padding:0 .75rem;align-self:stretch;display:flex;align-items:center;background:transparent;border:none;border-left:1px solid var(--border);cursor:default;color:var(--text-muted)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="account-row">
+        <div class="account-main" style="display:flex;align-items:center;gap:.75rem;flex:1;padding:.6875rem .875rem;cursor:default">
+          <div class="account-avatar">N</div>
+          <div class="account-info">
+            <div class="account-name">Nigar Babayeva</div>
+            <div class="account-uname">nbabayeva</div>
+          </div>
+          <svg class="account-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <button class="account-remove" style="padding:0 .75rem;align-self:stretch;display:flex;align-items:center;background:transparent;border:none;border-left:1px solid var(--border);cursor:default;color:var(--text-muted)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="divider">və ya başqa hesabla</div>` : ''
+
+  return `<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Login Preview — AO ID</title>
+<style>
+@font-face{font-family:'Inter';font-weight:400;font-display:swap;src:url('/fonts/inter-400.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:500;font-display:swap;src:url('/fonts/inter-500.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:600;font-display:swap;src:url('/fonts/inter-600.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:700;font-display:swap;src:url('/fonts/inter-700.woff2') format('woff2')}
+@font-face{font-family:'Outfit';font-weight:400;font-display:swap;src:url('/fonts/outfit-400.woff2') format('woff2')}
+@font-face{font-family:'Outfit';font-weight:600;font-display:swap;src:url('/fonts/outfit-600.woff2') format('woff2')}
+@font-face{font-family:'Outfit';font-weight:700;font-display:swap;src:url('/fonts/outfit-700.woff2') format('woff2')}
+@font-face{font-family:'DM Sans';font-weight:400;font-display:swap;src:url('/fonts/dm-sans-400.woff2') format('woff2')}
+@font-face{font-family:'DM Sans';font-weight:500;font-display:swap;src:url('/fonts/dm-sans-500.woff2') format('woff2')}
+@font-face{font-family:'DM Sans';font-weight:700;font-display:swap;src:url('/fonts/dm-sans-700.woff2') format('woff2')}
+@font-face{font-family:'Nunito';font-weight:400;font-display:swap;src:url('/fonts/nunito-400.woff2') format('woff2')}
+@font-face{font-family:'Nunito';font-weight:600;font-display:swap;src:url('/fonts/nunito-600.woff2') format('woff2')}
+@font-face{font-family:'Nunito';font-weight:700;font-display:swap;src:url('/fonts/nunito-700.woff2') format('woff2')}
+@font-face{font-family:'Poppins';font-weight:400;font-display:swap;src:url('/fonts/poppins-400.woff2') format('woff2')}
+@font-face{font-family:'Poppins';font-weight:600;font-display:swap;src:url('/fonts/poppins-600.woff2') format('woff2')}
+@font-face{font-family:'Poppins';font-weight:700;font-display:swap;src:url('/fonts/poppins-700.woff2') format('woff2')}
+@font-face{font-family:'Plus Jakarta Sans';font-weight:400;font-display:swap;src:url('/fonts/jakarta-400.woff2') format('woff2')}
+@font-face{font-family:'Plus Jakarta Sans';font-weight:600;font-display:swap;src:url('/fonts/jakarta-600.woff2') format('woff2')}
+@font-face{font-family:'Plus Jakarta Sans';font-weight:700;font-display:swap;src:url('/fonts/jakarta-700.woff2') format('woff2')}
+:root{
+  --primary:${pc};--primary-hover:${pc};--primary-btn:#0f1f1e;
+  --bg:${bg};--surface:#111827;--surface-2:#1c2333;--surface-3:#232e42;
+  --border:rgba(255,255,255,0.08);--border-accent:rgba(94,234,212,0.22);
+  --text:${tc};--text-dim:#94a3b8;--text-muted:#475569;
+  --error:#f87171;--error-bg:rgba(248,113,113,0.08);--error-border:rgba(248,113,113,0.22);
+  --shadow:0 4px 40px rgba(0,0,0,0.5);
+  --font:${ff};
+  --radius:12px;--radius-sm:8px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.5;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1.5rem 1rem;position:relative}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse 60% 40% at 30% 15%,rgba(94,234,212,0.06) 0%,transparent 60%),radial-gradient(ellipse 50% 35% at 75% 85%,rgba(94,234,212,0.04) 0%,transparent 55%)}
+.wrap{width:100%;max-width:400px;position:relative;z-index:1}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:2rem;box-shadow:var(--shadow),0 0 0 1px rgba(255,255,255,0.03) inset;position:relative;overflow:hidden}
+.hd{text-align:center;margin-bottom:1.75rem}
+.hd-icon{width:52px;height:52px;border-radius:var(--radius-sm);background:linear-gradient(135deg,rgba(94,234,212,0.18),rgba(94,234,212,0.04));border:1px solid var(--border-accent);display:inline-flex;align-items:center;justify-content:center;margin-bottom:0.875rem}
+.hd-title{font-size:1.375rem;font-weight:700;color:var(--text);letter-spacing:-0.025em;line-height:1.2}
+.hd-sub{font-size:0.875rem;color:var(--text-dim);margin-top:0.3rem}
+.accounts-list{display:flex;flex-direction:column;gap:.375rem}
+.account-row{display:flex;align-items:center;gap:0;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden}
+.account-main{display:flex;align-items:center;gap:.75rem;flex:1;min-width:0;text-align:left}
+.account-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary-hover));display:flex;align-items:center;justify-content:center;font-size:.875rem;font-weight:700;color:#0a1a1a;flex-shrink:0;font-family:var(--font)}
+.account-info{flex:1;min-width:0}
+.account-name{font-size:.875rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
+.account-uname{font-size:.75rem;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
+.account-chevron{color:var(--text-muted);flex-shrink:0}
+.account-remove{padding:0 .75rem;align-self:stretch;display:flex;align-items:center;background:transparent;border:none;border-left:1px solid var(--border);cursor:default;color:var(--text-muted);flex-shrink:0}
+.divider{display:flex;align-items:center;gap:.625rem;font-size:.75rem;color:var(--text-muted);margin-bottom:1.125rem}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.field{margin-bottom:.875rem}
+.field label{display:block;font-size:.8125rem;font-weight:500;color:var(--text-dim);margin-bottom:.375rem}
+.field input{width:100%;padding:.6875rem .875rem;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font);font-size:.9375rem;outline:none;-webkit-appearance:none}
+.field input::placeholder{color:var(--text-muted)}
+.btn{width:100%;margin-top:.375rem;padding:.6875rem 1rem;background:var(--primary);border:none;border-radius:var(--radius-sm);color:#071412;font-family:var(--font);font-size:.9375rem;font-weight:600;letter-spacing:-0.01em;cursor:pointer}
+.footer{text-align:center;margin-top:1.25rem;font-size:.75rem;color:var(--text-muted)}
+.preview-badge{position:fixed;top:12px;right:12px;background:rgba(94,234,212,0.12);border:1px solid rgba(94,234,212,0.3);color:#5eead4;font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:.3rem .65rem;border-radius:4px;z-index:100;font-family:system-ui,sans-serif;pointer-events:none}
+</style>
+${f.customCss ? `<style>${f.customCss}</style>` : ''}
+</head>
+<body>
+<div class="preview-badge">Preview</div>
+<div class="wrap">
+<div class="card">
+  <div class="hd">
+    ${logoHtml}
+    <div class="hd-title">AO ID</div>
+    <div class="hd-sub">${welcome.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+  </div>
+  ${continueHtml}
+  <div class="field">
+    <label>İstifadəçi adı</label>
+    <input type="text" placeholder="istifadəçi adı" disabled/>
+  </div>
+  <div class="field">
+    <label>Şifrə</label>
+    <input type="password" placeholder="Şifrənizi daxil edin" disabled/>
+  </div>
+  <button class="btn" type="button">Daxil ol</button>
+</div>
+<div class="footer">${footer.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+</div>
+</body>
+</html>`
+}
+
 function LoginBrandingSection() {
   const qc = useQueryClient()
   const { data } = useQuery({ queryKey: ['login-branding'], queryFn: settingsApi.loginBranding.get })
@@ -1730,8 +1867,14 @@ Click a theme button above to load a complete ready-made design. */`}
       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.75rem', marginTop: '1rem', flexWrap: 'wrap' }}>
         <button
           style={{ ...btnSecondary, display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-          onClick={() => window.open('/login?logged_out=1', '_blank', 'noopener,noreferrer')}
-          title="Open the live login page in a new tab"
+          onClick={() => {
+            const html = buildLoginPreviewHtml(form)
+            const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+            const url  = URL.createObjectURL(blob)
+            window.open(url, '_blank', 'noopener,noreferrer')
+            setTimeout(() => URL.revokeObjectURL(url), 30000)
+          }}
+          title="Open a live design preview (no server interaction)"
         >
           <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ flexShrink: 0 }}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M10 3H4a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1v-6M13 3h4m0 0v4m0-4L9 11"/>
