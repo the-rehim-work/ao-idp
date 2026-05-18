@@ -12,7 +12,22 @@ RUN npm run build && \
     cp node_modules/@fontsource/inter/files/inter-latin-400-normal.woff2 /app/fonts/inter-400.woff2 2>/dev/null || true && \
     cp node_modules/@fontsource/inter/files/inter-latin-500-normal.woff2 /app/fonts/inter-500.woff2 2>/dev/null || true && \
     cp node_modules/@fontsource/inter/files/inter-latin-600-normal.woff2 /app/fonts/inter-600.woff2 2>/dev/null || true && \
-    cp node_modules/@fontsource/inter/files/inter-latin-700-normal.woff2 /app/fonts/inter-700.woff2 2>/dev/null || true
+    cp node_modules/@fontsource/inter/files/inter-latin-700-normal.woff2 /app/fonts/inter-700.woff2 2>/dev/null || true && \
+    cp node_modules/@fontsource/outfit/files/outfit-latin-400-normal.woff2 /app/fonts/outfit-400.woff2 2>/dev/null || true && \
+    cp node_modules/@fontsource/outfit/files/outfit-latin-600-normal.woff2 /app/fonts/outfit-600.woff2 2>/dev/null || true && \
+    cp node_modules/@fontsource/outfit/files/outfit-latin-700-normal.woff2 /app/fonts/outfit-700.woff2 2>/dev/null || true && \
+    cp node_modules/@fontsource/dm-sans/files/dm-sans-latin-400-normal.woff2 /app/fonts/dm-sans-400.woff2 2>/dev/null || true && \
+    cp node_modules/@fontsource/dm-sans/files/dm-sans-latin-500-normal.woff2 /app/fonts/dm-sans-500.woff2 2>/dev/null || true && \
+    cp node_modules/@fontsource/dm-sans/files/dm-sans-latin-700-normal.woff2 /app/fonts/dm-sans-700.woff2 2>/dev/null || true && \
+    cp node_modules/@fontsource/nunito/files/nunito-latin-400-normal.woff2 /app/fonts/nunito-400.woff2 2>/dev/null || true && \
+    cp node_modules/@fontsource/nunito/files/nunito-latin-600-normal.woff2 /app/fonts/nunito-600.woff2 2>/dev/null || true && \
+    cp node_modules/@fontsource/nunito/files/nunito-latin-700-normal.woff2 /app/fonts/nunito-700.woff2 2>/dev/null || true && \
+    cp node_modules/@fontsource/poppins/files/poppins-latin-400-normal.woff2 /app/fonts/poppins-400.woff2 2>/dev/null || true && \
+    cp node_modules/@fontsource/poppins/files/poppins-latin-600-normal.woff2 /app/fonts/poppins-600.woff2 2>/dev/null || true && \
+    cp node_modules/@fontsource/poppins/files/poppins-latin-700-normal.woff2 /app/fonts/poppins-700.woff2 2>/dev/null || true && \
+    cp node_modules/@fontsource/plus-jakarta-sans/files/plus-jakarta-sans-latin-400-normal.woff2 /app/fonts/jakarta-400.woff2 2>/dev/null || true && \
+    cp node_modules/@fontsource/plus-jakarta-sans/files/plus-jakarta-sans-latin-600-normal.woff2 /app/fonts/jakarta-600.woff2 2>/dev/null || true && \
+    cp node_modules/@fontsource/plus-jakarta-sans/files/plus-jakarta-sans-latin-700-normal.woff2 /app/fonts/jakarta-700.woff2 2>/dev/null || true
 
 # ─── Stage 2: Build backend ──────────────────────────────────────────────────
 FROM gradle:8.7-jdk21-alpine AS server-builder

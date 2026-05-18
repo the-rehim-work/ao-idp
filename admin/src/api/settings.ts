@@ -50,6 +50,7 @@ export interface LoginBranding {
   footerText: string
   customCss: string
   continueAsEnabled: boolean
+  fontFamily: string
 }
 
 export interface SecuritySettings {

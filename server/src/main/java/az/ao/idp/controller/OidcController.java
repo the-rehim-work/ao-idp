@@ -134,6 +134,7 @@ public class OidcController {
         model.addAttribute("brandingFooterText", nvl(branding.footerText(), ""));
         model.addAttribute("brandingCustomCss", nvl(branding.customCss(), ""));
         model.addAttribute("continueAsEnabled", branding.continueAsEnabled());
+        model.addAttribute("brandingFontFamily", nvl(branding.fontFamily(), ""));
         return "login";
     }
 

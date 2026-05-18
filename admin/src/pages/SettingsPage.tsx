@@ -1439,7 +1439,7 @@ function LoginBrandingSection() {
   const { data } = useQuery({ queryKey: ['login-branding'], queryFn: settingsApi.loginBranding.get })
   const [form, setForm] = useState<LoginBranding>({
     logoUrl: '', primaryColor: '#5eead4', bgColor: '#0a0c10', textColor: '#e7ebf0',
-    welcomeText: '', footerText: '', customCss: '', continueAsEnabled: true,
+    welcomeText: '', footerText: '', customCss: '', continueAsEnabled: true, fontFamily: '',
   })
   const [saved, setSaved] = useState(false)
   const [cssExpanded, setCssExpanded] = useState(false)
@@ -1515,6 +1515,24 @@ function LoginBrandingSection() {
               <input style={inputStyle} value={form.footerText}
                 onChange={e => setForm(f => ({ ...f, footerText: e.target.value }))}
                 placeholder="© 2026 AO" />
+            </Field>
+            <Field label="Font family">
+              <select
+                style={{ ...inputStyle, cursor: 'pointer' }}
+                value={form.fontFamily}
+                onChange={e => setForm(f => ({ ...f, fontFamily: e.target.value }))}
+              >
+                <option value="">Default — JetBrains Mono (monospace)</option>
+                <option value="Inter">Inter — Modern &amp; Clean</option>
+                <option value="Outfit">Outfit — Geometric</option>
+                <option value="DM Sans">DM Sans — Humanist</option>
+                <option value="Nunito">Nunito — Rounded &amp; Friendly</option>
+                <option value="Poppins">Poppins — Popular &amp; Geometric</option>
+                <option value="Plus Jakarta Sans">Plus Jakarta Sans — Contemporary</option>
+              </select>
+              <div style={{ fontSize: '0.6rem', color: CB, marginTop: '0.3rem' }}>
+                Served offline · applies to the entire login page
+              </div>
             </Field>
           </div>
 

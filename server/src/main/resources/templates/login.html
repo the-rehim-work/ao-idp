@@ -19,34 +19,25 @@
             font-display: swap;
             src: url('/fonts/jbm-600.woff2') format('woff2');
         }
-        @font-face {
-            font-family: 'Inter';
-            font-style: normal;
-            font-weight: 400;
-            font-display: swap;
-            src: url('/fonts/inter-400.woff2') format('woff2');
-        }
-        @font-face {
-            font-family: 'Inter';
-            font-style: normal;
-            font-weight: 500;
-            font-display: swap;
-            src: url('/fonts/inter-500.woff2') format('woff2');
-        }
-        @font-face {
-            font-family: 'Inter';
-            font-style: normal;
-            font-weight: 600;
-            font-display: swap;
-            src: url('/fonts/inter-600.woff2') format('woff2');
-        }
-        @font-face {
-            font-family: 'Inter';
-            font-style: normal;
-            font-weight: 700;
-            font-display: swap;
-            src: url('/fonts/inter-700.woff2') format('woff2');
-        }
+        @font-face { font-family:'Inter'; font-style:normal; font-weight:400; font-display:swap; src:url('/fonts/inter-400.woff2') format('woff2'); }
+        @font-face { font-family:'Inter'; font-style:normal; font-weight:500; font-display:swap; src:url('/fonts/inter-500.woff2') format('woff2'); }
+        @font-face { font-family:'Inter'; font-style:normal; font-weight:600; font-display:swap; src:url('/fonts/inter-600.woff2') format('woff2'); }
+        @font-face { font-family:'Inter'; font-style:normal; font-weight:700; font-display:swap; src:url('/fonts/inter-700.woff2') format('woff2'); }
+        @font-face { font-family:'Outfit'; font-style:normal; font-weight:400; font-display:swap; src:url('/fonts/outfit-400.woff2') format('woff2'); }
+        @font-face { font-family:'Outfit'; font-style:normal; font-weight:600; font-display:swap; src:url('/fonts/outfit-600.woff2') format('woff2'); }
+        @font-face { font-family:'Outfit'; font-style:normal; font-weight:700; font-display:swap; src:url('/fonts/outfit-700.woff2') format('woff2'); }
+        @font-face { font-family:'DM Sans'; font-style:normal; font-weight:400; font-display:swap; src:url('/fonts/dm-sans-400.woff2') format('woff2'); }
+        @font-face { font-family:'DM Sans'; font-style:normal; font-weight:500; font-display:swap; src:url('/fonts/dm-sans-500.woff2') format('woff2'); }
+        @font-face { font-family:'DM Sans'; font-style:normal; font-weight:700; font-display:swap; src:url('/fonts/dm-sans-700.woff2') format('woff2'); }
+        @font-face { font-family:'Nunito'; font-style:normal; font-weight:400; font-display:swap; src:url('/fonts/nunito-400.woff2') format('woff2'); }
+        @font-face { font-family:'Nunito'; font-style:normal; font-weight:600; font-display:swap; src:url('/fonts/nunito-600.woff2') format('woff2'); }
+        @font-face { font-family:'Nunito'; font-style:normal; font-weight:700; font-display:swap; src:url('/fonts/nunito-700.woff2') format('woff2'); }
+        @font-face { font-family:'Poppins'; font-style:normal; font-weight:400; font-display:swap; src:url('/fonts/poppins-400.woff2') format('woff2'); }
+        @font-face { font-family:'Poppins'; font-style:normal; font-weight:600; font-display:swap; src:url('/fonts/poppins-600.woff2') format('woff2'); }
+        @font-face { font-family:'Poppins'; font-style:normal; font-weight:700; font-display:swap; src:url('/fonts/poppins-700.woff2') format('woff2'); }
+        @font-face { font-family:'Plus Jakarta Sans'; font-style:normal; font-weight:400; font-display:swap; src:url('/fonts/jakarta-400.woff2') format('woff2'); }
+        @font-face { font-family:'Plus Jakarta Sans'; font-style:normal; font-weight:600; font-display:swap; src:url('/fonts/jakarta-600.woff2') format('woff2'); }
+        @font-face { font-family:'Plus Jakarta Sans'; font-style:normal; font-weight:700; font-display:swap; src:url('/fonts/jakarta-700.woff2') format('woff2'); }
 
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -371,10 +362,10 @@
     var pc = /*[[${brandingPrimaryColor}]]*/ '#5eead4';
     var bg = /*[[${brandingBgColor}]]*/ '#0a0c10';
     var tc = /*[[${brandingTextColor}]]*/ '#e7ebf0';
+    var ff = /*[[${brandingFontFamily}]]*/ '';
     if (pc) {
         r.style.setProperty('--c', pc);
         r.style.setProperty('--cd', pc);
-        // compute a darker shade for --cb
         r.style.setProperty('--br', 'rgba(0,0,0,0.3)');
     }
     if (bg) r.style.setProperty('--bg', bg);
@@ -382,6 +373,7 @@
         r.style.setProperty('--txt', tc);
         r.style.setProperty('--cm', tc);
     }
+    if (ff) r.style.setProperty('--font', "'" + ff + "', system-ui, sans-serif");
 })();
 </script>
 
