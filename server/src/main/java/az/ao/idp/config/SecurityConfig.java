@@ -83,9 +83,11 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/oauth2/authorize", "/login",
+                                "/oauth2/authorize", "/oauth2/logout",
+                                "/login",
                                 "/.well-known/**", "/jwks",
-                                "/error", "/css/**", "/js/**", "/images/**", "/img/**",
+                                "/error",
+                                "/fonts/**", "/css/**", "/js/**", "/images/**", "/img/**",
                                 "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**"
                         ).permitAll()
                         .requestMatchers("/oauth2/userinfo").authenticated()

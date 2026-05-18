@@ -158,9 +158,47 @@ The `ao-user` cookie is **preserved on logout** — only the `ao-session` cookie
 ## OAuth2 Logout Flow
 
 - **POST `/oauth2/logout`**: API logout (used by client apps). Invalidates session + refresh token. Clears `ao-session` cookie. Does NOT clear `ao-user` (profile hint preserved).
-- **GET `/oauth2/logout`**: Browser redirect logout (RP-initiated logout). Same behavior + optional `post_logout_redirect_uri` (validated against registered URIs). Redirects to `/login` if no post-logout URI.
+- **GET `/oauth2/logout`**: Browser redirect logout (RP-initiated logout). Same behavior + optional `post_logout_redirect_uri` (validated against registered URIs). Redirects to `/login?logged_out=1` if no post-logout URI — the `logged_out` flag prevents an automatic redirect to `/admin/` so the user always sees the login page with the Continue-as section.
 
-External apps call logout via GET redirect. After logout, user returns to the login page and sees the "Continue as" panel.
+External apps should call logout via GET redirect so the IDP can clear the session cookie in the browser.
+
+---
+
+## `prompt=login` — Force Re-authentication (OIDC Core §3.1.2.1)
+
+When a client app redirects a user to `/oauth2/authorize` with `prompt=login`, the IDP **skips the existing session** and forces the user to re-authenticate, even if a valid `ao-session` cookie is present.
+
+**When to use:**
+- After the client app clears its own local session (but didn't call IDP logout)
+- When the app needs fresh credentials (e.g., sensitive actions)
+- When the user explicitly clicks "Sign in with a different account"
+
+**How to add it to your OAuth2 authorization URL:**
+```
+GET /oauth2/authorize
+  ?client_id=YOUR_CLIENT_ID
+  &redirect_uri=https://yourapp.example.com/callback
+  &response_type=code
+  &scope=openid%20profile
+  &state=random_state
+  &code_challenge=BASE64URL_ENCODED_CHALLENGE
+  &code_challenge_method=S256
+  &prompt=login                          ← add this
+```
+
+After `prompt=login`, the user is taken to the login page where they can pick a stored account (Continue-as) or type new credentials. The existing IDP session is NOT destroyed — only its auto-authorization is bypassed. After re-authentication a fresh session is created alongside the old one (which expires naturally).
+
+**Recommended logout pattern for client apps:**
+```
+# Option A — browser redirect logout (preferred, clears IDP cookie)
+GET /oauth2/logout
+  ?client_id=YOUR_CLIENT_ID
+  &post_logout_redirect_uri=https://yourapp.example.com/logged-out
+
+# Option B — prompt=login on next authorize call
+# Use when you cannot do a redirect logout (e.g. API-only context)
+GET /oauth2/authorize?...&prompt=login
+```
 
 ---
 
