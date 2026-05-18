@@ -988,7 +988,7 @@ WWW-Authenticate: Bearer error="invalid_token",
 ]
 
 // ─────────────────────────────────────────────
-//  Markdown export helper
+//  Markdown / HTML export helpers
 // ─────────────────────────────────────────────
 function extractText(node: React.ReactNode): string {
   if (node === null || node === undefined || typeof node === 'boolean') return ''
@@ -998,24 +998,19 @@ function extractText(node: React.ReactNode): string {
     const el = node as React.ReactElement<{ children?: React.ReactNode; title?: string; items?: React.ReactNode[]; type?: string }>
     const inner = extractText(el.props.children)
 
-    // Handle known custom components by identity
     if (el.type === H3) return '\n\n### ' + inner.trim() + '\n'
     if (el.type === P)  return '\n' + inner + '\n'
     if (el.type === Block) {
       const t = el.props.title
-      const fence = t ? `\n\`\`\`\n# ${t}\n${inner.trim()}\n\`\`\`\n` : `\n\`\`\`\n${inner.trim()}\n\`\`\`\n`
-      return fence
+      return t ? `\n\`\`\`\n# ${t}\n${inner.trim()}\n\`\`\`\n` : `\n\`\`\`\n${inner.trim()}\n\`\`\`\n`
     }
-    if (el.type === Note) {
-      return '\n> ' + inner.trim().replace(/\n/g, '\n> ') + '\n'
-    }
+    if (el.type === Note) return '\n> ' + inner.trim().replace(/\n/g, '\n> ') + '\n'
     if (el.type === Ul) {
       const items = el.props.items ?? []
       return '\n' + (items as React.ReactNode[]).map(i => '- ' + extractText(i).trim()).join('\n') + '\n'
     }
     if (el.type === Code) return '`' + inner + '`'
 
-    // Native HTML tags
     const tag = typeof el.type === 'string' ? el.type : ''
     if (tag === 'pre')    return '\n```\n' + inner + '\n```\n'
     if (tag === 'code')   return '`' + inner + '`'
@@ -1029,24 +1024,167 @@ function extractText(node: React.ReactNode): string {
   return ''
 }
 
+function sectionToMd(s: Section): string {
+  return `## ${s.title}\n\n${extractText(s.content).replace(/\n{3,}/g, '\n\n').trim()}`
+}
+
 function buildMarkdown(book: 'idp' | 'oauth2'): string {
   const secs = book === 'idp' ? idpSections : oauth2Sections
   const title = book === 'idp' ? '# AO IDP — Server & Operations Guide\n\n' : '# AO IDP — OAuth2 Integration Guide\n\n'
-  return title + secs.map(s => {
-    const body = extractText(s.content).replace(/\n{3,}/g, '\n\n').trim()
-    return `## ${s.title}\n\n${body}`
-  }).join('\n\n---\n\n')
+  return title + secs.map(sectionToMd).join('\n\n---\n\n')
 }
 
-function exportDocs(book: 'idp' | 'oauth2') {
-  const md = buildMarkdown(book)
-  const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = book === 'idp' ? 'ao-idp-server-guide.md' : 'ao-idp-oauth2-integration.md'
-  a.click()
-  URL.revokeObjectURL(url)
+// ── HTML conversion (for PDF print) ──────────────────────────────────────────
+function htmlEsc(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+function inlineMd(s: string): string {
+  // Split on backtick spans first so we don't escape inside them
+  return s.split(/(`[^`]+`)/).map((p, i) => {
+    if (i % 2 === 1) return '<code>' + htmlEsc(p.slice(1, -1)) + '</code>'
+    return htmlEsc(p)
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/_([^_]+)_/g, '<em>$1</em>')
+  }).join('')
+}
+
+function mdToHtml(md: string): string {
+  const lines = md.split('\n')
+  const out: string[] = []
+  let inPre = false, inUl = false, inBq = false
+  const preLines: string[] = []
+
+  const flushUl  = () => { if (inUl) { out.push('</ul>');         inUl  = false } }
+  const flushBq  = () => { if (inBq) { out.push('</blockquote>'); inBq  = false } }
+  const flushPre = () => {
+    if (inPre) {
+      out.push('<pre><code>' + htmlEsc(preLines.join('\n')) + '</code></pre>')
+      preLines.length = 0; inPre = false
+    }
+  }
+
+  for (const line of lines) {
+    if (line.trimStart().startsWith('```')) {
+      if (inPre) { flushPre() } else { flushUl(); flushBq(); inPre = true }
+      continue
+    }
+    if (inPre) { preLines.push(line); continue }
+
+    if (line.startsWith('> ')) {
+      flushUl()
+      if (!inBq) { out.push('<blockquote>'); inBq = true }
+      out.push('<p>' + inlineMd(line.slice(2)) + '</p>')
+      continue
+    }
+    flushBq()
+
+    if (line.startsWith('- ')) {
+      if (!inUl) { out.push('<ul>'); inUl = true }
+      out.push('<li>' + inlineMd(line.slice(2)) + '</li>')
+      continue
+    }
+
+    if (line.trim() === '') { flushUl(); out.push(''); continue }
+    if (line.startsWith('# '))   { flushUl(); out.push('<h1>'  + htmlEsc(line.slice(2))  + '</h1>');  continue }
+    if (line.startsWith('## '))  { flushUl(); out.push('<h2>'  + htmlEsc(line.slice(3))  + '</h2>');  continue }
+    if (line.startsWith('### ')) { flushUl(); out.push('<h3>'  + htmlEsc(line.slice(4))  + '</h3>');  continue }
+    if (line === '---') { flushUl(); out.push('<hr>'); continue }
+    out.push('<p>' + inlineMd(line) + '</p>')
+  }
+  flushPre(); flushUl(); flushBq()
+  return out.join('\n')
+}
+
+const PDF_CSS = `
+@page { margin: 2cm; size: A4; }
+* { box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+       font-size: 11pt; line-height: 1.65; color: #1e293b; }
+h1 { font-size: 20pt; color: #0f172a; border-bottom: 2px solid #5eead4;
+     padding-bottom: 8pt; margin-bottom: 16pt; page-break-after: avoid; }
+h2 { font-size: 14pt; color: #0f172a; margin-top: 0; margin-bottom: 8pt;
+     border-left: 3pt solid #5eead4; padding-left: 8pt; page-break-after: avoid; }
+h3 { font-size: 8.5pt; font-weight: 700; color: #0d9488; text-transform: uppercase;
+     letter-spacing: 1pt; margin-top: 12pt; margin-bottom: 3pt; page-break-after: avoid; }
+p  { margin: 3pt 0 5pt; }
+pre { background: #f8fafc; border: 1px solid #e2e8f0; padding: 9pt;
+      font-size: 8pt; line-height: 1.45; page-break-inside: avoid;
+      border-radius: 3pt; margin: 6pt 0; white-space: pre-wrap; word-break: break-all; }
+code { font-family: 'Courier New', Courier, monospace; background: #f1f5f9;
+       padding: 1pt 4pt; border-radius: 2pt; font-size: 8pt; border: 1px solid #e2e8f0; }
+pre code { background: none; padding: 0; border: none; }
+blockquote { background: #f0fdf9; border-left: 3pt solid #5eead4; margin: 6pt 0;
+             padding: 5pt 10pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+blockquote p { margin: 2pt 0; }
+ul { padding-left: 14pt; margin: 3pt 0 6pt; } li { margin: 2pt 0; }
+strong { color: #0f172a; }
+hr { border: none; margin: 0; padding: 0; height: 0; page-break-before: always; }
+.section-wrap { padding: 24pt 0; border-bottom: 1px solid #e2e8f0; page-break-inside: avoid; }
+.section-wrap:last-child { border-bottom: none; }
+@media print {
+  body { font-size: 10pt; }
+  h2 { margin-top: 0; }
+}
+`
+
+function buildPrintHtml(book: 'idp' | 'oauth2'): string {
+  const secs = book === 'idp' ? idpSections : oauth2Sections
+  const guideTitle = book === 'idp' ? 'AO IDP — Server &amp; Operations Guide' : 'AO IDP — OAuth2 Integration Guide'
+
+  const sectionsHtml = secs.map(s => {
+    const md = sectionToMd(s)
+    const body = mdToHtml(md)
+    return `<div class="section-wrap">${body}</div>`
+  }).join('\n')
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>${guideTitle}</title>
+<style>${PDF_CSS}</style>
+</head>
+<body>
+<h1>${guideTitle}</h1>
+${sectionsHtml}
+<script>window.addEventListener('load',function(){window.print();})</script>
+</body>
+</html>`
+}
+
+function triggerDownload(content: string, filename: string, mime: string) {
+  const blob = new Blob([content], { type: mime + ';charset=utf-8' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href = url; a.download = filename; a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 2000)
+}
+
+function exportSectionMd(section: Section, book: 'idp' | 'oauth2') {
+  const guideSlug = book === 'idp' ? 'idp-guide' : 'oauth2-guide'
+  triggerDownload(
+    sectionToMd(section).replace(/^## /, '# '),
+    `ao-${guideSlug}-${section.id}.md`,
+    'text/markdown',
+  )
+}
+
+function exportGuideMd(book: 'idp' | 'oauth2') {
+  triggerDownload(
+    buildMarkdown(book),
+    book === 'idp' ? 'ao-idp-server-guide.md' : 'ao-idp-oauth2-integration.md',
+    'text/markdown',
+  )
+}
+
+function exportGuidePdf(book: 'idp' | 'oauth2') {
+  const html = buildPrintHtml(book)
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+  const url  = URL.createObjectURL(blob)
+  const win  = window.open(url, '_blank')
+  if (!win) { alert('Allow pop-ups for this page to export PDF.'); URL.revokeObjectURL(url); return }
+  setTimeout(() => URL.revokeObjectURL(url), 20000)
 }
 
 // ─────────────────────────────────────────────
@@ -1056,8 +1194,8 @@ export default function DocsPage() {
   const [book, setBook] = useState<'idp' | 'oauth2'>('idp')
   const sections = book === 'idp' ? idpSections : oauth2Sections
   const [active, setActive] = useState(sections[0].id)
+  const [exportOpen, setExportOpen] = useState(false)
 
-  // Reset active section when switching books
   const switchBook = (b: 'idp' | 'oauth2') => {
     setBook(b)
     setActive(b === 'idp' ? idpSections[0].id : oauth2Sections[0].id)
@@ -1065,6 +1203,14 @@ export default function DocsPage() {
 
   const currentSections = book === 'idp' ? idpSections : oauth2Sections
   const current = currentSections.find(s => s.id === active)
+
+  const dropdownBtnStyle: React.CSSProperties = {
+    display: 'block', width: '100%', textAlign: 'left',
+    padding: '0.4rem 0.75rem', background: 'transparent',
+    border: 'none', color: CM, fontFamily: 'inherit',
+    fontSize: '0.7rem', cursor: 'pointer', whiteSpace: 'nowrap',
+    letterSpacing: '0.05em',
+  }
 
   return (
     <div>
@@ -1074,19 +1220,71 @@ export default function DocsPage() {
           <div style={{ fontSize: '0.625rem', color: CB, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '0.25rem' }}>reference</div>
           <h1 style={{ fontSize: '1.125rem', fontWeight: 700, color: C, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{'> '}documentation</h1>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+
+        {/* Export dropdown */}
+        <div
+          style={{ position: 'relative' }}
+          onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setExportOpen(false) }}
+        >
           <button
-            onClick={() => exportDocs(book)}
+            onClick={() => setExportOpen(o => !o)}
             style={{
               padding: '0.45rem 0.9rem', background: 'transparent',
               border: `1px solid ${BORDER}`, color: CM,
               fontFamily: 'inherit', fontSize: '0.7rem', fontWeight: 700,
               letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: '0.4rem',
             }}
-            title="Export current guide as Markdown"
           >
-            ↓ export .md
+            ↓ export
+            <span style={{ fontSize: '0.6rem', opacity: 0.6 }}>{exportOpen ? '▲' : '▼'}</span>
           </button>
+
+          {exportOpen && (
+            <div style={{
+              position: 'absolute', right: 0, top: 'calc(100% + 4px)', zIndex: 50,
+              background: SURFACE2, border: `1px solid ${BORDER}`, borderRadius: 5,
+              padding: '0.3rem 0', minWidth: 210,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+            }}>
+              <div style={{ fontSize: '0.55rem', color: CB, letterSpacing: '0.15em', textTransform: 'uppercase', padding: '0.2rem 0.75rem 0.35rem' }}>
+                current section
+              </div>
+              <button
+                style={dropdownBtnStyle}
+                onMouseEnter={e => (e.currentTarget.style.color = C)}
+                onMouseLeave={e => (e.currentTarget.style.color = CM)}
+                onClick={() => { if (current) exportSectionMd(current, book); setExportOpen(false) }}
+              >
+                ↓ {current?.title ?? 'section'} (.md)
+              </button>
+
+              <div style={{ borderTop: `1px solid ${BORDER}`, margin: '0.3rem 0' }} />
+
+              <div style={{ fontSize: '0.55rem', color: CB, letterSpacing: '0.15em', textTransform: 'uppercase', padding: '0.2rem 0.75rem 0.35rem' }}>
+                full guide
+              </div>
+              <button
+                style={dropdownBtnStyle}
+                onMouseEnter={e => (e.currentTarget.style.color = C)}
+                onMouseLeave={e => (e.currentTarget.style.color = CM)}
+                onClick={() => { exportGuideMd(book); setExportOpen(false) }}
+              >
+                ↓ all sections (.md)
+              </button>
+              <button
+                style={dropdownBtnStyle}
+                onMouseEnter={e => (e.currentTarget.style.color = C)}
+                onMouseLeave={e => (e.currentTarget.style.color = CM)}
+                onClick={() => { exportGuidePdf(book); setExportOpen(false) }}
+              >
+                ↓ all sections (.pdf)
+              </button>
+              <div style={{ fontSize: '0.6rem', color: CB, padding: '0.2rem 0.75rem 0.4rem', opacity: 0.7 }}>
+                PDF opens print dialog → Save as PDF
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

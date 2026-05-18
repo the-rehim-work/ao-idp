@@ -1730,7 +1730,7 @@ Click a theme button above to load a complete ready-made design. */`}
       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.75rem', marginTop: '1rem', flexWrap: 'wrap' }}>
         <button
           style={{ ...btnSecondary, display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-          onClick={() => window.open('/login', '_blank', 'noopener,noreferrer')}
+          onClick={() => window.open('/login?logged_out=1', '_blank', 'noopener,noreferrer')}
           title="Open the live login page in a new tab"
         >
           <svg width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ flexShrink: 0 }}>
