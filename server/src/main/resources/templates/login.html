@@ -19,6 +19,34 @@
             font-display: swap;
             src: url('/fonts/jbm-600.woff2') format('woff2');
         }
+        @font-face {
+            font-family: 'Inter';
+            font-style: normal;
+            font-weight: 400;
+            font-display: swap;
+            src: url('/fonts/inter-400.woff2') format('woff2');
+        }
+        @font-face {
+            font-family: 'Inter';
+            font-style: normal;
+            font-weight: 500;
+            font-display: swap;
+            src: url('/fonts/inter-500.woff2') format('woff2');
+        }
+        @font-face {
+            font-family: 'Inter';
+            font-style: normal;
+            font-weight: 600;
+            font-display: swap;
+            src: url('/fonts/inter-600.woff2') format('woff2');
+        }
+        @font-face {
+            font-family: 'Inter';
+            font-style: normal;
+            font-weight: 700;
+            font-display: swap;
+            src: url('/fonts/inter-700.woff2') format('woff2');
+        }
 
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -291,14 +319,18 @@
         .continue-name { font-size: 0.8rem; font-weight: 700; color: var(--c); font-family: var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .continue-hint { font-size: 0.55rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--cb); margin-bottom: 0.1rem; font-family: var(--font); }
         .continue-chevron { color: var(--cm); flex-shrink: 0; }
-        .continue-remove {
-            background: none; border: none; cursor: pointer;
-            color: var(--cb); padding: 0.55rem 0.65rem;
-            flex-shrink: 0; opacity: 0.6;
-            display: flex; align-items: center; justify-content: center;
-            transition: color 0.12s, opacity 0.12s;
+        .continue-signout {
+            background: none; border: none; border-left: 1px solid rgba(0,255,255,0.08);
+            cursor: pointer; color: var(--cb);
+            padding: 0 0.75rem;
+            flex-shrink: 0; height: 100%;
+            display: flex; align-items: center; gap: 0.3rem;
+            font-family: var(--font); font-size: 0.52rem;
+            letter-spacing: 0.14em; text-transform: uppercase;
+            transition: color 0.12s, background 0.12s;
+            white-space: nowrap;
         }
-        .continue-remove:hover { color: #ff4444; opacity: 1; }
+        .continue-signout:hover { color: #f87171; background: rgba(239,68,68,0.06); }
         .continue-other {
             display: flex; align-items: center; gap: 0.5rem;
             padding: 0.55rem 1rem;
@@ -520,8 +552,9 @@ function renderContinueAs(profiles) {
             '</div>' +
             '<svg class="continue-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>' +
             '</button>' +
-            '<button type="button" class="continue-remove" onclick="removeStoredAccount(\'' + uAttr + '\')" title="Bu hesabı sil">' +
-            '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+            '<button type="button" class="continue-signout" onclick="removeStoredAccount(\'' + uAttr + '\')" title="Bu hesabı saxlanmış sessiyalardan sil">' +
+            '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>' +
+            'Çıxış' +
             '</button>' +
             '</div>';
     }

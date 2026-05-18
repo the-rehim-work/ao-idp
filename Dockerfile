@@ -8,7 +8,11 @@ COPY admin/ ./
 RUN npm run build && \
     mkdir -p /app/fonts && \
     cp node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2 /app/fonts/jbm-400.woff2 2>/dev/null || true && \
-    cp node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-600-normal.woff2 /app/fonts/jbm-600.woff2 2>/dev/null || true
+    cp node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-600-normal.woff2 /app/fonts/jbm-600.woff2 2>/dev/null || true && \
+    cp node_modules/@fontsource/inter/files/inter-latin-400-normal.woff2 /app/fonts/inter-400.woff2 2>/dev/null || true && \
+    cp node_modules/@fontsource/inter/files/inter-latin-500-normal.woff2 /app/fonts/inter-500.woff2 2>/dev/null || true && \
+    cp node_modules/@fontsource/inter/files/inter-latin-600-normal.woff2 /app/fonts/inter-600.woff2 2>/dev/null || true && \
+    cp node_modules/@fontsource/inter/files/inter-latin-700-normal.woff2 /app/fonts/inter-700.woff2 2>/dev/null || true
 
 # ─── Stage 2: Build backend ──────────────────────────────────────────────────
 FROM gradle:8.7-jdk21-alpine AS server-builder
