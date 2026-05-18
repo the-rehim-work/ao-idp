@@ -32,9 +32,11 @@ for i in $(seq 1 30); do
     sleep 1
 done
 
-# Create DB user and database if they don't exist
+# Create DB user if not exists, always sync password
 echo "[start.sh] Ensuring database and user exist ..."
-su -s /bin/bash postgres -c "$PG_BIN/psql -tc \"SELECT 1 FROM pg_roles WHERE rolname='$DB_USERNAME'\" | grep -q 1 || $PG_BIN/psql -c \"CREATE USER \\\"$DB_USERNAME\\\" WITH PASSWORD '$DB_PASSWORD';\""
+su -s /bin/bash postgres -c "$PG_BIN/psql -tc \"SELECT 1 FROM pg_roles WHERE rolname='$DB_USERNAME'\" | grep -q 1 \
+    && $PG_BIN/psql -c \"ALTER USER \\\"$DB_USERNAME\\\" WITH PASSWORD '$DB_PASSWORD';\" \
+    || $PG_BIN/psql -c \"CREATE USER \\\"$DB_USERNAME\\\" WITH PASSWORD '$DB_PASSWORD';\""
 su -s /bin/bash postgres -c "$PG_BIN/psql -tc \"SELECT 1 FROM pg_database WHERE datname='$DB_NAME'\" | grep -q 1 || $PG_BIN/psql -c \"CREATE DATABASE \\\"$DB_NAME\\\" OWNER \\\"$DB_USERNAME\\\";\""
 
 # ──────────────────────────────────────────────
