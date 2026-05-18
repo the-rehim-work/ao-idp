@@ -1091,8 +1091,7 @@ function AppearanceSection() {
 }
 
 const ORANGE_CSS_TEMPLATE = `/* AO IDP — Orange / Light Login Theme */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-:root { --font: 'Inter', system-ui, sans-serif; }
+:root { --font: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; }
 html, body { background: #fdf6f2; font-family: var(--font); color: #1e293b; }
 body::before, body::after { display: none; }
 .wrap { max-width: 380px; animation: loginFadeUp 0.4s cubic-bezier(0.22,1,0.36,1) both; }
@@ -1128,8 +1127,7 @@ body::before, body::after { display: none; }
 `
 
 const DARK_CSS_TEMPLATE = `/* AO IDP — Dark Glassmorphism Theme */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-:root { --font: 'Inter', system-ui, sans-serif; }
+:root { --font: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; }
 html, body { background:#060810; font-family:var(--font); }
 body { background:radial-gradient(ellipse 80% 60% at 20% 10%,rgba(94,234,212,0.08) 0%,transparent 60%),radial-gradient(ellipse 60% 80% at 80% 100%,rgba(56,189,248,0.06) 0%,transparent 60%),#060810; }
 body::before { display:none; }
@@ -1144,6 +1142,224 @@ body::before { display:none; }
 .btn { border-radius:9px;background:var(--c);border:1px solid var(--c);color:#060810;font-family:var(--font);font-size:0.875rem;font-weight:700;letter-spacing:0.02em;text-transform:none;box-shadow:0 0 20px rgba(94,234,212,0.25),0 4px 12px rgba(0,0,0,0.3); }
 .btn:hover { background:#7ff4e4;border-color:#7ff4e4;box-shadow:0 0 30px rgba(94,234,212,0.5);transform:translateY(-1px); }
 `
+
+const CORPORATE_BLUE_CSS = `/* AO IDP — Corporate Blue Theme */
+:root { --font: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; }
+html, body { background:#f0f4ff; font-family:var(--font); color:#1e293b; }
+body::before, body::after { display:none; }
+.wrap { max-width:400px; animation:loginFadeUp 0.4s cubic-bezier(0.22,1,0.36,1) both; }
+@keyframes loginFadeUp { from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);} }
+.hd-dot { border-radius:12px; background:#1e40af; border:none; box-shadow:0 4px 16px rgba(30,64,175,0.35); }
+.hd-dot svg { filter:none; stroke:#fff; }
+.hd-title { font-size:1.25rem; font-weight:700; letter-spacing:-0.01em; text-transform:none; color:#1e293b; text-shadow:none; }
+.hd-sub { font-size:0.78rem; letter-spacing:0; text-transform:none; color:#64748b; }
+.app-banner { border-radius:12px; border:none; background:#1e40af; color:rgba(255,255,255,0.85); }
+.app-banner strong { color:#fff; }
+.card { background:#fff; border:none; border-radius:16px; box-shadow:0 4px 24px rgba(30,64,175,0.1),0 1px 4px rgba(0,0,0,0.08); }
+.field label { font-size:0.72rem; letter-spacing:0; text-transform:none; font-weight:600; color:#475569; }
+.field input { border-radius:8px; background:#f8faff; border:1.5px solid #c7d2fe; color:#1e293b; font-family:var(--font); }
+.field input:focus { border-color:#1e40af; background:#f0f4ff; box-shadow:0 0 0 3px rgba(30,64,175,0.1); }
+.btn { border-radius:10px; background:#1e40af; border:none; color:#fff; font-family:var(--font); font-size:0.9rem; font-weight:700; letter-spacing:0; text-transform:none; box-shadow:0 2px 8px rgba(30,64,175,0.3); }
+.btn:hover { background:#1d4ed8; box-shadow:0 4px 16px rgba(30,64,175,0.45); transform:translateY(-1px); color:#fff; }
+.meta { display:none; } .bottom { font-size:0.7rem; letter-spacing:0; text-transform:none; color:#94a3b8; }
+.continue-panel { border-radius:12px; border:1.5px solid #e0e7ff !important; border-left:3px solid #1e40af !important; background:#fff; }
+.continue-avatar { border-radius:8px; border:1.5px solid rgba(30,64,175,0.3); background:rgba(30,64,175,0.06); color:#1e40af; }
+.continue-name { color:#1e293b; font-weight:600; } .continue-chevron { color:#1e40af; }
+`
+
+const MIDNIGHT_PURPLE_CSS = `/* AO IDP — Midnight Purple Theme */
+:root { --font: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; }
+html, body { background:#0d0b1a; font-family:var(--font); }
+body { background:radial-gradient(ellipse 80% 60% at 30% 20%,rgba(139,92,246,0.1) 0%,transparent 60%),#0d0b1a; }
+body::before { display:none; }
+.wrap { max-width:380px; animation:loginFadeUp 0.4s ease both; }
+@keyframes loginFadeUp { from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);} }
+.hd-dot { border-radius:12px; background:rgba(139,92,246,0.2); border:1px solid rgba(139,92,246,0.4); box-shadow:0 0 20px rgba(139,92,246,0.3); }
+.hd-dot svg { stroke:#a78bfa; filter:drop-shadow(0 0 6px rgba(139,92,246,0.8)); }
+.hd-title { font-size:1.2rem; font-weight:700; letter-spacing:-0.01em; text-transform:none; color:#e9d5ff; text-shadow:0 0 20px rgba(139,92,246,0.5); }
+.hd-sub { font-size:0.75rem; letter-spacing:0; text-transform:none; color:#7c3aed; }
+.card { border-radius:16px; border:1px solid rgba(139,92,246,0.2); background:rgba(20,15,40,0.8); backdrop-filter:blur(16px); box-shadow:0 0 40px rgba(139,92,246,0.1); }
+.field label { font-size:0.72rem; letter-spacing:0; text-transform:none; font-weight:500; color:#a78bfa; }
+.field input { border-radius:8px; background:rgba(139,92,246,0.06); border:1px solid rgba(139,92,246,0.25); color:#e9d5ff; font-family:var(--font); }
+.field input:focus { border-color:#8b5cf6; box-shadow:0 0 0 3px rgba(139,92,246,0.15); }
+.btn { border-radius:10px; background:linear-gradient(135deg,#7c3aed,#6d28d9); border:none; color:#fff; font-family:var(--font); font-size:0.875rem; font-weight:700; letter-spacing:0; text-transform:none; box-shadow:0 0 20px rgba(139,92,246,0.3); }
+.btn:hover { background:linear-gradient(135deg,#8b5cf6,#7c3aed); box-shadow:0 0 30px rgba(139,92,246,0.5); transform:translateY(-1px); }
+.meta { display:none; } .bottom { color:#7c3aed; }
+.continue-panel { border-radius:12px; border:1px solid rgba(139,92,246,0.2) !important; border-left:3px solid #8b5cf6 !important; background:rgba(20,15,40,0.8); }
+.continue-avatar { border-radius:8px; background:rgba(139,92,246,0.15); border:1px solid rgba(139,92,246,0.3); color:#a78bfa; }
+.continue-name { color:#e9d5ff; } .continue-chevron { color:#8b5cf6; }
+`
+
+const FOREST_GREEN_CSS = `/* AO IDP — Forest Green Theme */
+:root { --font: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; }
+html, body { background:#0a1a10; font-family:var(--font); }
+body { background:radial-gradient(ellipse 70% 50% at 50% 30%,rgba(16,185,129,0.06) 0%,transparent 60%),#0a1a10; }
+body::before { display:none; }
+.wrap { max-width:380px; }
+.hd-dot { border-radius:12px; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.3); box-shadow:0 0 16px rgba(16,185,129,0.2); }
+.hd-dot svg { stroke:#34d399; filter:drop-shadow(0 0 4px rgba(16,185,129,0.6)); }
+.hd-title { font-size:1.2rem; text-transform:none; letter-spacing:0; color:#d1fae5; text-shadow:0 0 16px rgba(16,185,129,0.4); }
+.hd-sub { text-transform:none; letter-spacing:0; font-size:0.75rem; color:#065f46; }
+.card { border-radius:14px; background:rgba(10,26,16,0.9); border:1px solid rgba(16,185,129,0.15); backdrop-filter:blur(12px); }
+.field label { text-transform:none; letter-spacing:0; font-size:0.72rem; color:#34d399; }
+.field input { border-radius:8px; background:rgba(16,185,129,0.05); border:1px solid rgba(16,185,129,0.2); color:#d1fae5; font-family:var(--font); }
+.field input:focus { border-color:#10b981; box-shadow:0 0 0 3px rgba(16,185,129,0.12); }
+.btn { border-radius:8px; background:#059669; border:none; color:#fff; font-family:var(--font); font-size:0.875rem; font-weight:700; letter-spacing:0; text-transform:none; }
+.btn:hover { background:#10b981; box-shadow:0 4px 20px rgba(16,185,129,0.4); transform:translateY(-1px); }
+.meta { display:none; }
+.continue-panel { border-radius:10px; border:1px solid rgba(16,185,129,0.15) !important; border-left:3px solid #10b981 !important; background:rgba(10,26,16,0.9); }
+.continue-avatar { border-radius:8px; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.25); color:#34d399; }
+.continue-name { color:#d1fae5; } .continue-chevron { color:#10b981; }
+`
+
+const ROSE_PINK_CSS = `/* AO IDP — Rose Pink Theme */
+:root { --font: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; }
+html, body { background:#fff5f7; font-family:var(--font); color:#1e293b; }
+body::before, body::after { display:none; }
+.wrap { max-width:380px; animation:loginFadeUp 0.4s ease both; }
+@keyframes loginFadeUp { from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);} }
+.hd-dot { border-radius:50%; background:linear-gradient(135deg,#f43f5e,#e11d48); border:none; box-shadow:0 4px 16px rgba(244,63,94,0.35); }
+.hd-dot svg { stroke:#fff; filter:none; }
+.hd-title { text-transform:none; letter-spacing:0; font-size:1.2rem; font-weight:700; color:#1e293b; text-shadow:none; }
+.hd-sub { text-transform:none; letter-spacing:0; font-size:0.78rem; color:#94a3b8; }
+.card { background:#fff; border:none; border-radius:16px; box-shadow:0 4px 24px rgba(244,63,94,0.1),0 1px 4px rgba(0,0,0,0.06); }
+.field label { text-transform:none; letter-spacing:0; font-size:0.72rem; font-weight:600; color:#64748b; }
+.field input { border-radius:10px; background:rgba(244,63,94,0.04); border:1.5px solid rgba(244,63,94,0.2); color:#1e293b; font-family:var(--font); }
+.field input:focus { border-color:#f43f5e; background:rgba(244,63,94,0.05); box-shadow:0 0 0 3px rgba(244,63,94,0.1); }
+.btn { border-radius:10px; background:linear-gradient(135deg,#f43f5e,#e11d48); border:none; color:#fff; font-family:var(--font); font-size:0.9rem; font-weight:700; letter-spacing:0; text-transform:none; box-shadow:0 2px 10px rgba(244,63,94,0.3); }
+.btn:hover { background:linear-gradient(135deg,#fb7185,#f43f5e); box-shadow:0 4px 20px rgba(244,63,94,0.45); transform:translateY(-1px); }
+.meta { display:none; } .bottom { color:#94a3b8; text-transform:none; letter-spacing:0; }
+.continue-panel { border-radius:12px; border:1.5px solid #fecdd3 !important; border-left:3px solid #f43f5e !important; background:#fff; }
+.continue-avatar { border-radius:50%; background:rgba(244,63,94,0.1); border:1.5px solid rgba(244,63,94,0.3); color:#f43f5e; }
+.continue-name { color:#1e293b; font-weight:600; } .continue-chevron { color:#f43f5e; }
+`
+
+const MINIMAL_WHITE_CSS = `/* AO IDP — Minimal White Theme */
+:root { --font: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; }
+html, body { background:#fff; font-family:var(--font); color:#111827; }
+body::before, body::after { display:none; }
+.wrap { max-width:360px; }
+.hd-dot { display:none; }
+.hd-title { font-size:1.5rem; font-weight:700; letter-spacing:-0.02em; text-transform:none; color:#111827; text-shadow:none; }
+.hd-sub { font-size:0.8rem; letter-spacing:0; text-transform:none; color:#6b7280; }
+.app-banner { border-radius:8px; border:1px solid #e5e7eb; background:#f9fafb; color:#374151; border-left:3px solid #111827; }
+.app-banner strong { color:#111827; }
+.card { background:transparent; border:none; box-shadow:none; padding:0; }
+.field label { font-size:0.8rem; letter-spacing:0; text-transform:none; font-weight:600; color:#374151; }
+.field input { border-radius:6px; background:#fff; border:1.5px solid #d1d5db; color:#111827; font-family:var(--font); font-size:0.9rem; caret-color:#111827; }
+.field input::placeholder { color:#9ca3af; }
+.field input:focus { border-color:#111827; box-shadow:0 0 0 3px rgba(17,24,39,0.08); }
+.btn { border-radius:6px; background:#111827; border:none; color:#fff; font-family:var(--font); font-size:0.875rem; font-weight:600; letter-spacing:0; text-transform:none; box-shadow:none; }
+.btn:hover { background:#1f2937; box-shadow:0 2px 8px rgba(0,0,0,0.15); transform:none; }
+.meta { display:none; } .divider { color:#9ca3af; } .divider::before,.divider::after { background:#e5e7eb; }
+.bottom { font-size:0.75rem; letter-spacing:0; text-transform:none; color:#9ca3af; }
+.continue-panel { border-radius:8px; border:1.5px solid #e5e7eb !important; border-left:3px solid #111827 !important; background:#f9fafb; box-shadow:none; }
+.continue-avatar { border-radius:6px; background:#f3f4f6; border:1.5px solid #d1d5db; color:#111827; }
+.continue-name { color:#111827; font-weight:600; } .continue-hint { color:#6b7280; } .continue-chevron { color:#6b7280; }
+.err { border-radius:6px; background:#fef2f2; border:1px solid #fecaca; color:#dc2626; box-shadow:none; }
+`
+
+const SLATE_DARK_CSS = `/* AO IDP — Slate Dark Theme */
+:root { --font: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; }
+html, body { background:#0f172a; font-family:var(--font); }
+body::before { display:none; }
+.wrap { max-width:380px; }
+.hd-dot { border-radius:10px; background:#1e293b; border:1px solid #334155; box-shadow:none; }
+.hd-dot svg { stroke:#94a3b8; filter:none; }
+.hd-title { font-size:1.2rem; font-weight:700; letter-spacing:-0.01em; text-transform:none; color:#f1f5f9; text-shadow:none; }
+.hd-sub { font-size:0.75rem; letter-spacing:0; text-transform:none; color:#475569; }
+.card { background:#1e293b; border:1px solid #334155; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.3); }
+.field label { font-size:0.72rem; letter-spacing:0; text-transform:none; font-weight:500; color:#94a3b8; }
+.field input { border-radius:8px; background:#0f172a; border:1px solid #334155; color:#f1f5f9; font-family:var(--font); }
+.field input:focus { border-color:#64748b; box-shadow:0 0 0 3px rgba(100,116,139,0.15); }
+.btn { border-radius:8px; background:#334155; border:1px solid #475569; color:#f1f5f9; font-family:var(--font); font-size:0.875rem; font-weight:600; letter-spacing:0; text-transform:none; box-shadow:none; }
+.btn:hover { background:#475569; box-shadow:none; transform:none; color:#fff; }
+.meta { display:none; } .bottom { color:#334155; text-transform:none; letter-spacing:0; }
+.continue-panel { border-radius:10px; border:1px solid #334155 !important; border-left:3px solid #64748b !important; background:#1e293b; }
+.continue-avatar { border-radius:6px; background:#0f172a; border:1px solid #334155; color:#94a3b8; }
+.continue-name { color:#f1f5f9; } .continue-chevron { color:#64748b; }
+`
+
+const OCEAN_BLUE_CSS = `/* AO IDP — Ocean Blue Theme */
+:root { --font: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; }
+html, body { background:#041627; font-family:var(--font); }
+body { background:radial-gradient(ellipse 100% 60% at 50% 0%,rgba(14,165,233,0.12) 0%,transparent 60%),#041627; }
+body::before { display:none; }
+.wrap { max-width:380px; }
+.hd-dot { border-radius:12px; background:rgba(14,165,233,0.15); border:1px solid rgba(14,165,233,0.3); box-shadow:0 0 20px rgba(14,165,233,0.2); }
+.hd-dot svg { stroke:#38bdf8; filter:drop-shadow(0 0 6px rgba(14,165,233,0.7)); }
+.hd-title { text-transform:none; letter-spacing:0; font-size:1.2rem; font-weight:700; color:#e0f7ff; text-shadow:0 0 16px rgba(14,165,233,0.4); }
+.hd-sub { text-transform:none; letter-spacing:0; font-size:0.75rem; color:#0284c7; }
+.card { border-radius:14px; background:rgba(4,22,39,0.85); border:1px solid rgba(14,165,233,0.15); backdrop-filter:blur(12px); }
+.field label { text-transform:none; letter-spacing:0; font-size:0.72rem; color:#38bdf8; }
+.field input { border-radius:8px; background:rgba(14,165,233,0.05); border:1px solid rgba(14,165,233,0.2); color:#e0f7ff; font-family:var(--font); }
+.field input:focus { border-color:#0ea5e9; box-shadow:0 0 0 3px rgba(14,165,233,0.12); }
+.btn { border-radius:8px; background:linear-gradient(135deg,#0284c7,#0369a1); border:none; color:#fff; font-family:var(--font); font-size:0.875rem; font-weight:700; letter-spacing:0; text-transform:none; box-shadow:0 0 20px rgba(14,165,233,0.25); }
+.btn:hover { background:linear-gradient(135deg,#0ea5e9,#0284c7); box-shadow:0 0 30px rgba(14,165,233,0.4); transform:translateY(-1px); }
+.meta { display:none; } .bottom { color:#0284c7; text-transform:none; letter-spacing:0; }
+.continue-panel { border-radius:10px; border:1px solid rgba(14,165,233,0.15) !important; border-left:3px solid #0ea5e9 !important; background:rgba(4,22,39,0.9); }
+.continue-avatar { border-radius:8px; background:rgba(14,165,233,0.1); border:1px solid rgba(14,165,233,0.25); color:#38bdf8; }
+.continue-name { color:#e0f7ff; } .continue-chevron { color:#0ea5e9; }
+`
+
+const NEON_MATRIX_CSS = `/* AO IDP — Neon Matrix Theme */
+:root { --font: 'Courier New', Courier, monospace; }
+html, body { background:#000; font-family:var(--font); }
+body::before { content:''; position:fixed; inset:0; pointer-events:none; background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,0,0.012) 2px,rgba(0,255,0,0.012) 4px); }
+body::after { display:none; }
+.wrap { max-width:380px; }
+.hd-dot { border-radius:0; background:transparent; border:1px solid rgba(0,255,0,0.5); box-shadow:0 0 10px rgba(0,255,0,0.4); }
+.hd-dot svg { stroke:#00ff00; filter:drop-shadow(0 0 6px rgba(0,255,0,0.9)); }
+.hd-title { text-transform:uppercase; letter-spacing:0.15em; font-size:1.1rem; color:#00ff00; text-shadow:0 0 10px rgba(0,255,0,0.9),0 0 30px rgba(0,255,0,0.5); }
+.hd-sub { letter-spacing:0.2em; font-size:0.6rem; color:rgba(0,255,0,0.4); }
+.card { background:rgba(0,10,0,0.9); border:1px solid rgba(0,255,0,0.3); border-radius:0; box-shadow:0 0 20px rgba(0,255,0,0.08),inset 0 0 20px rgba(0,255,0,0.03); }
+.field label { color:rgba(0,255,0,0.7); letter-spacing:0.15em; }
+.field input { background:rgba(0,255,0,0.04); border:1px solid rgba(0,255,0,0.3); color:#00ff00; caret-color:#00ff00; border-radius:0; }
+.field input::placeholder { color:rgba(0,255,0,0.2); }
+.field input:focus { border-color:#00ff00; box-shadow:0 0 8px rgba(0,255,0,0.4); }
+.btn { border-radius:0; background:transparent; border:1px solid #00ff00; color:#00ff00; letter-spacing:0.12em; text-transform:uppercase; box-shadow:0 0 10px rgba(0,255,0,0.3); }
+.btn:hover { background:rgba(0,255,0,0.1); box-shadow:0 0 20px rgba(0,255,0,0.6); transform:none; }
+.meta { display:none; } .bottom { color:rgba(0,255,0,0.3); letter-spacing:0.15em; text-transform:uppercase; }
+.continue-panel { border-radius:0; border:1px solid rgba(0,255,0,0.3) !important; border-left:2px solid #00ff00 !important; background:rgba(0,10,0,0.9); }
+.continue-avatar { border-radius:0; background:rgba(0,255,0,0.05); border:1px solid rgba(0,255,0,0.4); color:#00ff00; }
+.continue-name { color:#00ff00; } .continue-chevron { color:#00ff00; }
+`
+
+const WARM_SAND_CSS = `/* AO IDP — Warm Sand Theme */
+:root { --font: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; }
+html, body { background:#faf7f2; font-family:var(--font); color:#2c2416; }
+body::before, body::after { display:none; }
+.wrap { max-width:380px; }
+.hd-dot { border-radius:10px; background:linear-gradient(135deg,#b45309,#92400e); border:none; box-shadow:0 4px 14px rgba(180,83,9,0.3); }
+.hd-dot svg { stroke:#fef3c7; filter:none; }
+.hd-title { text-transform:none; letter-spacing:0; font-size:1.2rem; font-weight:700; color:#2c2416; text-shadow:none; }
+.hd-sub { text-transform:none; letter-spacing:0; font-size:0.78rem; color:#78716c; }
+.card { background:#fff; border:1px solid #e7e0d6; border-radius:14px; box-shadow:0 2px 16px rgba(120,100,60,0.08); }
+.field label { text-transform:none; letter-spacing:0; font-size:0.72rem; font-weight:600; color:#57534e; }
+.field input { border-radius:8px; background:#faf7f2; border:1.5px solid #d6cfc4; color:#2c2416; font-family:var(--font); }
+.field input:focus { border-color:#b45309; box-shadow:0 0 0 3px rgba(180,83,9,0.1); }
+.btn { border-radius:8px; background:linear-gradient(135deg,#b45309,#92400e); border:none; color:#fef3c7; font-family:var(--font); font-size:0.9rem; font-weight:700; letter-spacing:0; text-transform:none; box-shadow:0 2px 8px rgba(180,83,9,0.25); }
+.btn:hover { background:linear-gradient(135deg,#d97706,#b45309); box-shadow:0 4px 16px rgba(180,83,9,0.35); transform:translateY(-1px); }
+.meta { display:none; } .bottom { color:#a8a29e; text-transform:none; letter-spacing:0; }
+.continue-panel { border-radius:10px; border:1.5px solid #e7e0d6 !important; border-left:3px solid #b45309 !important; background:#fff; }
+.continue-avatar { border-radius:8px; background:#fef3c7; border:1.5px solid rgba(180,83,9,0.3); color:#b45309; }
+.continue-name { color:#2c2416; font-weight:600; } .continue-chevron { color:#b45309; }
+`
+
+const CSS_THEMES = [
+  { key: 'default',         label: 'Default — Cyber Teal',    css: '' },
+  { key: 'orange',          label: 'Orange Light',             css: ORANGE_CSS_TEMPLATE },
+  { key: 'dark-glass',      label: 'Dark Glassmorphism',       css: DARK_CSS_TEMPLATE },
+  { key: 'corporate-blue',  label: 'Corporate Blue',           css: CORPORATE_BLUE_CSS },
+  { key: 'midnight-purple', label: 'Midnight Purple',          css: MIDNIGHT_PURPLE_CSS },
+  { key: 'forest-green',    label: 'Forest Green',             css: FOREST_GREEN_CSS },
+  { key: 'rose-pink',       label: 'Rose Pink',                css: ROSE_PINK_CSS },
+  { key: 'minimal-white',   label: 'Minimal White',            css: MINIMAL_WHITE_CSS },
+  { key: 'slate-dark',      label: 'Slate Dark',               css: SLATE_DARK_CSS },
+  { key: 'ocean-blue',      label: 'Ocean Blue',               css: OCEAN_BLUE_CSS },
+  { key: 'neon-matrix',     label: 'Neon Matrix',              css: NEON_MATRIX_CSS },
+  { key: 'warm-sand',       label: 'Warm Sand',                css: WARM_SAND_CSS },
+]
 
 function LoginBrandingSection() {
   const qc = useQueryClient()
@@ -1331,17 +1547,21 @@ function LoginBrandingSection() {
             <span style={{ fontSize: '0.62rem', color: CB, letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: 700 }}>Custom CSS</span>
             <span style={{ fontSize: '0.62rem', color: CB, opacity: 0.6 }}>— injected at the end of &lt;style&gt; on the login page</span>
           </div>
-          <div style={{ display: 'flex', gap: '0.4rem' }}>
-            <button style={{ ...btnSecondary, padding: '3px 9px', fontSize: '0.6rem' }}
-              onClick={() => setForm(f => ({ ...f, customCss: ORANGE_CSS_TEMPLATE }))}
-              title="Load orange/light theme template">
-              ⊙ orange theme
-            </button>
-            <button style={{ ...btnSecondary, padding: '3px 9px', fontSize: '0.6rem' }}
-              onClick={() => setForm(f => ({ ...f, customCss: DARK_CSS_TEMPLATE }))}
-              title="Load dark glassmorphism template">
-              ⊙ dark theme
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.6rem', color: CB, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Preset:</span>
+            <select
+              style={{ ...inputStyle, width: 'auto', padding: '3px 8px', fontSize: '0.65rem', cursor: 'pointer', color: C }}
+              value={CSS_THEMES.find(t => t.css === form.customCss)?.key ?? ''}
+              onChange={e => {
+                const theme = CSS_THEMES.find(t => t.key === e.target.value)
+                if (theme) setForm(f => ({ ...f, customCss: theme.css }))
+              }}
+            >
+              <option value="">— select preset —</option>
+              {CSS_THEMES.map(t => (
+                <option key={t.key} value={t.key}>{t.label}</option>
+              ))}
+            </select>
             <button style={{ ...btnSecondary, padding: '3px 9px', fontSize: '0.6rem' }}
               onClick={() => setForm(f => ({ ...f, customCss: '' }))}>
               ✕ clear

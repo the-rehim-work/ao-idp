@@ -259,12 +259,18 @@
             border-right: 1px solid rgba(0,255,255,0.15);
             border-bottom: 1px solid rgba(0,255,255,0.15);
         }
+        .continue-as-row {
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid rgba(0,255,255,0.06);
+        }
         .continue-as {
             display: flex;
             align-items: center;
             gap: 0.85rem;
-            padding: 0.85rem 1rem;
-            width: 100%;
+            padding: 0.75rem 0.85rem;
+            flex: 1;
+            min-width: 0;
             background: transparent;
             border: none;
             cursor: pointer;
@@ -273,25 +279,37 @@
         }
         .continue-as:hover { background: rgba(0,255,255,0.06); }
         .continue-avatar {
-            width: 34px; height: 34px;
+            width: 32px; height: 32px;
             border: 1px solid rgba(0,255,255,0.5);
             background: var(--s2);
             box-shadow: 0 0 6px rgba(0,255,255,0.2);
             display: flex; align-items: center; justify-content: center;
             font-family: var(--font);
-            font-weight: 700; font-size: 0.85rem; color: var(--c); flex-shrink: 0;
+            font-weight: 700; font-size: 0.8rem; color: var(--c); flex-shrink: 0;
         }
         .continue-info { flex: 1; min-width: 0; }
-        .continue-name { font-size: 0.825rem; font-weight: 700; color: var(--c); font-family: var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .continue-hint { font-size: 0.575rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--cb); margin-bottom: 0.15rem; font-family: var(--font); }
+        .continue-name { font-size: 0.8rem; font-weight: 700; color: var(--c); font-family: var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .continue-hint { font-size: 0.55rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--cb); margin-bottom: 0.1rem; font-family: var(--font); }
         .continue-chevron { color: var(--cm); flex-shrink: 0; }
-        .continue-sep {
-            display: flex; align-items: center; gap: 0.6rem;
-            font-size: 0.575rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--cb);
-            font-family: var(--font);
-            padding: 0 1rem 0.7rem;
+        .continue-remove {
+            background: none; border: none; cursor: pointer;
+            color: var(--cb); padding: 0.55rem 0.65rem;
+            flex-shrink: 0; opacity: 0.6;
+            display: flex; align-items: center; justify-content: center;
+            transition: color 0.12s, opacity 0.12s;
         }
-        .continue-sep::before, .continue-sep::after { content: ''; flex: 1; height: 1px; background: rgba(0,255,255,0.08); }
+        .continue-remove:hover { color: #ff4444; opacity: 1; }
+        .continue-other {
+            display: flex; align-items: center; gap: 0.5rem;
+            padding: 0.55rem 1rem;
+            width: 100%; background: transparent; border: none;
+            border-top: 1px solid rgba(0,255,255,0.08);
+            cursor: pointer;
+            font-size: 0.575rem; letter-spacing: 0.18em; text-transform: uppercase;
+            color: var(--cb); font-family: var(--font);
+            transition: color 0.12s, background 0.12s;
+        }
+        .continue-other:hover { color: var(--cd); background: rgba(0,255,255,0.04); }
 
         .divider {
             display: flex; align-items: center; gap: 0.75rem;
@@ -367,22 +385,16 @@
     </div>
 
     <div id="continue-as-section" style="display:none;" class="continue-panel">
-        <button type="button" id="continue-as-btn" class="continue-as" onclick="continueAsUser()">
-            <div class="continue-avatar" id="continue-avatar">?</div>
-            <div class="continue-info">
-                <div class="continue-hint">sessiya davam etdir</div>
-                <div class="continue-name" id="continue-name">...</div>
-            </div>
-            <svg class="continue-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="9 18 15 12 9 6"/>
+        <div id="continue-accounts"></div>
+        <button type="button" class="continue-other" onclick="useOtherAccount()">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
+            başqa hesabla daxil ol
         </button>
-        <div class="continue-sep">başqa hesabla daxil ol</div>
     </div>
 
     <div class="card">
-        <div class="card-label">auth.ao.az</div>
-        <div class="card-prompt">&gt; authenticate</div>
 
         <div th:if="${error}" class="err" role="alert">
             <span class="err-tag">[ERR]</span>
@@ -402,7 +414,7 @@
 
             <div class="field">
                 <label for="username" id="username-label"
-                       th:text="${identifierType == 'email' ? '# e-poçt' : '# istifadəçi adı'}"># istifadəçi adı</label>
+                       th:text="${identifierType == 'email' ? 'e-poçt' : 'istifadəçi adı'}">istifadəçi adı</label>
                 <input th:type="${identifierType == 'email' ? 'email' : 'text'}"
                        id="username" name="username"
                        th:autocomplete="${identifierType == 'email' ? 'email' : 'username'}"
@@ -411,20 +423,15 @@
             </div>
 
             <div class="field">
-                <label for="password"># şifrə</label>
+                <label for="password">şifrə</label>
                 <input type="password" id="password" name="password"
                        autocomplete="current-password" required
-                       placeholder="password"/>
+                       placeholder="şifrənizi daxil edin"/>
             </div>
 
-            <button type="submit" class="btn">&gt; daxil ol</button>
+            <button type="submit" class="btn">Daxil ol</button>
         </form>
 
-        <div class="meta">
-            <span><span class="meta-dot"></span>LDAP · Active Directory</span>
-            <span><span class="meta-dot"></span>OAuth 2.0 · OIDC</span>
-            <span><span class="meta-dot"></span>RS256 · PKCE</span>
-        </div>
     </div>
 
     <div class="bottom" th:text="${brandingFooterText != null && !#strings.isEmpty(brandingFooterText) ? brandingFooterText : 'AO Identity Provider · TLS qorunur · 2026'}">
@@ -441,54 +448,108 @@
     if (!input || !label) return;
     input.addEventListener('input', function() {
         var isEmail = input.value.indexOf('@') !== -1;
-        label.textContent = isEmail ? '# e-poçt' : '# istifadəçi adı';
+        label.textContent = isEmail ? 'e-poçt' : 'istifadəçi adı';
     });
 })();
 
-(function() {
-    var continueAsEnabled = /*[[${continueAsEnabled}]]*/ true;
-    if (!continueAsEnabled) return;
-    function getCookie(name) {
-        var m = document.cookie.match('(?:^|; )' + name + '=([^;]*)');
-        return m ? decodeURIComponent(m[1]) : null;
-    }
-    function b64DecodeUnicode(str) {
-        try {
-            return decodeURIComponent(atob(str.replace(/-/g,'+').replace(/_/g,'/')).split('').map(function(c) {
-                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-            }).join(''));
-        } catch(e) { return null; }
-    }
-    var raw = getCookie('ao-user');
-    if (raw) {
-        var json = b64DecodeUnicode(raw);
-        if (json) {
-            try {
-                var profile = JSON.parse(json);
-                if (profile.u) {
-                    var section = document.getElementById('continue-as-section');
-                    var nameEl = document.getElementById('continue-name');
-                    var avatarEl = document.getElementById('continue-avatar');
-                    if (section && nameEl && avatarEl) {
-                        nameEl.textContent = profile.n || profile.u;
-                        avatarEl.textContent = (profile.n || profile.u).charAt(0).toUpperCase();
-                        section.style.display = '';
-                        window._continueAsUser = profile.u;
-                    }
-                }
-            } catch(e) {}
-        }
-    }
-})();
+// ── Multi-account continue-as ─────────────────────────────────────────────────
 
-function continueAsUser() {
-    var u = window._continueAsUser;
-    if (!u) return;
+var _continueAsEnabled = /*[[${continueAsEnabled}]]*/ true;
+
+function _getCookie(name) {
+    var m = document.cookie.match('(?:^|; )' + name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '=([^;]*)');
+    return m ? decodeURIComponent(m[1]) : null;
+}
+
+function _b64Decode(str) {
+    try {
+        return decodeURIComponent(atob(str.replace(/-/g,'+').replace(/_/g,'/')).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+    } catch(e) { return null; }
+}
+
+function _b64Encode(str) {
+    return btoa(unescape(encodeURIComponent(str))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+
+function _escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function getStoredProfiles() {
+    var raw = _getCookie('ao-user');
+    if (!raw) return [];
+    var json = _b64Decode(raw);
+    if (!json) return [];
+    try {
+        var parsed = JSON.parse(json);
+        if (Array.isArray(parsed)) return parsed.filter(function(p){ return p && p.u; });
+        if (parsed && parsed.u) return [parsed];
+    } catch(e) {}
+    return [];
+}
+
+function saveStoredProfiles(profiles) {
+    var value = _b64Encode(JSON.stringify(profiles));
+    var secure = location.protocol === 'https:' ? '; Secure' : '';
+    if (profiles.length === 0) {
+        document.cookie = 'ao-user=; path=/; max-age=0' + secure;
+    } else {
+        document.cookie = 'ao-user=' + value + '; path=/; max-age=' + (30*24*3600) + secure;
+    }
+}
+
+function renderContinueAs(profiles) {
+    var section = document.getElementById('continue-as-section');
+    var accountsEl = document.getElementById('continue-accounts');
+    if (!section || !accountsEl) return;
+    if (!profiles || profiles.length === 0) { section.style.display = 'none'; return; }
+    var html = '';
+    for (var i = 0; i < profiles.length; i++) {
+        var p = profiles[i];
+        var label = _escHtml(p.n || p.u);
+        var initial = (p.n || p.u).charAt(0).toUpperCase();
+        var uAttr = _escHtml(p.u).replace(/'/g,'&#39;');
+        html += '<div class="continue-as-row">' +
+            '<button type="button" class="continue-as" onclick="continueAsUser(\'' + uAttr + '\')">' +
+            '<div class="continue-avatar">' + _escHtml(initial) + '</div>' +
+            '<div class="continue-info">' +
+            '<div class="continue-hint">davam et</div>' +
+            '<div class="continue-name">' + label + '</div>' +
+            '</div>' +
+            '<svg class="continue-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>' +
+            '</button>' +
+            '<button type="button" class="continue-remove" onclick="removeStoredAccount(\'' + uAttr + '\')" title="Bu hesabı sil">' +
+            '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+            '</button>' +
+            '</div>';
+    }
+    accountsEl.innerHTML = html;
+    section.style.display = '';
+}
+
+function continueAsUser(username) {
     var usernameInput = document.getElementById('username');
     var passwordInput = document.getElementById('password');
-    if (usernameInput) { usernameInput.value = u; }
+    if (usernameInput) { usernameInput.value = username; }
     if (passwordInput) { passwordInput.focus(); }
+}
+
+function removeStoredAccount(username) {
+    var profiles = getStoredProfiles().filter(function(p){ return p.u !== username; });
+    saveStoredProfiles(profiles);
+    renderContinueAs(profiles);
+}
+
+function useOtherAccount() {
     document.getElementById('continue-as-section').style.display = 'none';
+    var usernameInput = document.getElementById('username');
+    if (usernameInput) { usernameInput.value = ''; usernameInput.focus(); }
+}
+
+if (_continueAsEnabled) {
+    renderContinueAs(getStoredProfiles());
 }
 </script>
 </body>

@@ -29,10 +29,14 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Controller
 @Tag(name = "OAuth2 / OIDC", description = "Authorization Code flow with PKCE (RFC 6749, RFC 7636), token endpoint, userinfo, logout, and token revocation (RFC 7009)")
@@ -262,9 +266,12 @@ public class OidcController {
             response.addCookie(sessionCookie);
 
             String displayName = attrs.displayName() != null ? attrs.displayName() : username;
-            String profileJson = "{\"u\":\"" + escapeJson(username) + "\",\"n\":\"" + escapeJson(displayName) + "\"}";
-            Cookie profileCookie = new Cookie("ao-user",
-                    Base64.getUrlEncoder().withoutPadding().encodeToString(profileJson.getBytes(StandardCharsets.UTF_8)));
+            // Build multi-account profile cookie (JSON array, up to 5 accounts)
+            List<String[]> profileList = parseProfileList(getUserProfileCookie(request));
+            profileList.removeIf(p -> username.equals(p[0]));
+            profileList.add(0, new String[]{username, displayName});
+            if (profileList.size() > 5) profileList = profileList.subList(0, 5);
+            Cookie profileCookie = new Cookie("ao-user", buildProfileCookieValue(profileList));
             profileCookie.setHttpOnly(false);
             profileCookie.setSecure(idpProperties.issuer().startsWith("https"));
             profileCookie.setPath("/");
@@ -446,6 +453,36 @@ public class OidcController {
             if ("ao-user".equals(c.getName()) && c.getValue() != null && !c.getValue().isBlank()) return c.getValue();
         }
         return null;
+    }
+
+    // Parses the ao-user cookie into a list of [username, displayName] pairs.
+    // Handles both old single-object format {"u":"x","n":"y"} and new array format.
+    private List<String[]> parseProfileList(String cookieValue) {
+        var result = new ArrayList<String[]>();
+        if (cookieValue == null || cookieValue.isBlank()) return result;
+        try {
+            String decoded = new String(Base64.getUrlDecoder().decode(cookieValue), StandardCharsets.UTF_8).trim();
+            Pattern p = Pattern.compile("\\{\"u\":\"((?:[^\"\\\\]|\\\\.)*)\",\"n\":\"((?:[^\"\\\\]|\\\\.)*)\"\\}");
+            Matcher m = p.matcher(decoded);
+            while (m.find()) result.add(new String[]{unescapeJson(m.group(1)), unescapeJson(m.group(2))});
+        } catch (Exception ignored) {}
+        return result;
+    }
+
+    private String buildProfileCookieValue(List<String[]> profiles) {
+        var sb = new StringBuilder("[");
+        for (int i = 0; i < profiles.size(); i++) {
+            if (i > 0) sb.append(",");
+            sb.append("{\"u\":\"").append(escapeJson(profiles.get(i)[0]))
+              .append("\",\"n\":\"").append(escapeJson(profiles.get(i)[1])).append("\"}");
+        }
+        sb.append("]");
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(sb.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static String unescapeJson(String s) {
+        return s.replace("\\\"", "\"").replace("\\\\", "\\").replace("\\/", "/")
+                .replace("\\n", "\n").replace("\\r", "\r").replace("\\t", "\t");
     }
 
     private static String nvl(String s, String fallback) {
