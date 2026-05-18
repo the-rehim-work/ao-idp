@@ -50,10 +50,97 @@ public class LdapService {
     private static final String[] PERSON_CLASSES = {"inetOrgPerson", "person", "posixAccount", "organizationalPerson", "user"};
     private static final String[] USERNAME_ATTRS  = {"uid", "sAMAccountName", "cn"};
 
-    private record LdapProps(String usernameAttribute, String userObjectClass, String baseDn, String additionalFilter) {}
+    /** Detected directory flavor — drives which LDAP attribute names / search filters are used. */
+    public enum DirectoryType { ACTIVE_DIRECTORY, OPENLDAP, UNKNOWN }
+
+    /** Cached per-config directory type detection (avoids re-querying RootDSE on every call). */
+    private final Map<UUID, DirectoryType> typeCache = new ConcurrentHashMap<>();
+
+    private record LdapProps(String usernameAttribute, String emailAttribute, String userObjectClass,
+                              String baseDn, String additionalFilter, DirectoryType type) {}
 
     private LdapProps propsFrom(LdapServerConfig config) {
-        return new LdapProps(config.getUsernameAttribute(), config.getUserObjectClass(), config.getBaseDn(), config.getAdditionalUserFilter());
+        return new LdapProps(
+                config.getUsernameAttribute(),
+                config.getEmailAttribute() != null && !config.getEmailAttribute().isBlank()
+                        ? config.getEmailAttribute() : "mail",
+                config.getUserObjectClass(),
+                config.getBaseDn(),
+                config.getAdditionalUserFilter(),
+                detectDirectoryType(config)
+        );
+    }
+
+    /**
+     * Detect whether the connected directory is Active Directory or OpenLDAP.
+     * Order of checks:
+     *   1. Config hints — userObjectClass=user / usernameAttribute=sAMAccountName  → AD
+     *   2. Config hints — userObjectClass=inetOrgPerson|posixAccount / usernameAttribute=uid → OpenLDAP
+     *   3. RootDSE lookup — presence of `forestFunctionality` / `domainFunctionality` attributes → AD
+     *   4. Base entry objectClass — `domain` → AD; `dcObject`/`organization` → OpenLDAP
+     * Cached per config UUID until LdapServerConfig.updatedAt changes (cache key invalidation is handled by forConfig).
+     */
+    private DirectoryType detectDirectoryType(LdapServerConfig config) {
+        DirectoryType cached = typeCache.get(config.getId());
+        if (cached != null) return cached;
+
+        DirectoryType detected = detectFromConfigHints(config);
+        if (detected == DirectoryType.UNKNOWN) {
+            detected = detectFromServer(config);
+        }
+        typeCache.put(config.getId(), detected);
+        log.info("LDAP directory type for '{}': {}", config.getName(), detected);
+        return detected;
+    }
+
+    private DirectoryType detectFromConfigHints(LdapServerConfig config) {
+        String uoc = config.getUserObjectClass() == null ? "" : config.getUserObjectClass().toLowerCase();
+        String ua  = config.getUsernameAttribute() == null ? "" : config.getUsernameAttribute().toLowerCase();
+        if (uoc.equals("user") || ua.equals("samaccountname")) return DirectoryType.ACTIVE_DIRECTORY;
+        if (uoc.equals("inetorgperson") || uoc.equals("posixaccount") || ua.equals("uid"))
+            return DirectoryType.OPENLDAP;
+        return DirectoryType.UNKNOWN;
+    }
+
+    private DirectoryType detectFromServer(LdapServerConfig config) {
+        try {
+            LdapTemplate template = forConfig(config).template();
+            // Try RootDSE — AD exposes forestFunctionality/domainFunctionality
+            SearchControls sc = new SearchControls();
+            sc.setSearchScope(SearchControls.OBJECT_SCOPE);
+            sc.setReturningAttributes(new String[]{"forestFunctionality", "domainFunctionality", "vendorName", "namingContexts"});
+            ContextMapper<DirectoryType> rootMapper = ctx -> {
+                DirContextOperations dco = (DirContextOperations) ctx;
+                if (dco.getStringAttribute("forestFunctionality") != null
+                        || dco.getStringAttribute("domainFunctionality") != null) {
+                    return DirectoryType.ACTIVE_DIRECTORY;
+                }
+                String vendor = dco.getStringAttribute("vendorName");
+                if (vendor != null && vendor.toLowerCase().contains("389 directory")) return DirectoryType.OPENLDAP;
+                return DirectoryType.UNKNOWN;
+            };
+            // RootDSE is at DN "" with OBJECT_SCOPE — must use absolute search bypassing baseDn
+            try {
+                List<DirectoryType> rdseResults = template.search("", "(objectClass=*)", sc, rootMapper);
+                for (DirectoryType t : rdseResults) if (t != DirectoryType.UNKNOWN) return t;
+            } catch (Exception ignored) { /* fall through */ }
+
+            // Look at base DN objectClass
+            try {
+                DirContextOperations baseCtx = template.lookupContext("");
+                String[] ocs = baseCtx.getStringAttributes("objectClass");
+                if (ocs != null) {
+                    Set<String> ocSet = new HashSet<>();
+                    for (String oc : ocs) ocSet.add(oc.toLowerCase());
+                    if (ocSet.contains("domain") || ocSet.contains("domaindns")) return DirectoryType.ACTIVE_DIRECTORY;
+                    if (ocSet.contains("dcobject") || ocSet.contains("organization") || ocSet.contains("organizationalunit"))
+                        return DirectoryType.OPENLDAP;
+                }
+            } catch (Exception ignored) { /* fall through */ }
+        } catch (Exception e) {
+            log.debug("Directory type auto-detect failed for {}: {}", config.getName(), e.getMessage());
+        }
+        return DirectoryType.UNKNOWN;
     }
 
 
@@ -67,6 +154,8 @@ public class LdapService {
         ldapTemplate.setIgnorePartialResultException(true);
         CachedLdap entry = new CachedLdap(config.getUpdatedAt(), source, ldapTemplate);
         cache.put(config.getId(), entry);
+        // Config changed → invalidate directory-type detection cache so it's re-resolved
+        typeCache.remove(config.getId());
         return entry;
     }
 
@@ -155,7 +244,11 @@ public class LdapService {
             String display = Optional.ofNullable(dco.getStringAttribute("displayName"))
                     .or(() -> Optional.ofNullable(dco.getStringAttribute("cn")))
                     .orElse(resolved);
-            return new LdapUserAttributes(resolved, dco.getStringAttribute("mail"), display, dco.getNameInNamespace());
+            String email = dco.getStringAttribute(props.emailAttribute());
+            if (email == null && !"mail".equalsIgnoreCase(props.emailAttribute())) {
+                email = dco.getStringAttribute("mail");
+            }
+            return new LdapUserAttributes(resolved, email, display, dco.getNameInNamespace());
         };
 
         List<LdapUserAttributes> results = ldap.template().search("", filter.encode(), mapper);
@@ -319,21 +412,34 @@ public class LdapService {
         LdapTemplate template = forConfig(config).template();
         String searchBase = (baseDn != null && !baseDn.isBlank()) ? toRelativeDn(baseDn, props.baseDn()) : "";
 
-        OrFilter ocFilter = new OrFilter();
-        ocFilter.or(new EqualsFilter("objectClass", props.userObjectClass()));
-        for (String oc : PERSON_CLASSES) ocFilter.or(new EqualsFilter("objectClass", oc));
+        // ObjectClass filter — narrow to the detected directory type so we don't pull in computer accounts (AD)
+        // or service entries with overlapping classes (OpenLDAP)
+        OrFilter ocFilter = buildUserObjectClassFilter(props);
 
         AndFilter filter = new AndFilter();
         filter.and(ocFilter);
+
+        // AD-specific: exclude computer accounts which inherit objectClass=user
+        if (props.type() == DirectoryType.ACTIVE_DIRECTORY) {
+            filter.and(new HardcodedFilter("(!(objectClass=computer))"));
+        }
+
+        String emailAttr = props.emailAttribute();
 
         if (search != null && !search.isBlank()) {
             if (attr != null && !attr.isBlank() && !BASIC_SEARCH_ATTRS.contains(attr)) {
                 // Specific LDAP attribute search
                 filter.and(new LikeFilter(attr, "*" + search + "*"));
             } else if ("username".equals(attr)) {
-                filter.and(new LikeFilter(props.usernameAttribute(), "*" + search + "*"));
+                // Match either configured attr or the other directory's username attr — handles mixed deployments
+                OrFilter unF = new OrFilter();
+                unF.or(new LikeFilter(props.usernameAttribute(), "*" + search + "*"));
+                for (String a : USERNAME_ATTRS) {
+                    if (!a.equalsIgnoreCase(props.usernameAttribute())) unF.or(new LikeFilter(a, "*" + search + "*"));
+                }
+                filter.and(unF);
             } else if ("email".equals(attr)) {
-                filter.and(new LikeFilter("mail", "*" + search + "*"));
+                filter.and(new LikeFilter(emailAttr, "*" + search + "*"));
             } else if ("name".equals(attr)) {
                 OrFilter nameFilter = new OrFilter();
                 nameFilter.or(new LikeFilter("displayName", "*" + search + "*"));
@@ -342,11 +448,15 @@ public class LdapService {
             } else if ("title".equals(attr)) {
                 filter.and(new LikeFilter("title", "*" + search + "*"));
             } else {
-                // Default: search across common fields
+                // Default: search across common fields including both AD and OpenLDAP username attrs
                 OrFilter searchFilter = new OrFilter();
                 searchFilter.or(new LikeFilter(props.usernameAttribute(), "*" + search + "*"));
+                for (String a : USERNAME_ATTRS) {
+                    if (!a.equalsIgnoreCase(props.usernameAttribute())) searchFilter.or(new LikeFilter(a, "*" + search + "*"));
+                }
                 searchFilter.or(new LikeFilter("displayName", "*" + search + "*"));
-                searchFilter.or(new LikeFilter("mail", "*" + search + "*"));
+                searchFilter.or(new LikeFilter("cn", "*" + search + "*"));
+                searchFilter.or(new LikeFilter(emailAttr, "*" + search + "*"));
                 filter.and(searchFilter);
             }
         }
@@ -357,16 +467,29 @@ public class LdapService {
 
         ContextMapper<LdapUserResponse> mapper = ctx -> {
             DirContextOperations dco = (DirContextOperations) ctx;
+            // username: try configured attribute, then fall back across schemas
             String username = dco.getStringAttribute(props.usernameAttribute());
+            if (username == null) username = dco.getStringAttribute("uid");
+            if (username == null) username = dco.getStringAttribute("sAMAccountName");
+            if (username == null) username = dco.getStringAttribute("cn");
             if (username == null) return null;
+
+            // displayName → cn fallback
             String displayName = dco.getStringAttribute("displayName");
-            String[] memberOf = dco.getStringAttributes("memberOf");
-            List<String> groups = memberOf != null
-                    ? Arrays.stream(memberOf).map(this::rdnValue).toList()
-                    : Collections.emptyList();
-            return new LdapUserResponse(username, dco.getStringAttribute("mail"),
-                    displayName != null ? displayName : username, false,
-                    dco.getStringAttribute("title"), extractOu(dco.getNameInNamespace()), groups, null);
+            if (displayName == null) displayName = dco.getStringAttribute("cn");
+            if (displayName == null) displayName = username;
+
+            // email — use configured attribute first, then mail as a universal fallback
+            String email = dco.getStringAttribute(emailAttr);
+            if (email == null && !"mail".equalsIgnoreCase(emailAttr)) email = dco.getStringAttribute("mail");
+
+            // groups
+            List<String> groups = resolveGroups(dco, template, props, username);
+
+            return new LdapUserResponse(username, email,
+                    displayName, false,
+                    dco.getStringAttribute("title"),
+                    extractOu(dco.getNameInNamespace()), groups, null);
         };
 
         try {
@@ -376,6 +499,87 @@ public class LdapService {
             log.error("LDAP user search failed for config={} baseDn={}: {}", config.getName(), baseDn, e.getMessage());
             return Collections.emptyList();
         }
+    }
+
+    /**
+     * Build the objectClass filter for user entries. Active Directory uses `user`; OpenLDAP uses
+     * `inetOrgPerson` / `posixAccount`. UNKNOWN falls back to the broad union.
+     */
+    private OrFilter buildUserObjectClassFilter(LdapProps props) {
+        OrFilter f = new OrFilter();
+        if (props.type() == DirectoryType.ACTIVE_DIRECTORY) {
+            f.or(new EqualsFilter("objectClass", "user"));
+            if (props.userObjectClass() != null && !props.userObjectClass().isBlank()
+                    && !"user".equalsIgnoreCase(props.userObjectClass())) {
+                f.or(new EqualsFilter("objectClass", props.userObjectClass()));
+            }
+        } else if (props.type() == DirectoryType.OPENLDAP) {
+            f.or(new EqualsFilter("objectClass", "inetOrgPerson"));
+            f.or(new EqualsFilter("objectClass", "posixAccount"));
+            f.or(new EqualsFilter("objectClass", "person"));
+            if (props.userObjectClass() != null && !props.userObjectClass().isBlank()) {
+                f.or(new EqualsFilter("objectClass", props.userObjectClass()));
+            }
+        } else {
+            // UNKNOWN — broadest filter
+            if (props.userObjectClass() != null && !props.userObjectClass().isBlank()) {
+                f.or(new EqualsFilter("objectClass", props.userObjectClass()));
+            }
+            for (String oc : PERSON_CLASSES) f.or(new EqualsFilter("objectClass", oc));
+        }
+        return f;
+    }
+
+    /**
+     * Resolve a user's group memberships.
+     * • AD: read memberOf directly from the user entry.
+     * • OpenLDAP: memberOf is not present unless the memberOf overlay is enabled, so do a reverse
+     *   group search filtering by (member=<userDN>) (groupOfNames / groupOfUniqueNames) or
+     *   (memberUid=<username>) (posixGroup).
+     */
+    private List<String> resolveGroups(DirContextOperations userCtx, LdapTemplate template,
+                                       LdapProps props, String username) {
+        // memberOf — works on AD and on OpenLDAP with the memberOf overlay
+        String[] memberOf = userCtx.getStringAttributes("memberOf");
+        if (memberOf != null && memberOf.length > 0) {
+            return Arrays.stream(memberOf).map(this::rdnValue).filter(Objects::nonNull).toList();
+        }
+
+        // OpenLDAP fallback — reverse-search groups for this user
+        if (props.type() == DirectoryType.OPENLDAP || props.type() == DirectoryType.UNKNOWN) {
+            try {
+                String userDn = userCtx.getNameInNamespace();
+                SearchControls gsc = new SearchControls();
+                gsc.setSearchScope(SearchControls.SUBTREE_SCOPE);
+                gsc.setReturningAttributes(new String[]{"cn"});
+
+                AndFilter gFilter = new AndFilter();
+                OrFilter gOc = new OrFilter();
+                gOc.or(new EqualsFilter("objectClass", "groupOfNames"));
+                gOc.or(new EqualsFilter("objectClass", "groupOfUniqueNames"));
+                gOc.or(new EqualsFilter("objectClass", "posixGroup"));
+                gOc.or(new EqualsFilter("objectClass", "groupOfMembers"));
+                gFilter.and(gOc);
+
+                OrFilter mFilter = new OrFilter();
+                mFilter.or(new EqualsFilter("member", userDn));
+                mFilter.or(new EqualsFilter("uniqueMember", userDn));
+                if (username != null) mFilter.or(new EqualsFilter("memberUid", username));
+                gFilter.and(mFilter);
+
+                ContextMapper<String> nameMapper = ctx -> {
+                    DirContextOperations dco = (DirContextOperations) ctx;
+                    String cn = dco.getStringAttribute("cn");
+                    return cn != null ? cn : rdnValue(dco.getNameInNamespace());
+                };
+                List<String> found = template.search("", gFilter.encode(), gsc, nameMapper);
+                return found.stream().filter(Objects::nonNull).distinct().toList();
+            } catch (Exception e) {
+                log.debug("OpenLDAP group reverse lookup failed for {}: {}", username, e.getMessage());
+            }
+        }
+
+        return Collections.emptyList();
     }
 
     public List<LdapOuInfo> listOus() {

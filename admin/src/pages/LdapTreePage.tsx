@@ -859,20 +859,28 @@ function ContextMenu({
    ====================================================================== */
 
 function Highlight({ text, query }: { text: string; query: string }) {
-  if (!query) return <>{text}</>
+  const q = (query ?? '').trim()
+  if (!q || !text) return <>{text}</>
+  const qLower = q.toLowerCase()
   const lower = text.toLowerCase()
-  const q = query.toLowerCase()
-  const idx = lower.indexOf(q)
-  if (idx < 0) return <>{text}</>
-  return (
-    <>
-      {text.slice(0, idx)}
-      <mark style={{ background: 'var(--accent-medium)', color: C.cyan, padding: 0 }}>
-        {text.slice(idx, idx + q.length)}
+  // Find every (non-overlapping) occurrence so multiple matches in a single string all light up.
+  const segments: React.ReactNode[] = []
+  let cursor = 0
+  let next = lower.indexOf(qLower, cursor)
+  let key = 0
+  if (next < 0) return <>{text}</>
+  while (next >= 0) {
+    if (next > cursor) segments.push(<React.Fragment key={`t${key++}`}>{text.slice(cursor, next)}</React.Fragment>)
+    segments.push(
+      <mark key={`m${key++}`} style={{ background: 'var(--accent-medium)', color: C.cyan, padding: 0, borderRadius: 2 }}>
+        {text.slice(next, next + q.length)}
       </mark>
-      {text.slice(idx + q.length)}
-    </>
-  )
+    )
+    cursor = next + q.length
+    next = lower.indexOf(qLower, cursor)
+  }
+  if (cursor < text.length) segments.push(<React.Fragment key={`t${key++}`}>{text.slice(cursor)}</React.Fragment>)
+  return <>{segments}</>
 }
 
 /* ======================================================================
@@ -2164,20 +2172,31 @@ export default function LdapTreePage() {
   // 'tree' = filter what's already loaded; 'server' = call /ldap/users for a directory-wide LDAP search
   const [searchScope, setSearchScope] = useState<'tree' | 'server'>('tree')
 
-  // Auto-switch scope:
-  //   • any non-empty query  → server (query the actual directory)
+  // Auto-switch scope (one-way only — never overrides a user's explicit Tree/LDAP toggle choice
+  // once they pick it; we just nudge defaults):
   //   • schema attr selected → server (raw LDAP attrs can't be matched on in-memory tree nodes)
-  //   • query cleared + quick attr → back to tree (browsing mode)
+  //   • quick attr           → tree (in-memory filter on what's loaded)
+  // A plain text query in "all/name/username/email/title" stays in tree mode so the user can filter
+  // visible nodes without hammering the directory. Users can flip to "LDAP" manually to force a
+  // server-side search at any time.
   const QUICK_ATTRS = useMemo(() => new Set(['all', 'name', 'username', 'email', 'title']), [])
   useEffect(() => {
-    const hasQuery = !!state.debouncedSearch.trim()
     const isSchemaAttr = !QUICK_ATTRS.has(searchAttr)
-    if (hasQuery || isSchemaAttr) {
+    if (isSchemaAttr) {
       setSearchScope('server')
-    } else {
+    }
+    // Quick attrs: let the query-based effect decide scope instead of forcing tree mode
+  }, [searchAttr, QUICK_ATTRS])
+
+  // When user types a search query, switch to server-side LDAP search so we query the full
+  // directory — not just nodes that happen to be already expanded in the tree.
+  useEffect(() => {
+    if (state.debouncedSearch.trim()) {
+      setSearchScope('server')
+    } else if (QUICK_ATTRS.has(searchAttr)) {
       setSearchScope('tree')
     }
-  }, [searchAttr, state.debouncedSearch, QUICK_ATTRS])
+  }, [state.debouncedSearch, searchAttr, QUICK_ATTRS])
 
   // Panel width (resizable)
   const [panelWidth, setPanelWidth] = useState<number>(() => {
@@ -2468,24 +2487,32 @@ export default function LdapTreePage() {
             || (filterActivated === 'inactive' && !n.is_activated)
 
           // attribute-scoped text search
-          // tree mode only carries name/uid/mail/title; arbitrary LDAP attrs fall back to all-fields
+          // tree mode only carries name/uid/mail/title/dn; arbitrary LDAP attrs fall back to all-fields
           // (use server scope to actually filter by an attribute not exposed on the tree node)
           let matchesSearch = true
           if (search) {
+            const nameMatch = n.name?.toLowerCase().includes(search) ?? false
+            const userMatch = n.ldap_username?.toLowerCase().includes(search) ?? false
+            const emailMatch = n.email?.toLowerCase().includes(search) ?? false
+            const titleMatch = n.title?.toLowerCase().includes(search) ?? false
+            const dnMatch = n.dn?.toLowerCase().includes(search) ?? false
+            const rdnMatch = n.rdn?.toLowerCase().includes(search) ?? false
+            const groupsMatch = (n.groups ?? []).some(g => g.toLowerCase().includes(search))
+
             if (searchAttr === 'name' || searchAttr === 'cn' || searchAttr === 'displayName' || searchAttr === 'givenName' || searchAttr === 'sn') {
-              matchesSearch = n.name.toLowerCase().includes(search)
+              matchesSearch = nameMatch
             } else if (searchAttr === 'username' || searchAttr === 'sAMAccountName' || searchAttr === 'uid' || searchAttr === 'samaccountname') {
-              matchesSearch = (n.ldap_username?.toLowerCase().includes(search) ?? false)
+              matchesSearch = userMatch
             } else if (searchAttr === 'email' || searchAttr === 'mail' || searchAttr === 'userPrincipalName') {
-              matchesSearch = (n.email?.toLowerCase().includes(search) ?? false)
+              matchesSearch = emailMatch
             } else if (searchAttr === 'title') {
-              matchesSearch = (n.title?.toLowerCase().includes(search) ?? false)
+              matchesSearch = titleMatch
+            } else if (searchAttr === 'dn' || searchAttr === 'distinguishedName') {
+              matchesSearch = dnMatch
             } else {
-              // 'all' or any other raw LDAP attribute → match across all locally-known fields
-              matchesSearch = n.name.toLowerCase().includes(search) ||
-                (n.ldap_username?.toLowerCase().includes(search) ?? false) ||
-                (n.email?.toLowerCase().includes(search) ?? false) ||
-                (n.title?.toLowerCase().includes(search) ?? false)
+              // 'all' or any other raw LDAP attribute → match across every locally-known field,
+              // including the DN and group memberships so users can find entries by their location.
+              matchesSearch = nameMatch || userMatch || emailMatch || titleMatch || dnMatch || rdnMatch || groupsMatch
             }
           }
 

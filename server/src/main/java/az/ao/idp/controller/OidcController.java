@@ -89,11 +89,17 @@ public class OidcController {
             @RequestParam(value = "code_challenge", required = false) String codeChallenge,
             @RequestParam(value = "code_challenge_method", required = false) String codeChallengeMethod,
             @RequestParam(value = "error", required = false) String error,
+            @RequestParam(value = "logged_out", required = false) String loggedOut,
+            @RequestParam(value = "prompt", required = false) String prompt,
             HttpServletRequest request,
             Model model
     ) {
+        // Skip the session-to-admin redirect when:
+        //   • logged_out=1  → user just completed an explicit IDP logout
+        //   • prompt=login  → OAuth2 client requested forced re-authentication
+        //   • clientId present → OAuth2 flow; authorize() already handled the session check
         String existingSession = getSessionCookie(request);
-        if (existingSession != null && clientId == null) {
+        if (existingSession != null && clientId == null && loggedOut == null && !"login".equals(prompt)) {
             SessionService.SessionData session = sessionService.getSession(existingSession);
             if (session != null) {
                 return "redirect:/admin/";
@@ -144,7 +150,7 @@ public class OidcController {
     }
 
     @GetMapping("/oauth2/authorize")
-    @Operation(summary = "Authorization endpoint", description = "Initiates Authorization Code flow. Redirects to login if no active session. Supports PKCE (code_challenge / S256).")
+    @Operation(summary = "Authorization endpoint", description = "Initiates Authorization Code flow. Redirects to login if no active session. Supports PKCE (code_challenge / S256) and prompt=login (OIDC §3.1.2.1).")
     public String authorize(
             @RequestParam("client_id") String clientId,
             @RequestParam("redirect_uri") String redirectUri,
@@ -153,6 +159,7 @@ public class OidcController {
             @RequestParam(value = "scope", defaultValue = "openid profile roles") String scope,
             @RequestParam(value = "code_challenge", required = false) String codeChallenge,
             @RequestParam(value = "code_challenge_method", required = false) String codeChallengeMethod,
+            @RequestParam(value = "prompt", required = false) String prompt,
             HttpServletRequest request,
             HttpServletResponse response,
             Model model
@@ -164,7 +171,8 @@ public class OidcController {
 
         Application app = oidcService.validateClientForAuth(clientId, redirectUri);
 
-        if (sessionCookie != null) {
+        // prompt=login forces re-authentication (OIDC Core §3.1.2.1) — skip the auto-auth.
+        if (sessionCookie != null && !"login".equals(prompt)) {
             SessionService.SessionData session = sessionService.getSession(sessionCookie);
             if (session != null) {
                 User user = userService.getById(session.userId());
@@ -420,7 +428,7 @@ public class OidcController {
                 if (allowed) return "redirect:" + redirectUri;
             }
         }
-        return "redirect:/login";
+        return "redirect:/login?logged_out=1";
     }
 
     private Cookie buildSessionCookie(String value) {
