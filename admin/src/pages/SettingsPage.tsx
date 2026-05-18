@@ -121,12 +121,21 @@ const parseClaimMappings = (raw: string | undefined): ClaimMapping[] => {
   try { return JSON.parse(raw) } catch { return [] }
 }
 
-const emptyLdapForm = (): LdapConfigRequest => ({
-  name: '', url: 'ldaps://', baseDn: 'DC=ao,DC=az',
+const emptyLdapForm = (dirType: 'ad' | 'openldap' | 'other' = 'ad'): LdapConfigRequest => ({
+  name: '', url: dirType === 'openldap' ? 'ldap://' : 'ldaps://', baseDn: 'DC=ao,DC=az',
   serviceAccountDn: '', serviceAccountPassword: '',
-  userObjectClass: 'user',
+  userObjectClass: dirType === 'openldap' ? 'inetOrgPerson' : 'user',
+  usernameAttribute: dirType === 'openldap' ? 'uid' : 'sAMAccountName',
   additionalUserFilter: '', claimMappings: undefined,
 })
+
+function detectDirType(c: LdapServerConfig): 'ad' | 'openldap' | 'other' {
+  const uoc = (c.userObjectClass ?? '').toLowerCase()
+  const ua  = (c.usernameAttribute ?? '').toLowerCase()
+  if (uoc === 'user' || ua === 'samaccountname') return 'ad'
+  if (uoc === 'inetorgperson' || uoc === 'posixaccount' || ua === 'uid') return 'openldap'
+  return 'other'
+}
 
 function ActiveConnectionPanel({ config }: { config: LdapServerConfig }) {
   return (
@@ -160,6 +169,7 @@ function LdapSection() {
   const { data: configs = [] } = useQuery({ queryKey: ['ldap-configs'], queryFn: settingsApi.ldap.list })
   const [editTarget, setEditTarget] = useState<LdapServerConfig | null>(null)
   const [showForm, setShowForm] = useState(false)
+  const [dirType, setDirType] = useState<'ad' | 'openldap' | 'other'>('ad')
   const [form, setForm] = useState<LdapConfigRequest>(emptyLdapForm())
   const [formClaims, setFormClaims] = useState<ClaimMapping[]>([])
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
@@ -167,6 +177,12 @@ function LdapSection() {
   const [testing, setTesting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<LdapServerConfig | null>(null)
   const [formAttrs, setFormAttrs] = useState<Record<string, string> | undefined>(undefined)
+
+  const applyDirType = (dt: 'ad' | 'openldap' | 'other') => {
+    setDirType(dt)
+    if (dt === 'ad') setForm(prev => ({ ...prev, userObjectClass: 'user', usernameAttribute: 'sAMAccountName' }))
+    else if (dt === 'openldap') setForm(prev => ({ ...prev, userObjectClass: 'inetOrgPerson', usernameAttribute: 'uid' }))
+  }
 
   const activeConfigs = configs.filter(c => c.active)
   const isEdit = !!editTarget
@@ -180,14 +196,16 @@ function LdapSection() {
   })
 
   const openCreate = () => {
-    setEditTarget(null); setForm(emptyLdapForm()); setFormClaims([]); setTestResult(null); setFormError(''); setFormAttrs(undefined); setShowForm(true)
+    setEditTarget(null); setDirType('ad'); setForm(emptyLdapForm('ad')); setFormClaims([]); setTestResult(null); setFormError(''); setFormAttrs(undefined); setShowForm(true)
   }
   const openEdit = (c: LdapServerConfig) => {
-    setEditTarget(c)
+    const dt = detectDirType(c)
+    setEditTarget(c); setDirType(dt)
     setForm({
       name: c.name, url: c.url, baseDn: c.baseDn, serviceAccountDn: c.serviceAccountDn,
       serviceAccountPassword: '',
-      userObjectClass: c.userObjectClass, additionalUserFilter: c.additionalUserFilter ?? '',
+      userObjectClass: c.userObjectClass, usernameAttribute: c.usernameAttribute,
+      additionalUserFilter: c.additionalUserFilter ?? '',
       claimMappings: undefined,
     })
     setFormClaims(parseClaimMappings(c.claimMappings))
@@ -308,6 +326,19 @@ function LdapSection() {
           </div>
           {formError && <div style={{ color: ERR, fontSize: '0.75rem', marginBottom: '1rem', padding: '0.5rem 0.75rem', border: '1px solid rgba(255,68,68,0.3)' }}>[ERR] {formError}</div>}
 
+          <Field label="Directory Type">
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              {(['ad', 'openldap', 'other'] as const).map(dt => (
+                <button key={dt} onClick={() => applyDirType(dt)} style={{
+                  ...btnSecondary, padding: '0.35rem 0.8rem', fontSize: '0.65rem',
+                  ...(dirType === dt ? { borderColor: C, color: C, background: 'var(--accent-soft)' } : {}),
+                }}>
+                  {dt === 'ad' ? 'Active Directory' : dt === 'openldap' ? 'OpenLDAP' : 'Other'}
+                </button>
+              ))}
+            </div>
+          </Field>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 1rem' }}>
             <Field label="Name"><input style={inputStyle} value={form.name} onChange={f('name')} placeholder="Production AD" /></Field>
             <Field label="URL"><input style={inputStyle} value={form.url} onChange={f('url')} placeholder="ldaps://ldap.ao.az:636" /></Field>
@@ -315,6 +346,10 @@ function LdapSection() {
             <Field label="Service Account DN"><input style={inputStyle} value={form.serviceAccountDn} onChange={f('serviceAccountDn')} placeholder="CN=idp-svc,OU=Service,DC=ao,DC=az" /></Field>
             <Field label={isEdit ? 'Service Account Password (blank = keep)' : 'Service Account Password'}>
               <input style={inputStyle} type="password" value={form.serviceAccountPassword} onChange={f('serviceAccountPassword')} autoComplete="new-password" />
+            </Field>
+            <Field label="Username Attribute">
+              <input style={inputStyle} value={form.usernameAttribute ?? ''} onChange={f('usernameAttribute')}
+                placeholder={dirType === 'openldap' ? 'uid' : 'sAMAccountName'} />
             </Field>
             <Field label="User Object Class"><input style={inputStyle} value={form.userObjectClass} onChange={f('userObjectClass')} placeholder="user" /></Field>
             <Field label="Additional Filter (optional)"><input style={inputStyle} value={form.additionalUserFilter ?? ''} onChange={f('additionalUserFilter')} placeholder="(department=IT)" /></Field>
@@ -478,14 +513,16 @@ interface LoginSettings {
 
 function LdapAttributeRow({ config }: { config: LdapServerConfig }) {
   const qc = useQueryClient()
-  const [usernameAttr, setUsernameAttr] = useState(config.usernameAttribute ?? 'sAMAccountName')
+  const defaultUsername = detectDirType(config) === 'openldap' ? 'uid' : 'sAMAccountName'
+  const [usernameAttr, setUsernameAttr] = useState(config.usernameAttribute ?? defaultUsername)
   const [emailAttr, setEmailAttr] = useState(config.emailAttribute ?? 'mail')
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
-    setUsernameAttr(config.usernameAttribute ?? 'sAMAccountName')
+    const def = detectDirType(config) === 'openldap' ? 'uid' : 'sAMAccountName'
+    setUsernameAttr(config.usernameAttribute ?? def)
     setEmailAttr(config.emailAttribute ?? 'mail')
-  }, [config.usernameAttribute, config.emailAttribute])
+  }, [config.usernameAttribute, config.emailAttribute, config.userObjectClass])
 
   const saveMut = useMutation({
     mutationFn: () => settingsApi.ldap.updateLoginAttributes(config.id, { usernameAttribute: usernameAttr, emailAttribute: emailAttr }),
@@ -1562,6 +1599,7 @@ function LoginBrandingSection() {
         {/* RIGHT — Live preview */}
         <div style={{
           background: form.bgColor || '#0a0c10', color: form.textColor || '#e7ebf0',
+          fontFamily: form.fontFamily ? `'${form.fontFamily}', sans-serif` : 'inherit',
           border: `1px solid var(--border)`, borderRadius: 5,
           padding: '2rem 1.5rem',
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',

@@ -24,6 +24,7 @@ export interface LdapConfigRequest {
   serviceAccountDn: string
   serviceAccountPassword?: string
   userObjectClass: string
+  usernameAttribute?: string
   additionalUserFilter?: string
   claimMappings?: string
 }

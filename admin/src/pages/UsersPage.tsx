@@ -243,6 +243,8 @@ function ServerStatusBadge({ serverId, serverName }: { serverId: string; serverN
   )
 }
 
+const LDAP_PAGE_SIZE = 50
+
 function DirectoryTab({ apps }: { apps: Application[] }) {
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
@@ -250,11 +252,14 @@ function DirectoryTab({ apps }: { apps: Application[] }) {
   const [filterActivated, setFilterActivated] = useState<'all' | 'activated' | 'not_activated'>('all')
   const [filterServer, setFilterServer] = useState<string>('all')
   const [filterOu, setFilterOu] = useState<string>('all')
+  const [page, setPage] = useState(0)
 
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 400)
+    const t = setTimeout(() => { setDebouncedSearch(search); setPage(0) }, 400)
     return () => clearTimeout(t)
   }, [search])
+
+  useEffect(() => { setPage(0) }, [filterActivated, filterServer, filterOu])
 
   const { data: ldapServers = [] } = useQuery({
     queryKey: ['ldap-configs'],
@@ -291,6 +296,10 @@ function DirectoryTab({ apps }: { apps: Application[] }) {
     if (filterOu !== 'all' && u.ou !== filterOu) return false
     return true
   })
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / LDAP_PAGE_SIZE))
+  const safePage = Math.min(page, totalPages - 1)
+  const paginated = filtered.slice(safePage * LDAP_PAGE_SIZE, (safePage + 1) * LDAP_PAGE_SIZE)
 
   const total = allUsers.length
   const activatedCount = allUsers.filter(u => u.is_activated).length
@@ -480,33 +489,73 @@ function DirectoryTab({ apps }: { apps: Application[] }) {
               </button>
             </div>
           ) : (() => {
-            const groups = new Map<string, typeof filtered>()
-            for (const u of filtered) {
+            const groups = new Map<string, typeof paginated>()
+            for (const u of paginated) {
               const key = u.ldap_server_name ?? 'Unknown Server'
               const grp = groups.get(key) ?? []
               grp.push(u)
               groups.set(key, grp)
             }
-            return Array.from(groups.entries()).map(([serverName, users]) => (
-              <div key={serverName}>
-                <div style={{
-                  padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8,
-                  background: C.accentSoft, borderBottom: `1px solid ${C.borderFaint}`,
-                }}>
-                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke={C.green} strokeWidth="1.5">
-                    <circle cx="10" cy="10" r="7.5"/><ellipse cx="10" cy="10" rx="3.5" ry="7.5"/>
-                    <line x1="2.5" y1="10" x2="17.5" y2="10"/>
-                  </svg>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: C.green, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                    {serverName}
-                  </span>
-                  <span style={{ fontSize: '0.72rem', color: C.textMuted, fontWeight: 400 }}>
-                    {users.length} user{users.length !== 1 ? 's' : ''}
-                  </span>
-                </div>
-                {users.map(user => <LdapUserRow key={user.ldap_username} user={user} apps={apps} />)}
-              </div>
-            ))
+            return (
+              <>
+                {Array.from(groups.entries()).map(([serverName, users]) => (
+                  <div key={serverName}>
+                    <div style={{
+                      padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8,
+                      background: C.accentSoft, borderBottom: `1px solid ${C.borderFaint}`,
+                    }}>
+                      <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke={C.green} strokeWidth="1.5">
+                        <circle cx="10" cy="10" r="7.5"/><ellipse cx="10" cy="10" rx="3.5" ry="7.5"/>
+                        <line x1="2.5" y1="10" x2="17.5" y2="10"/>
+                      </svg>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 700, color: C.green, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                        {serverName}
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: C.textMuted, fontWeight: 400 }}>
+                        {users.length} user{users.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    {users.map(user => <LdapUserRow key={user.ldap_username} user={user} apps={apps} />)}
+                  </div>
+                ))}
+                {totalPages > 1 && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '10px 16px', borderTop: `1px solid ${C.borderFaint}`,
+                    background: C.surface2,
+                  }}>
+                    <span style={{ fontSize: '0.72rem', color: C.textMuted }}>
+                      {safePage * LDAP_PAGE_SIZE + 1}–{Math.min((safePage + 1) * LDAP_PAGE_SIZE, filtered.length)} of {filtered.length}
+                    </span>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        onClick={() => setPage(p => Math.max(0, p - 1))}
+                        disabled={safePage === 0}
+                        style={{
+                          padding: '4px 12px', borderRadius: 6, border: `1px solid ${C.border}`,
+                          background: 'none', color: safePage === 0 ? C.textMuted : C.textDim,
+                          fontSize: '0.72rem', fontFamily: SANS, cursor: safePage === 0 ? 'default' : 'pointer',
+                        }}>
+                        ← Prev
+                      </button>
+                      <span style={{ padding: '4px 8px', fontSize: '0.72rem', color: C.textDim }}>
+                        {safePage + 1} / {totalPages}
+                      </span>
+                      <button
+                        onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                        disabled={safePage >= totalPages - 1}
+                        style={{
+                          padding: '4px 12px', borderRadius: 6, border: `1px solid ${C.border}`,
+                          background: 'none', color: safePage >= totalPages - 1 ? C.textMuted : C.textDim,
+                          fontSize: '0.72rem', fontFamily: SANS, cursor: safePage >= totalPages - 1 ? 'default' : 'pointer',
+                        }}>
+                        Next →
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )
           })()}
         </div>
       )}

@@ -9,6 +9,7 @@ public record LdapConfigRequest(
         @NotBlank String serviceAccountDn,
         String serviceAccountPassword,
         @NotBlank String userObjectClass,
+        String usernameAttribute,
         String additionalUserFilter,
         String claimMappings,
         Integer priority

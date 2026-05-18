@@ -112,8 +112,8 @@ public class LdapConfigService {
         LdapConfigRequest req = new LdapConfigRequest(
                 config.getName(), config.getUrl(), config.getBaseDn(),
                 config.getServiceAccountDn(), config.getServiceAccountPassword(),
-                config.getUserObjectClass(), config.getAdditionalUserFilter(),
-                config.getClaimMappings(), config.getPriority()
+                config.getUserObjectClass(), null,
+                config.getAdditionalUserFilter(), config.getClaimMappings(), config.getPriority()
         );
         return testConnection(req);
     }
@@ -154,6 +154,9 @@ public class LdapConfigService {
             config.setServiceAccountPassword(request.serviceAccountPassword());
         }
         config.setUserObjectClass(request.userObjectClass());
+        if (request.usernameAttribute() != null && !request.usernameAttribute().isBlank()) {
+            config.setUsernameAttribute(request.usernameAttribute());
+        }
         config.setAdditionalUserFilter(request.additionalUserFilter());
         if (request.claimMappings() != null) {
             config.setClaimMappings(request.claimMappings());

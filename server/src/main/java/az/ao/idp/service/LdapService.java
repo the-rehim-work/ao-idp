@@ -380,6 +380,10 @@ public class LdapService {
     }
 
     public List<LdapUserResponse> listUsersFromAllActive(String search, String attr) {
+        return listUsersFromAllActive(search, attr, 500);
+    }
+
+    public List<LdapUserResponse> listUsersFromAllActive(String search, String attr, int limit) {
         List<LdapServerConfig> active = ldapConfigService.getActiveAll();
         if (active.isEmpty()) throw new IllegalStateException("No active LDAP server configured");
 
@@ -387,7 +391,7 @@ public class LdapService {
         Set<String> seenUsernames = new HashSet<>();
         for (LdapServerConfig config : active) {
             try {
-                List<LdapUserResponse> users = listUsersForConfig(config, null, search, attr);
+                List<LdapUserResponse> users = listUsersForConfig(config, null, search, attr, limit);
                 for (LdapUserResponse u : users) {
                     if (seenUsernames.add(u.ldapUsername())) {
                         all.add(new LdapUserResponse(u.ldapUsername(), u.email(), u.displayName(),
@@ -402,12 +406,16 @@ public class LdapService {
     }
 
     private List<LdapUserResponse> listUsersForConfig(LdapServerConfig config, String baseDn, String search) {
-        return listUsersForConfig(config, baseDn, search, null);
+        return listUsersForConfig(config, baseDn, search, null, 500);
+    }
+
+    private List<LdapUserResponse> listUsersForConfig(LdapServerConfig config, String baseDn, String search, String attr) {
+        return listUsersForConfig(config, baseDn, search, attr, 500);
     }
 
     private static final Set<String> BASIC_SEARCH_ATTRS = Set.of("name", "username", "email", "title", "all");
 
-    private List<LdapUserResponse> listUsersForConfig(LdapServerConfig config, String baseDn, String search, String attr) {
+    private List<LdapUserResponse> listUsersForConfig(LdapServerConfig config, String baseDn, String search, String attr, int limit) {
         LdapProps props = propsFrom(config);
         LdapTemplate template = forConfig(config).template();
         String searchBase = (baseDn != null && !baseDn.isBlank()) ? toRelativeDn(baseDn, props.baseDn()) : "";
@@ -492,11 +500,20 @@ public class LdapService {
                     extractOu(dco.getNameInNamespace()), groups, null);
         };
 
+        SearchControls sc = new SearchControls();
+        sc.setSearchScope(SearchControls.SUBTREE_SCOPE);
+        if (limit > 0) sc.setCountLimit(limit);
+
         try {
-            return template.search(searchBase, filter.encode(), mapper)
+            return template.search(searchBase, filter.encode(), sc, mapper)
                     .stream().filter(u -> u != null).toList();
         } catch (Exception e) {
-            log.error("LDAP user search failed for config={} baseDn={}: {}", config.getName(), baseDn, e.getMessage());
+            String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            if (msg.toLowerCase().contains("sizelimit") || msg.toLowerCase().contains("size limit")) {
+                log.debug("LDAP size limit ({}) reached for config={}", limit, config.getName());
+            } else {
+                log.error("LDAP user search failed for config={} baseDn={}: {}", config.getName(), baseDn, msg);
+            }
             return Collections.emptyList();
         }
     }

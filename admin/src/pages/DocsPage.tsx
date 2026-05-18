@@ -144,6 +144,15 @@ docker compose up -d`}</Block>
     content: (
       <div>
         <P>Go to <strong style={{ color: CD }}>Settings → LDAP Server</strong> to configure one or more directory servers.</P>
+
+        <H3>Directory type</H3>
+        <P>Pick the directory type at the top of the form — it auto-fills the correct defaults so you don't have to look them up:</P>
+        <Ul items={[
+          <><strong style={{ color: CD }}>Active Directory</strong> — sets <Code>userObjectClass=user</Code>, <Code>usernameAttribute=sAMAccountName</Code></>,
+          <><strong style={{ color: CD }}>OpenLDAP</strong> — sets <Code>userObjectClass=inetOrgPerson</Code>, <Code>usernameAttribute=uid</Code></>,
+          <><strong style={{ color: CD }}>Other</strong> — leaves all fields blank for manual entry</>,
+        ]} />
+
         <H3>Required fields</H3>
         <Ul items={[
           <><Code>URL</Code> — <Code>ldap://host:389</Code> or <Code>ldaps://host:636</Code> (TLS recommended)</>,
@@ -152,17 +161,22 @@ docker compose up -d`}</Block>
           <><Code>Service Account Password</Code> — stored encrypted at rest</>,
           <><Code>User Object Class</Code> — e.g. <Code>user</Code> (AD) or <Code>inetOrgPerson</Code> (OpenLDAP)</>,
         ]} />
+
         <H3>Optional fields</H3>
         <Ul items={[
-          <><Code>Additional Filter</Code> — extra LDAP filter applied to all user searches, e.g. <Code>(department=Engineering)</Code></>,
-          <><Code>Username Attribute</Code> — default <Code>sAMAccountName</Code>; use <Code>uid</Code> for OpenLDAP</>,
+          <><Code>Username Attribute</Code> — the LDAP attribute that maps to the IDP username. Auto-filled by directory type (<Code>sAMAccountName</Code> for AD, <Code>uid</Code> for OpenLDAP). Override here if your schema differs.</>,
           <><Code>Email Attribute</Code> — default <Code>mail</Code></>,
+          <><Code>Additional Filter</Code> — extra LDAP filter applied to all user searches, e.g. <Code>(department=Engineering)</Code></>,
         ]} />
+
         <H3>Testing the connection</H3>
         <P>Use the <strong style={{ color: CD }}>Test Connection</strong> button inside the form. A successful test also loads the available LDAP attributes, which you can immediately add as JWT claim mappings.</P>
+
         <H3>Multiple servers</H3>
         <P>You can register multiple servers. At login, AO IDP tries each active server in order; the first successful authentication wins. This is useful for migrations or multi-domain environments.</P>
+
         <Note type="tip">For AD environments, use <Code>ldaps://</Code> on port 636 with a trusted certificate. Self-signed certs require adding the CA to the JVM truststore.</Note>
+        <Note type="warn">Setting the wrong <Code>Username Attribute</Code> is the most common misconfiguration. If users can't log in, check that the attribute matches your directory type: <Code>sAMAccountName</Code> for AD, <Code>uid</Code> for OpenLDAP.</Note>
       </div>
     ),
   },
@@ -268,7 +282,8 @@ Sample value:   +994501234567`}</Block>
     title: 'Login Branding',
     content: (
       <div>
-        <P>Go to <strong style={{ color: CD }}>Settings → Login Branding</strong> to customize the OAuth2 login page that all users see.</P>
+        <P>Go to <strong style={{ color: CD }}>Settings → Login Branding</strong> to customize the OAuth2 login page that all users see. Changes take effect on the next page load — no restart required.</P>
+
         <H3>Basic settings</H3>
         <Ul items={[
           'Logo URL — shown above the login card (leave blank for the default lock icon)',
@@ -276,16 +291,44 @@ Sample value:   +994501234567`}</Block>
           'Footer text — small text at the bottom of the page',
           'Primary / Background / Text colors — applied via CSS variables',
         ]} />
+
+        <H3>Font</H3>
+        <P>Choose from 14 fonts bundled offline — no external CDN is required. The selected font is applied to the entire login page via <Code>--font</Code> CSS variable.</P>
+        <Ul items={[
+          'Sans-serif: Inter, Outfit, DM Sans, Nunito, Poppins, Plus Jakarta Sans, Lato, Raleway, Space Grotesk, Urbanist',
+          'Serif: Merriweather, Playfair Display, Roboto Slab',
+          'Monospace: Source Code Pro',
+        ]} />
+        <Note type="tip">The live preview panel on the right reflects the font change immediately, before you save.</Note>
+
+        <H3>Preset themes</H3>
+        <P>The <strong style={{ color: CD }}>Apply Theme</strong> dropdown offers 14 ready-made designs. Selecting one overwrites the Custom CSS field with a complete theme stylesheet — you can then further edit it.</P>
+        <Block>{`Default Cyber Teal  — dark, teal accent (default)
+Orange Light        — warm orange on white
+Dark Glassmorphism  — blurred glass card on dark
+Corporate Blue      — professional blue on white
+Midnight Purple     — deep purple glass
+Forest Green        — dark green with emerald accents
+Rose Pink           — pink gradient on soft white
+Minimal White       — ultra-clean, no decoration
+Slate Dark          — neutral dark slate
+Ocean Blue          — deep ocean blue
+Neon Matrix         — high-contrast terminal green
+Warm Sand           — warm beige tones`}</Block>
+
         <H3>Continue As panel</H3>
-        <P>When enabled, returning users will see a "Continue as [Name]" card on the login page (like Google). This reads a profile cookie set after the previous login. Toggle it off if you want a clean login form every time.</P>
+        <P>When enabled, returning users will see a "Continue as [Name]" card on the login page (like Google). This reads the <Code>ao-user</Code> profile cookie set after the previous login. Toggle it off if you want a clean login form every time.</P>
+
         <H3>Custom CSS</H3>
         <P>The Custom CSS field is injected at the end of the <Code>&lt;style&gt;</Code> tag on the login page, after all default styles. You can override any class.</P>
         <Ul items={[
-          <>Use the <strong style={{ color: CD }}>orange theme</strong> or <strong style={{ color: CD }}>dark theme</strong> template buttons to load a complete ready-made design</>,
-          'All standard classes are available: .card, .btn, .field input, .hd-dot, .app-banner, etc.',
+          'All standard classes: .card, .btn, .field input, .hd-dot, .app-banner, .continue-panel, .continue-avatar',
+          'Use CSS variables: --c (primary color), --bg (background), --font (font family)',
           'Changes are effective on the next page load (no restart required)',
         ]} />
-        <Note type="tip">After pasting CSS, click "Preview Login Page" to open <Code>/login</Code> in a new tab and see the result live.</Note>
+
+        <H3>Live preview</H3>
+        <P>The right-hand panel updates in real time as you change colors, font, welcome text, or the Continue As toggle. Use <strong style={{ color: CD }}>Preview Login Page</strong> to open <Code>/login</Code> in a new tab for the full experience.</P>
       </div>
     ),
   },
@@ -328,6 +371,176 @@ Fill in: username, display name, initial password, role
 For app_admin: select which sections to grant`}</Block>
         <H3>Password policy</H3>
         <P>Admin passwords are bcrypt-hashed. Admins can change their own password via the profile menu (top right). <Code>idp_admin</Code> can reset any admin's password.</P>
+      </div>
+    ),
+  },
+  {
+    id: 'idp-database',
+    title: 'Database Schema',
+    content: (
+      <div>
+        <P>AO IDP uses PostgreSQL 16. The schema is managed by Flyway and applied automatically on startup. All tables are in the default <Code>public</Code> schema.</P>
+
+        <H3>V1 — Core Tables</H3>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: CD, marginBottom: '0.3rem' }}>users</div>
+          <P>Activated IDP accounts. Each row corresponds to one LDAP user who has been granted access.</P>
+          <Block>{`id               UUID  PRIMARY KEY
+ldap_username    TEXT  UNIQUE NOT NULL
+email            TEXT
+display_name     TEXT
+active           BOOL  DEFAULT true
+created_at       TIMESTAMPTZ
+updated_at       TIMESTAMPTZ
+created_by       TEXT
+deactivated_by   TEXT`}</Block>
+        </div>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: CD, marginBottom: '0.3rem' }}>sessions</div>
+          <P>Active SSO sessions. The <Code>ao-session</Code> cookie value is the hashed token used to look up a row here.</P>
+          <Block>{`id               UUID  PRIMARY KEY
+user_id          UUID  → users(id)
+session_token    TEXT  UNIQUE NOT NULL  (SHA-256 of cookie value)
+created_at       TIMESTAMPTZ
+expires_at       TIMESTAMPTZ
+ip_address       TEXT
+user_agent       TEXT`}</Block>
+        </div>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: CD, marginBottom: '0.3rem' }}>refresh_tokens</div>
+          <P>OAuth2 refresh tokens. Rotated on each use. Bound to a user + client_id pair.</P>
+          <Block>{`id               UUID  PRIMARY KEY
+token_hash       TEXT  UNIQUE NOT NULL  (SHA-256)
+user_id          UUID  → users(id)
+client_id        TEXT
+scope            TEXT
+issued_at        TIMESTAMPTZ
+expires_at       TIMESTAMPTZ
+revoked          BOOL  DEFAULT false`}</Block>
+        </div>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: CD, marginBottom: '0.3rem' }}>auth_codes</div>
+          <P>Short-lived authorization codes produced by the <Code>/oauth2/authorize</Code> endpoint. Consumed once at the token endpoint and then deleted.</P>
+          <Block>{`id               UUID  PRIMARY KEY
+code             TEXT  UNIQUE NOT NULL
+user_id          UUID  → users(id)
+client_id        TEXT
+redirect_uri     TEXT
+scope            TEXT
+code_challenge   TEXT
+challenge_method TEXT
+expires_at       TIMESTAMPTZ
+used             BOOL  DEFAULT false`}</Block>
+        </div>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: CD, marginBottom: '0.3rem' }}>applications</div>
+          <P>Registered OAuth2 clients (apps that delegate authentication to AO IDP).</P>
+          <Block>{`id                        UUID  PRIMARY KEY
+name                      TEXT
+client_id                 TEXT  UNIQUE NOT NULL
+client_secret_hash        TEXT
+redirect_uris             TEXT
+post_logout_redirect_uris TEXT  (added in V5)
+allowed_origins           TEXT
+active                    BOOL  DEFAULT true
+require_pkce              BOOL  DEFAULT true
+created_at                TIMESTAMPTZ
+updated_at                TIMESTAMPTZ`}</Block>
+        </div>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: CD, marginBottom: '0.3rem' }}>audit_logs</div>
+          <P>Immutable event log. Rows are never updated, only inserted and eventually pruned by the retention scheduler.</P>
+          <Block>{`id               UUID  PRIMARY KEY
+event_type       TEXT  (LOGIN_SUCCESS, LOGIN_FAIL, USER_ACTIVATED, …)
+actor            TEXT  (username or "system")
+target           TEXT  (affected resource — user, app, config)
+detail           TEXT  (JSON or free-text detail)
+ip_address       TEXT
+created_at       TIMESTAMPTZ`}</Block>
+        </div>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: CD, marginBottom: '0.3rem' }}>login_attempts</div>
+          <P>Tracks failed login attempts per username + IP for brute-force detection. Rows expire naturally once past the lockout window.</P>
+          <Block>{`id               UUID  PRIMARY KEY
+username         TEXT
+ip_address       TEXT
+attempted_at     TIMESTAMPTZ
+success          BOOL`}</Block>
+        </div>
+
+        <H3>V2 — Settings</H3>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: CD, marginBottom: '0.3rem' }}>idp_settings</div>
+          <P>Key-value store for all configurable settings: login branding, security policy, token expiry, log retention. One row per setting key.</P>
+          <Block>{`id               UUID  PRIMARY KEY
+setting_key      TEXT  UNIQUE NOT NULL
+setting_value    TEXT
+updated_at       TIMESTAMPTZ
+updated_by       TEXT`}</Block>
+          <P>Known keys include <Code>login.branding.*</Code>, <Code>security.*</Code>, <Code>tokens.*</Code>, <Code>audit.retention_days</Code>, <Code>ldap.*</Code>.</P>
+        </div>
+
+        <H3>V3 — Admin Users</H3>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: CD, marginBottom: '0.3rem' }}>admin_users</div>
+          <P>Admin panel accounts. Separate from LDAP end-users — admins have a local bcrypt password.</P>
+          <Block>{`id               UUID  PRIMARY KEY
+username         TEXT  UNIQUE NOT NULL
+display_name     TEXT
+password_hash    TEXT  (bcrypt)
+role             TEXT  (idp_admin | app_admin)
+active           BOOL  DEFAULT true
+created_at       TIMESTAMPTZ
+last_login_at    TIMESTAMPTZ`}</Block>
+        </div>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: CD, marginBottom: '0.3rem' }}>admin_roles</div>
+          <P>Role definitions. Currently two built-in roles: <Code>idp_admin</Code> and <Code>app_admin</Code>.</P>
+          <Block>{`id               UUID  PRIMARY KEY
+name             TEXT  UNIQUE NOT NULL
+description      TEXT`}</Block>
+        </div>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: CD, marginBottom: '0.3rem' }}>admin_permissions</div>
+          <P>Scoped section permissions assigned to <Code>app_admin</Code> accounts by an <Code>idp_admin</Code>.</P>
+          <Block>{`id               UUID  PRIMARY KEY
+admin_id         UUID  → admin_users(id)
+permission       TEXT  (users | apps | settings | audit | docs)`}</Block>
+        </div>
+
+        <H3>V4 — LDAP Email Attribute</H3>
+        <P>Adds the <Code>email_attribute</Code> column to the LDAP server config table (stored inside <Code>idp_settings</Code> as a JSON blob or separate key depending on the config service implementation).</P>
+
+        <H3>V5 — Post-Logout Redirect URIs</H3>
+        <P>Adds the <Code>post_logout_redirect_uris</Code> column to <Code>applications</Code>, enabling RP-initiated logout with a validated redirect back to the app.</P>
+
+        <H3>V6 — Remember Tokens</H3>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: CD, marginBottom: '0.3rem' }}>remember_tokens</div>
+          <P>Powers the passwordless "Continue As" feature. The raw 48-byte token lives only in the browser's <Code>ao-user</Code> cookie; the server stores only its SHA-256 hash.</P>
+          <Block>{`id               UUID  PRIMARY KEY
+token_hash       TEXT  UNIQUE NOT NULL  (SHA-256 of 48-byte random token)
+user_id          UUID  → users(id)
+ldap_username    TEXT
+issued_at        TIMESTAMPTZ
+expires_at       TIMESTAMPTZ  (30-day TTL)
+revoked          BOOL  DEFAULT false`}</Block>
+        </div>
+
+        <Note type="info">Tokens are rotated on each use: one successful <Code>POST /oauth2/continue-as</Code> invalidates the current token and immediately issues a replacement. The rotation is atomic — a failed exchange leaves the original token intact.</Note>
+        <Note type="tip">A scheduled job runs daily to delete expired rows from <Code>remember_tokens</Code>, <Code>auth_codes</Code>, <Code>sessions</Code>, and <Code>login_attempts</Code>. Audit log pruning follows the retention window set in Settings.</Note>
       </div>
     ),
   },
