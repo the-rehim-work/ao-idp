@@ -18,6 +18,10 @@ public class SecureRandomUtil {
         return generateBase64UrlToken(48);
     }
 
+    public String generateRememberToken() {
+        return generateBase64UrlToken(48);
+    }
+
     public String generateAuthCode() {
         return generateBase64UrlToken(32);
     }

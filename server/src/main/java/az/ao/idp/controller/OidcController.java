@@ -54,6 +54,7 @@ public class OidcController {
     private final ApplicationRepository applicationRepository;
     private final IdpSettingsService idpSettingsService;
     private final LdapConfigService ldapConfigService;
+    private final RememberTokenService rememberTokenService;
 
     public OidcController(
             OidcService oidcService,
@@ -65,7 +66,8 @@ public class OidcController {
             IdpProperties idpProperties,
             ApplicationRepository applicationRepository,
             IdpSettingsService idpSettingsService,
-            LdapConfigService ldapConfigService
+            LdapConfigService ldapConfigService,
+            RememberTokenService rememberTokenService
     ) {
         this.oidcService = oidcService;
         this.sessionService = sessionService;
@@ -77,6 +79,7 @@ public class OidcController {
         this.applicationRepository = applicationRepository;
         this.idpSettingsService = idpSettingsService;
         this.ldapConfigService = ldapConfigService;
+        this.rememberTokenService = rememberTokenService;
     }
 
     @GetMapping("/login")
@@ -275,22 +278,16 @@ public class OidcController {
             response.addCookie(sessionCookie);
 
             String displayName = attrs.displayName() != null ? attrs.displayName() : username;
+
+            // Issue remember token — stored in ao-user cookie for passwordless "continue as"
+            String rememberToken = rememberTokenService.issue(user.getId(), username);
+
             // Build multi-account profile cookie (JSON array, up to 5 accounts)
             List<String[]> profileList = parseProfileList(getUserProfileCookie(request));
             profileList.removeIf(p -> username.equals(p[0]));
-            profileList.add(0, new String[]{username, displayName});
+            profileList.add(0, new String[]{username, displayName, rememberToken});
             if (profileList.size() > 5) profileList = profileList.subList(0, 5);
-            Cookie profileCookie = new Cookie("ao-user", buildProfileCookieValue(profileList));
-            profileCookie.setHttpOnly(false);
-            profileCookie.setSecure(idpProperties.issuer().startsWith("https"));
-            profileCookie.setPath("/");
-            profileCookie.setMaxAge(30 * 24 * 60 * 60);
-            String profileCookieDomain = idpProperties.cookie().domain();
-            if (profileCookieDomain != null && profileCookieDomain.startsWith(".")) {
-                profileCookieDomain = profileCookieDomain.substring(1);
-            }
-            if (profileCookieDomain != null) profileCookie.setDomain(profileCookieDomain);
-            response.addCookie(profileCookie);
+            response.addCookie(buildProfileCookie(profileList));
 
             if (clientId == null || clientId.isBlank() || redirectUri == null || redirectUri.isBlank()) {
                 return "redirect:/admin/";
@@ -303,6 +300,86 @@ public class OidcController {
             return buildLoginRedirect(clientId, redirectUri, state, scope, codeChallenge, codeChallengeMethod,
                     e.getMessage());
         }
+    }
+
+    /**
+     * Passwordless "continue as" — validates a stored remember token and creates a new session
+     * without requiring a password. The remember token is rotated on each use (like a refresh token).
+     * Called by the login page when the user clicks a stored account that has a valid remember token.
+     */
+    @PostMapping("/oauth2/continue-as")
+    public String continueAs(
+            @RequestParam("remember_token") String rememberToken,
+            @RequestParam(value = "client_id", required = false) String clientId,
+            @RequestParam(value = "redirect_uri", required = false) String redirectUri,
+            @RequestParam(value = "state", required = false) String state,
+            @RequestParam(value = "scope", defaultValue = "openid profile roles") String scope,
+            @RequestParam(value = "code_challenge", required = false) String codeChallenge,
+            @RequestParam(value = "code_challenge_method", required = false) String codeChallengeMethod,
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) throws IOException {
+        String ipAddress = getClientIp(request);
+
+        RememberTokenService.TokenData tokenData = rememberTokenService.validate(rememberToken);
+        if (tokenData == null) {
+            log.info("Continue-as failed: invalid or expired remember token ip={}", ipAddress);
+            return buildLoginRedirect(clientId, redirectUri, state, scope, codeChallenge, codeChallengeMethod,
+                    "Sessiya müddəti bitib. Yenidən daxil olun.");
+        }
+
+        UUID userId = tokenData.userId();
+        String username = tokenData.ldapUsername();
+
+        User user = userService.getById(userId);
+        if (!user.isActive()) {
+            log.info("Continue-as blocked: username={} reason=inactive", username);
+            return buildLoginRedirect(clientId, redirectUri, state, scope, codeChallenge, codeChallengeMethod,
+                    "Hesab aktiv deyil. Administratorla əlaqə saxlayın.");
+        }
+
+        if (clientId != null && redirectUri != null) {
+            Application loginApp = applicationRepository.findByClientId(clientId).orElse(null);
+            if (loginApp != null && !userService.hasAppAccess(user.getId(), loginApp.getId())) {
+                log.info("Continue-as blocked: username={} app={} reason=no_app_access", username, clientId);
+                return buildLoginRedirect(clientId, redirectUri, state, scope, codeChallenge, codeChallengeMethod,
+                        "Bu tətbiqə girişiniz yoxdur. Administratorla əlaqə saxlayın.");
+            }
+        }
+
+        // Rotate: invalidate used token, issue a new one
+        rememberTokenService.invalidateByHash(tokenData.tokenHash());
+        String newToken = rememberTokenService.issue(userId, username);
+
+        // Update ao-user cookie with the new remember token
+        List<String[]> profileList = parseProfileList(getUserProfileCookie(request));
+        profileList.removeIf(p -> username.equals(p[0]));
+        String displayName = user.getDisplayName() != null ? user.getDisplayName() : username;
+        profileList.add(0, new String[]{username, displayName, newToken});
+        if (profileList.size() > 5) profileList = profileList.subList(0, 5);
+        response.addCookie(buildProfileCookie(profileList));
+
+        // Create SSO session
+        String sessionId = sessionService.createSession(userId, username);
+        response.addCookie(buildSessionCookie(sessionId));
+        userService.updateLastLogin(userId);
+
+        String loginAppName = clientId != null
+                ? applicationRepository.findByClientId(clientId).map(Application::getName).orElse(clientId)
+                : "direct";
+        log.info("Continue-as success: username={} ip={} app={}", username, ipAddress, loginAppName);
+        auditService.log("user", userId.toString(), "login", "application", clientId, null, ipAddress,
+                request.getHeader("User-Agent"),
+                Map.of("ldap_username", username, "display_name", displayName,
+                        "method", "remember_token", "app_name", loginAppName,
+                        "scope", scope != null ? scope : "openid profile"));
+
+        if (clientId == null || clientId.isBlank() || redirectUri == null || redirectUri.isBlank()) {
+            return "redirect:/admin/";
+        }
+
+        String code = oidcService.generateAndStoreAuthCode(userId, clientId, redirectUri, scope, codeChallenge);
+        return "redirect:" + redirectUri + "?code=" + code + "&state=" + state;
     }
 
     private String buildLoginRedirect(String clientId, String redirectUri, String state, String scope,
@@ -379,7 +456,7 @@ public class OidcController {
 
     @PostMapping(value = "/oauth2/logout")
     @ResponseBody
-    @Operation(summary = "Logout / end session (POST)", description = "Invalidates the SSO session and refresh token. Clears the session cookie.")
+    @Operation(summary = "Logout / end session (POST)", description = "Invalidates the SSO session and refresh token. Clears the session cookie. Remember tokens are preserved (Google-style: user can still click 'continue as' next visit).")
     public ResponseEntity<Void> logout(
             @RequestParam(value = "refresh_token", required = false) String refreshToken,
             @RequestParam(value = "client_id", required = false) String clientId,
@@ -445,6 +522,20 @@ public class OidcController {
         return cookie;
     }
 
+    private Cookie buildProfileCookie(List<String[]> profiles) {
+        Cookie profileCookie = new Cookie("ao-user", buildProfileCookieValue(profiles));
+        profileCookie.setHttpOnly(false);
+        profileCookie.setSecure(idpProperties.issuer().startsWith("https"));
+        profileCookie.setPath("/");
+        profileCookie.setMaxAge(30 * 24 * 60 * 60);
+        String domain = idpProperties.cookie().domain();
+        if (domain != null && domain.startsWith(".")) {
+            domain = domain.substring(1);
+        }
+        if (domain != null) profileCookie.setDomain(domain);
+        return profileCookie;
+    }
+
     private String getSessionCookie(HttpServletRequest request) {
         Cookie[] cookies = request.getCookies();
         if (cookies == null) return null;
@@ -464,16 +555,33 @@ public class OidcController {
         return null;
     }
 
-    // Parses the ao-user cookie into a list of [username, displayName] pairs.
-    // Handles both old single-object format {"u":"x","n":"y"} and new array format.
+    /**
+     * Parses the ao-user cookie into a list of [username, displayName, rememberToken?] triples.
+     * rememberToken may be null for entries that don't have one (old format or accounts
+     * that were not logged in during this session).
+     */
     private List<String[]> parseProfileList(String cookieValue) {
         var result = new ArrayList<String[]>();
         if (cookieValue == null || cookieValue.isBlank()) return result;
         try {
             String decoded = new String(Base64.getUrlDecoder().decode(cookieValue), StandardCharsets.UTF_8).trim();
-            Pattern p = Pattern.compile("\\{\"u\":\"((?:[^\"\\\\]|\\\\.)*)\",\"n\":\"((?:[^\"\\\\]|\\\\.)*)\"\\}");
-            Matcher m = p.matcher(decoded);
-            while (m.find()) result.add(new String[]{unescapeJson(m.group(1)), unescapeJson(m.group(2))});
+            // Match each JSON object in the array
+            Pattern objPattern  = Pattern.compile("\\{[^}]+\\}");
+            Pattern uPattern    = Pattern.compile("\"u\":\"((?:[^\"\\\\]|\\\\.)*)\"");
+            Pattern nPattern    = Pattern.compile("\"n\":\"((?:[^\"\\\\]|\\\\.)*)\"");
+            Pattern rtPattern   = Pattern.compile("\"rt\":\"([A-Za-z0-9_-]+)\"");
+            Matcher objMatcher  = objPattern.matcher(decoded);
+            while (objMatcher.find()) {
+                String obj = objMatcher.group();
+                Matcher uM = uPattern.matcher(obj);
+                Matcher nM = nPattern.matcher(obj);
+                if (!uM.find() || !nM.find()) continue;
+                String u  = unescapeJson(uM.group(1));
+                String n  = unescapeJson(nM.group(1));
+                Matcher rtM = rtPattern.matcher(obj);
+                String rt = rtM.find() ? rtM.group(1) : null;
+                result.add(new String[]{u, n, rt});
+            }
         } catch (Exception ignored) {}
         return result;
     }
@@ -482,8 +590,15 @@ public class OidcController {
         var sb = new StringBuilder("[");
         for (int i = 0; i < profiles.size(); i++) {
             if (i > 0) sb.append(",");
-            sb.append("{\"u\":\"").append(escapeJson(profiles.get(i)[0]))
-              .append("\",\"n\":\"").append(escapeJson(profiles.get(i)[1])).append("\"}");
+            String u  = profiles.get(i)[0];
+            String n  = profiles.get(i)[1];
+            String rt = profiles.get(i).length > 2 ? profiles.get(i)[2] : null;
+            sb.append("{\"u\":\"").append(escapeJson(u))
+              .append("\",\"n\":\"").append(escapeJson(n)).append("\"");
+            if (rt != null && !rt.isBlank()) {
+                sb.append(",\"rt\":\"").append(rt).append("\"");
+            }
+            sb.append("}");
         }
         sb.append("]");
         return Base64.getUrlEncoder().withoutPadding().encodeToString(sb.toString().getBytes(StandardCharsets.UTF_8));

@@ -25,8 +25,9 @@ Nginx (TLS termination)
 ```
 
 **Session model:**
-- End-user SSO session: `ao-session` cookie (HttpOnly, Secure) → Redis key
-- End-user profile hint: `ao-user` cookie (not HttpOnly, 30-day) → stores JSON array of past accounts (multi-account, like Google)
+- End-user SSO session: `ao-session` cookie (HttpOnly, Secure) → PostgreSQL `sessions` table
+- End-user profile hint: `ao-user` cookie (not HttpOnly, 30-day) → base64url-encoded JSON array of past accounts with remember tokens
+- Remember tokens: 48-byte opaque tokens stored as SHA-256 hash in `remember_tokens` table (30-day TTL, rotated on each use)
 - Admin session: JWT Bearer token (8h), stored in React `localStorage` via Zustand
 
 ---
@@ -47,7 +48,8 @@ Nginx (TLS termination)
 | `server/src/main/resources/templates/login.html` | End-user login page (Thymeleaf, self-contained CSS, vanilla JS) |
 | `server/src/main/resources/templates/consent.html` | OAuth2 scope consent page |
 | `server/src/main/resources/application-prod.yml` | Spring config: DB, Redis, JWT settings, cookie config |
-| `server/src/main/resources/db/migration/` | Flyway SQL migrations (V1–V5) |
+| `server/src/main/java/az/ao/idp/service/RememberTokenService.java` | Remember token issue / validate / rotate (passwordless continue-as) |
+| `server/src/main/resources/db/migration/` | Flyway SQL migrations (V1–V6) |
 
 ### Frontend (Admin)
 
@@ -135,23 +137,55 @@ Branding is stored in the `idp_settings` DB table and read at every page render 
 
 ---
 
-## Multi-Account "Continue As" Feature
+## Multi-Account "Continue As" Feature (Passwordless)
 
-When a user logs in, their profile is stored in the `ao-user` cookie (not HttpOnly, 30-day, JS-accessible). The cookie stores a **JSON array** of up to 5 past accounts:
+When a user logs in, their profile and a **remember token** are stored in the `ao-user` cookie (not HttpOnly, 30-day, JS-accessible). The cookie stores a **JSON array** of up to 5 past accounts:
 
 ```json
-[{"u":"jsmith","n":"John Smith"},{"u":"ajones","n":"Alice Jones"}]
+[{"u":"jsmith","n":"John Smith","rt":"BASE64URL_REMEMBER_TOKEN"},
+ {"u":"ajones","n":"Alice Jones","rt":"BASE64URL_REMEMBER_TOKEN"}]
 ```
 
-On the next `/login` visit, the page:
-1. Reads `ao-user` and renders a "Continue as" panel with each stored account
-2. Clicking an account fills the username field (user only needs to enter password)
-3. Clicking **×** on an account removes it from the stored list (client-side cookie update)
-4. Clicking "+ başqa hesabla daxil ol" hides the panel to type a fresh username
+The `rt` field is a 48-byte random token (384-bit entropy). On the server, the SHA-256 hash of the token is stored in the `remember_tokens` DB table with a 30-day TTL. The raw token in the cookie is never stored on the server.
+
+### How it works
+
+1. **First login**: user enters username + password → session created, remember token issued and stored in `ao-user` cookie
+2. **Return visit**: login page reads `ao-user` and renders the Continue-as panel
+3. **Click an account with `rt`**: JS submits `POST /oauth2/continue-as` with the remember token — **no password required**
+4. **Server validates**: token hash found in DB and not expired → creates new session, rotates the token (old invalidated, new issued), updates cookie
+5. **Click an account without `rt`** (old/expired): shows password-only view for that account
+6. **Click ×**: removes account from the cookie client-side (remember token expires server-side naturally after 30 days)
+
+### Token rotation
+
+Every successful `/oauth2/continue-as` call rotates the token: the used token is deleted and a new one issued. This limits the damage from a stolen cookie — each token is single-use for session creation.
+
+### Security properties
+
+- Token entropy: 48 bytes (384 bits) — unguessable even with access to the DB
+- Server stores only the SHA-256 hash — cookie theft doesn't expose the DB value
+- Logout clears the `ao-session` but **not** the remember tokens (Google-style: user can still click "continue as" without a password on the next visit, even after logging out)
+- Brute-force is impossible: 48-byte random token with no rate-limiting needed
+
+### `/oauth2/continue-as` endpoint
+
+```
+POST /oauth2/continue-as
+Content-Type: application/x-www-form-urlencoded
+
+remember_token=RAW_TOKEN
+client_id=YOUR_CLIENT_ID        (optional — if part of OAuth2 flow)
+redirect_uri=https://app/cb     (optional)
+state=RANDOM_STATE              (optional)
+scope=openid%20profile          (optional)
+code_challenge=...              (optional)
+code_challenge_method=S256      (optional)
+```
+
+Response: same as a successful `POST /login` — redirects to `redirect_uri?code=...&state=...` or to `/admin/` if no OAuth2 params.
 
 The `ao-user` cookie is **preserved on logout** — only the `ao-session` cookie is cleared on `/oauth2/logout`. This matches Google-style account switching UX.
-
-**Legacy compatibility**: The old single-object format `{"u":"x","n":"y"}` is automatically handled by both the Java parser (`parseProfileList`) and the JS parser.
 
 ---
 
@@ -186,18 +220,29 @@ GET /oauth2/authorize
   &prompt=login                          ← add this
 ```
 
-After `prompt=login`, the user is taken to the login page where they can pick a stored account (Continue-as) or type new credentials. The existing IDP session is NOT destroyed — only its auto-authorization is bypassed. After re-authentication a fresh session is created alongside the old one (which expires naturally).
+After `prompt=login`, the user is taken to the login page where they can pick a stored account via Continue-as (passwordless, one click) or type new credentials. The existing IDP session is NOT destroyed — only its auto-authorization is bypassed. After re-authentication a fresh session is created alongside the old one (which expires naturally).
+
+**Important**: `prompt=login` bypasses the existing SSO session but does NOT bypass the remember token. The user will still see the Continue-as panel and can click through without a password if they have a valid remember token.
 
 **Recommended logout pattern for client apps:**
 ```
-# Option A — browser redirect logout (preferred, clears IDP cookie)
+# Option A — browser redirect logout (preferred, clears IDP session cookie)
+# User can still use passwordless continue-as after this (remember token survives logout)
 GET /oauth2/logout
   ?client_id=YOUR_CLIENT_ID
   &post_logout_redirect_uri=https://yourapp.example.com/logged-out
 
-# Option B — prompt=login on next authorize call
-# Use when you cannot do a redirect logout (e.g. API-only context)
+# Option B — force fresh password entry on next authorize call
+# Use when the app requires explicit re-authentication (e.g. after inactivity)
+# NOTE: even with prompt=login the user MAY click "continue as" and skip the password.
+# If you truly need a password re-entry, show your own re-auth UI before the OAuth2 flow.
 GET /oauth2/authorize?...&prompt=login
+
+# Option C — hybrid: redirect logout then prompt=login
+# Clears the IDP session; user then sees Continue-as panel but must still
+# click through (one click vs typing credentials)
+GET /oauth2/logout?...&post_logout_redirect_uri=https://app/re-auth
+# → on re-auth page, redirect to /oauth2/authorize?...&prompt=login
 ```
 
 ---
@@ -211,6 +256,7 @@ GET /oauth2/authorize?...&prompt=login
 | V3 | Admin users, roles, permissions |
 | V4 | LDAP email attribute support |
 | V5 | post_logout_redirect_uris column on applications |
+| V6 | remember_tokens table (passwordless continue-as, 30-day TTL, SHA-256 hashed) |
 
 ---
 
@@ -252,16 +298,19 @@ Contains git worktrees created by Claude Code for isolated branch work:
 
 ## Recent Changes (session summary)
 
-### Multi-account stored sessions (`OidcController.java`, `login.html`)
-- `ao-user` cookie now stores a JSON array (up to 5 accounts) instead of a single object
-- Login page renders each stored account as a clickable row with a × remove button
-- "Use another account" button always visible at the bottom of the panel
-- Backward-compatible: old single-object format is parsed correctly
+### Passwordless "Continue As" (Google-style) — V6 migration
+- New `remember_tokens` table (V6 Flyway migration): stores SHA-256 hash of 48-byte random token, userId, ldapUsername, 30-day TTL
+- `RememberTokenService`: issue / validate / rotate / scheduled cleanup
+- `OidcController.login()`: after successful password auth, issues a remember token and embeds it as `rt` in the `ao-user` cookie profile entry
+- New `POST /oauth2/continue-as` endpoint: validates remember token → rotates it → creates session → issues auth code or redirects to admin (no LDAP call, no password)
+- `login.html`: accounts with `rt` in cookie → clicking them submits the continue-as hidden form immediately (zero clicks on password). Accounts without `rt` → show password-only view as before.
+- Token rotation: each use of `/oauth2/continue-as` invalidates the old token and issues a new one (prevents replay)
+- Logout does NOT clear remember tokens (Google-style: user can still click through next visit)
 
-### Removed technical jargon from login page (`login.html`)
-- Removed `card-label` ("auth.ao.az") and `card-prompt` ("> authenticate")
-- Removed footer meta row ("LDAP · Active Directory", "OAuth 2.0 · OIDC", "RS256 · PKCE")
-- Removed `#` and `>` terminal-prompt prefixes from field labels and submit button
+### Multi-account stored sessions (`OidcController.java`, `login.html`)
+- `ao-user` cookie stores a JSON array (up to 5 accounts) with `u`, `n`, and optional `rt` fields
+- Login page renders each stored account as a clickable row with a × remove button
+- Backward-compatible: old format without `rt` shows password-only view on click
 
 ### 12-theme preset selector (`SettingsPage.tsx`)
 - Added 10 new CSS theme templates: Corporate Blue, Midnight Purple, Forest Green, Rose Pink, Minimal White, Slate Dark, Ocean Blue, Neon Matrix, Warm Sand (plus existing Orange Light, Dark Glassmorphism)

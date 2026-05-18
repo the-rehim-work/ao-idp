@@ -439,6 +439,17 @@
         </div>
     </div>
 
+    <!-- Passwordless continue-as form (submitted by JS when remember token is present) -->
+    <form id="continue-as-form" th:action="@{/oauth2/continue-as}" method="post" style="display:none">
+        <input type="hidden" name="remember_token"        id="ca-remember-token"/>
+        <input type="hidden" name="client_id"             th:value="${clientId}"/>
+        <input type="hidden" name="redirect_uri"          th:value="${redirectUri}"/>
+        <input type="hidden" name="state"                 th:value="${state}"/>
+        <input type="hidden" name="scope"                 th:value="${scope}"/>
+        <input type="hidden" name="code_challenge"        th:value="${codeChallenge}"/>
+        <input type="hidden" name="code_challenge_method" th:value="${codeChallengeMethod}"/>
+    </form>
+
     <!-- Login form -->
     <form th:action="@{/login}" method="post" novalidate>
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
@@ -536,7 +547,14 @@ function saveProfiles(profiles) {
     if (profiles.length === 0) {
         document.cookie = 'ao-user=; path=/; max-age=0' + sec;
     } else {
-        document.cookie = 'ao-user=' + _b64Encode(JSON.stringify(profiles)) + '; path=/; max-age=' + (30*24*3600) + sec;
+        // Build compact JSON preserving the rt field for each profile
+        var parts = profiles.map(function(p) {
+            var s = '{"u":' + JSON.stringify(p.u) + ',"n":' + JSON.stringify(p.n || p.u);
+            if (p.rt) s += ',"rt":' + JSON.stringify(p.rt);
+            s += '}';
+            return s;
+        });
+        document.cookie = 'ao-user=' + _b64Encode('[' + parts.join(',') + ']') + '; path=/; max-age=' + (30*24*3600) + sec;
     }
 }
 
@@ -553,9 +571,10 @@ function renderAccounts(profiles) {
         var initial     = (p.n || p.u).charAt(0).toUpperCase();
         var u           = _esc(p.u).replace(/'/g,'&#39;');
         var n           = _esc(p.n || p.u).replace(/'/g,'&#39;');
+        var rt          = p.rt ? _esc(p.rt).replace(/'/g,'&#39;') : '';
         html +=
             '<div class="account-row">' +
-              '<button type="button" class="account-main" onclick="selectAccount(\'' + u + '\',\'' + n + '\')">' +
+              '<button type="button" class="account-main" onclick="selectAccount(\'' + u + '\',\'' + n + '\',\'' + rt + '\')">' +
                 '<div class="account-avatar">' + _esc(initial) + '</div>' +
                 '<div class="account-info">' +
                   '<div class="account-name">' + displayName + '</div>' +
@@ -572,17 +591,27 @@ function renderAccounts(profiles) {
     section.style.display = '';
 }
 
-// One-click: hide account list, show selected-user header + password field only
-function selectAccount(username, displayName) {
-    // Populate hidden username field
+// One-click: if rt is present → submit passwordless continue-as form immediately.
+// Otherwise → hide account list, show selected-user header + password field only.
+function selectAccount(username, displayName, rt) {
+    if (rt) {
+        // Passwordless path: submit the continue-as form with the remember token
+        var caForm = document.getElementById('continue-as-form');
+        var caToken = document.getElementById('ca-remember-token');
+        if (caForm && caToken) {
+            caToken.value = rt;
+            caForm.submit();
+        }
+        return;
+    }
+
+    // Password-required path: show password-only view
     var uField = document.getElementById('username');
     if (uField) uField.value = username;
 
-    // Hide the continue-as section + username field
     document.getElementById('continue-section').style.display = 'none';
     document.getElementById('username-field').style.display = 'none';
 
-    // Show selected-user context
     var sel = document.getElementById('selected-user');
     var av  = document.getElementById('sel-avatar');
     var nm  = document.getElementById('sel-name');
@@ -592,7 +621,6 @@ function selectAccount(username, displayName) {
     if (un) un.textContent = username;
     if (sel) sel.style.display = 'flex';
 
-    // Show "use another account" link, focus password
     var sw = document.getElementById('switch-btn');
     if (sw) sw.style.display = '';
     var pw = document.getElementById('password');
