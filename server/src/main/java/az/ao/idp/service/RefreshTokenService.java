@@ -35,7 +35,7 @@ public class RefreshTokenService {
     }
 
     @Transactional
-    public String issue(UUID userId, String clientId) {
+    public String issue(UUID userId, String clientId, String scope) {
         String token = secureRandomUtil.generateRefreshToken();
         String tokenHash = cryptoUtil.sha256Hex(token);
 
@@ -43,6 +43,7 @@ public class RefreshTokenService {
         rt.setTokenHash(tokenHash);
         rt.setUserId(userId);
         rt.setClientId(clientId);
+        rt.setScope(scope);
         rt.setExpiresAt(Instant.now().plus(refreshTokenTtl));
         refreshTokenRepository.save(rt);
 
@@ -67,7 +68,16 @@ public class RefreshTokenService {
             return null;
         }
 
-        return new RefreshTokenData(rt.getUserId(), rt.getClientId(), tokenHash);
+        return new RefreshTokenData(rt.getUserId(), rt.getClientId(), tokenHash, rt.getScope());
+    }
+
+    @Transactional(readOnly = true)
+    public RefreshTokenData peek(String token) {
+        String tokenHash = cryptoUtil.sha256Hex(token);
+        return refreshTokenRepository.findById(tokenHash)
+                .filter(rt -> !rt.isUsed() && rt.getExpiresAt().isAfter(Instant.now()))
+                .map(rt -> new RefreshTokenData(rt.getUserId(), rt.getClientId(), tokenHash, rt.getScope()))
+                .orElse(null);
     }
 
     @Transactional
@@ -95,5 +105,5 @@ public class RefreshTokenService {
         refreshTokenRepository.deleteExpired(Instant.now());
     }
 
-    public record RefreshTokenData(UUID userId, String clientId, String tokenHash) {}
+    public record RefreshTokenData(UUID userId, String clientId, String tokenHash, String scope) {}
 }

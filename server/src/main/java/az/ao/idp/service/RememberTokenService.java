@@ -59,6 +59,12 @@ public class RememberTokenService {
         repository.deleteById(tokenHash);
     }
 
+    @Transactional
+    public void revoke(String rawToken) {
+        if (rawToken == null || rawToken.isBlank()) return;
+        repository.deleteById(cryptoUtil.sha256Hex(rawToken));
+    }
+
     @Scheduled(fixedDelay = 3_600_000)
     @Transactional
     public void cleanupExpired() {

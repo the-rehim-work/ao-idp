@@ -96,11 +96,11 @@ public class OidcService {
         return app;
     }
 
-    public String generateAndStoreAuthCode(UUID userId, String clientId, String redirectUri, String scope, String codeChallenge) {
+    public String generateAndStoreAuthCode(UUID userId, String clientId, String redirectUri, String scope, String codeChallenge, String nonce) {
         String code = secureRandomUtil.generateAuthCode();
         sessionService.storeAuthCode(
                 code,
-                new SessionService.AuthCodeData(userId, clientId, redirectUri, scope, codeChallenge),
+                new SessionService.AuthCodeData(userId, clientId, redirectUri, scope, codeChallenge, nonce),
                 codeChallenge,
                 Duration.ofSeconds(60)
         );
@@ -150,7 +150,7 @@ public class OidcService {
                 Map.of("ldap_username", user.getLdapUsername(), "display_name", user.getDisplayName() != null ? user.getDisplayName() : "",
                         "app_name", app.getName(), "client_id", app.getClientId(), "scope", codeData.scope() != null ? codeData.scope() : "openid profile"));
 
-        return buildTokenResponse(user, app);
+        return buildTokenResponse(user, app, codeData.scope(), codeData.nonce());
     }
 
     public TokenResponse refreshAccessToken(String refreshToken, String clientId, String clientSecret) {
@@ -170,12 +170,17 @@ public class OidcService {
 
         User user = userService.getById(tokenData.userId());
 
+        if (!userService.hasAppAccess(user.getId(), resolvedApp.getId())) {
+            throw new InvalidTokenException("User is no longer authorized for this application");
+        }
+
         log.info("Token refreshed: username={} app={}", user.getLdapUsername(), resolvedApp.getName());
         auditService.log("user", user.getId().toString(), "token_refresh", "application", resolvedApp.getId().toString(), resolvedApp, null, null,
                 Map.of("ldap_username", user.getLdapUsername(), "display_name", user.getDisplayName(),
                         "app_name", resolvedApp.getName(), "client_id", resolvedApp.getClientId()));
 
-        return buildTokenResponse(user, resolvedApp);
+        String originalScope = tokenData.scope() != null ? tokenData.scope() : "openid profile";
+        return buildTokenResponse(user, resolvedApp, originalScope, null);
     }
 
     public void revokeToken(String token, String tokenTypeHint, String clientId, String clientSecret) {
@@ -211,12 +216,47 @@ public class OidcService {
         return new UserInfoResponse(userId.toString(), user.getLdapUsername(), user.getEmail(), user.getDisplayName());
     }
 
-    private TokenResponse buildTokenResponse(User user, Application app) {
+    private TokenResponse buildTokenResponse(User user, Application app, String scope, String nonce) {
         Map<String, Object> claims = buildClaims(user);
+        String grantedScope = (scope != null && !scope.isBlank()) ? scope : "openid profile";
         String accessToken = jwtService.issueAccessToken(user.getId(), app.getClientId(), claims);
-        String newRefreshToken = refreshTokenService.issue(user.getId(), app.getClientId());
+        String newRefreshToken = refreshTokenService.issue(user.getId(), app.getClientId(), grantedScope);
         long expirySeconds = settingsService.getAccessTokenExpiryMinutes() * 60;
-        return new TokenResponse(accessToken, "Bearer", (int) expirySeconds, newRefreshToken, "openid profile");
+        String idToken = containsScope(grantedScope, "openid")
+                ? jwtService.issueIdToken(user.getId(), app.getClientId(), claims, nonce)
+                : null;
+        return new TokenResponse(accessToken, "Bearer", (int) expirySeconds, newRefreshToken, grantedScope, idToken);
+    }
+
+    private static boolean containsScope(String scope, String target) {
+        if (scope == null) return false;
+        for (String s : scope.split("\\s+")) if (s.equalsIgnoreCase(target)) return true;
+        return false;
+    }
+
+    public Map<String, Object> introspect(String token, String tokenTypeHint) {
+        if (!"refresh_token".equals(tokenTypeHint)) {
+            try {
+                io.jsonwebtoken.Claims claims = jwtService.validateUserToken(token);
+                java.util.Set<String> aud = claims.getAudience();
+                if (aud != null && !aud.isEmpty()
+                        && claims.getExpiration() != null && claims.getIssuedAt() != null) {
+                    String audValue = aud.iterator().next();
+                    return Map.of(
+                            "active", true, "sub", claims.getSubject(), "iss", claims.getIssuer(),
+                            "aud", audValue, "client_id", audValue, "token_type", "Bearer",
+                            "exp", claims.getExpiration().toInstant().getEpochSecond(),
+                            "iat", claims.getIssuedAt().toInstant().getEpochSecond()
+                    );
+                }
+            } catch (Exception ignored) { /* fall through to refresh token check */ }
+        }
+        RefreshTokenService.RefreshTokenData rt = refreshTokenService.peek(token);
+        if (rt != null) {
+            return Map.of("active", true, "sub", rt.userId().toString(), "client_id", rt.clientId(),
+                    "token_type", "refresh_token", "iss", jwtService.getIssuer());
+        }
+        return Map.of("active", false);
     }
 
     private Map<String, Object> buildClaims(User user) {

@@ -159,7 +159,11 @@
         .err svg { flex-shrink: 0; margin-top: 1px; }
 
         /* ── Continue-as: account list ──────────────────────────────────── */
-        .accounts-list {
+        @keyframes card-in {
+            from { opacity: 0; transform: translateY(-3px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .accounts-list, .account-cards {
             display: flex;
             flex-direction: column;
             gap: 0.375rem;
@@ -173,9 +177,14 @@
             border: 1px solid var(--border);
             border-radius: var(--radius-sm);
             overflow: hidden;
-            transition: border-color 0.15s;
+            max-height: 80px;
+            transition: border-color 0.15s, box-shadow 0.15s, opacity 0.18s ease, max-height 0.22s ease, margin-bottom 0.22s ease;
+            animation: card-in 0.18s ease forwards;
         }
-        .account-row:hover { border-color: var(--border-accent); }
+        .account-row:hover {
+            border-color: var(--border-accent);
+            box-shadow: 0 2px 12px rgba(94,234,212,0.08);
+        }
         .account-main {
             display: flex;
             align-items: center;
@@ -540,7 +549,7 @@
     </div>
 
     <div id="continue-section" style="display:none">
-        <div id="accounts-list" class="accounts-list"></div>
+        <div id="accounts-list" class="accounts-list account-cards"></div>
         <div class="divider">və ya başqa hesabla</div>
     </div>
 
@@ -562,6 +571,7 @@
         <input type="hidden" name="scope"                 th:value="${scope}"/>
         <input type="hidden" name="code_challenge"        th:value="${codeChallenge}"/>
         <input type="hidden" name="code_challenge_method" th:value="${codeChallengeMethod}"/>
+        <input type="hidden" name="nonce"                 th:value="${nonce}"/>
     </form>
 
     <!-- Login form -->
@@ -573,6 +583,7 @@
         <input type="hidden" name="scope"                 th:value="${scope}"/>
         <input type="hidden" name="code_challenge"        th:value="${codeChallenge}"/>
         <input type="hidden" name="code_challenge_method" th:value="${codeChallengeMethod}"/>
+        <input type="hidden" name="nonce"                 th:value="${nonce}"/>
         <input type="hidden" name="identifier_mode" id="identifier_mode"
                th:value="${identifierType == 'email' ? 'email' : (identifierType == 'any' ? 'any' : 'username')}"/>
 
@@ -663,6 +674,7 @@ function setBtnBusy() {
 
 // ── Multi-account continue-as ──────────────────────────────────────────
 var _caEnabled = /*[[${continueAsEnabled}]]*/ true;
+var _cookieDomain = /*[[${cookieDomain}]]*/ '';
 
 function _getCookie(name) {
     var m = document.cookie.match('(?:^|; )' + name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '=([^;]*)');
@@ -696,8 +708,9 @@ function getProfiles() {
 }
 function saveProfiles(profiles) {
     var sec = location.protocol === 'https:' ? '; Secure' : '';
+    var dom = _cookieDomain ? '; domain=' + _cookieDomain : '';
     if (profiles.length === 0) {
-        document.cookie = 'ao-user=; path=/; max-age=0' + sec;
+        document.cookie = 'ao-user=; path=/; max-age=0' + dom + sec;
     } else {
         // Build compact JSON preserving the rt field for each profile
         var parts = profiles.map(function(p) {
@@ -706,7 +719,7 @@ function saveProfiles(profiles) {
             s += '}';
             return s;
         });
-        document.cookie = 'ao-user=' + _b64Encode('[' + parts.join(',') + ']') + '; path=/; max-age=' + (30*24*3600) + sec;
+        document.cookie = 'ao-user=' + _b64Encode('[' + parts.join(',') + ']') + '; path=/; max-age=' + (30*24*3600) + dom + sec;
     }
 }
 
@@ -714,7 +727,11 @@ function renderAccounts(profiles) {
     var section = document.getElementById('continue-section');
     var list    = document.getElementById('accounts-list');
     if (!section || !list) return;
-    if (!profiles || !profiles.length) { section.style.display = 'none'; return; }
+    if (!profiles || !profiles.length) {
+        list.innerHTML = '';
+        section.style.display = 'none';
+        return;
+    }
 
     var html = '';
     for (var i = 0; i < profiles.length; i++) {
@@ -725,7 +742,7 @@ function renderAccounts(profiles) {
         var n           = _esc(p.n || p.u).replace(/'/g,'&#39;');
         var rt          = p.rt ? _esc(p.rt).replace(/'/g,'&#39;') : '';
         html +=
-            '<div class="account-row">' +
+            '<div class="account-row" data-u="' + u + '">' +
               '<button type="button" class="account-main" onclick="selectAccount(\'' + u + '\',\'' + n + '\',\'' + rt + '\')">' +
                 '<div class="account-avatar">' + _esc(initial) + '</div>' +
                 '<div class="account-info">' +
@@ -798,9 +815,37 @@ function showFullForm() {
 }
 
 function removeAccount(username) {
-    var profiles = getProfiles().filter(function(p){ return p.u !== username; });
+    var all = getProfiles();
+    var removed = all.filter(function(p){ return p.u === username; });
+    var profiles = all.filter(function(p){ return p.u !== username; });
     saveProfiles(profiles);
-    renderAccounts(profiles);
+
+    // Animate the specific card out, then re-render the list
+    var rows = document.querySelectorAll('.account-row');
+    var targetRow = null;
+    for (var i = 0; i < rows.length; i++) {
+        if (rows[i].getAttribute('data-u') === username) { targetRow = rows[i]; break; }
+    }
+    if (targetRow) {
+        targetRow.style.opacity = '0';
+        targetRow.style.maxHeight = '0';
+        targetRow.style.marginBottom = '0';
+        setTimeout(function() { renderAccounts(profiles); }, 230);
+    } else {
+        renderAccounts(profiles);
+    }
+
+    // Revoke the remember token server-side so it can no longer be used for
+    // passwordless continue-as, regardless of prompt=login or other query params.
+    if (removed.length && removed[0].rt) {
+        fetch('/oauth2/forget-account', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'remember_token=' + encodeURIComponent(removed[0].rt),
+            keepalive: true
+        }).catch(function(){});
+    }
+
     // If currently in password mode for this user, return to full form
     var uField = document.getElementById('username');
     if (uField && uField.value === username) showFullForm();

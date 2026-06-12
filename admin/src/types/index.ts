@@ -18,6 +18,14 @@ export interface AdminUser {
   createdAt: string
 }
 
+export interface AppAccessRule {
+  id?: string
+  rule_type: 'LDAP_GROUP' | 'LDAP_OU'
+  value: string
+  ldap_server_id?: string | null
+  ldap_server_name?: string | null
+}
+
 export interface Application {
   id: string
   name: string
@@ -30,6 +38,8 @@ export interface Application {
   is_active: boolean
   is_public_client: boolean
   created_at: string
+  access_mode?: 'ASSIGNED' | 'PUBLIC' | 'LDAP_GROUP' | 'LDAP_OU'
+  access_rules?: AppAccessRule[]
 }
 
 export interface User {

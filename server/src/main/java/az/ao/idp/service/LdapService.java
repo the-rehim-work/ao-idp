@@ -275,6 +275,67 @@ public class LdapService {
         throw new IllegalStateException("User not found in any active LDAP server: " + username);
     }
 
+    /** Live LDAP group membership lookup (via the service account) for app access checks. */
+    public List<String> getUserGroups(String username, UUID ldapServerId) {
+        LdapServerConfig config = ldapServerId != null ? ldapConfigService.get(ldapServerId) : primaryConfig();
+        LdapProps props = propsFrom(config);
+        CachedLdap ldap = forConfig(config);
+        try {
+            LdapUserAttributes attrs = fetchUserAttributes(username, props, ldap);
+            if (attrs == null || attrs.dn() == null) return Collections.emptyList();
+            DirContextOperations userCtx = (DirContextOperations) ldap.template().lookupContext(attrs.dn());
+            return resolveGroups(userCtx, ldap.template(), props, username);
+        } catch (Exception e) {
+            log.debug("getUserGroups failed for {}: {}", username, e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    /** Live LDAP DN lookup (via the service account) for app access checks (LDAP_OU mode). */
+    public String getUserDn(String username, UUID ldapServerId) {
+        LdapServerConfig config = ldapServerId != null ? ldapConfigService.get(ldapServerId) : primaryConfig();
+        LdapProps props = propsFrom(config);
+        CachedLdap ldap = forConfig(config);
+        try {
+            LdapUserAttributes attrs = fetchUserAttributes(username, props, ldap);
+            return attrs != null ? attrs.dn() : null;
+        } catch (Exception e) {
+            log.debug("getUserDn failed for {}: {}", username, e.getMessage());
+            return null;
+        }
+    }
+
+    /** Lists all LDAP groups for the given server (or the primary one), used by the app access-rule picker. */
+    public List<String> listGroups(UUID ldapServerId) {
+        LdapServerConfig config = ldapServerId != null ? ldapConfigService.get(ldapServerId) : primaryConfig();
+        LdapTemplate template = forConfig(config).template();
+
+        SearchControls controls = new SearchControls();
+        controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
+        controls.setReturningAttributes(new String[]{"cn"});
+
+        OrFilter f = new OrFilter();
+        f.or(new EqualsFilter("objectClass", "group"))
+                .or(new EqualsFilter("objectClass", "groupOfNames"))
+                .or(new EqualsFilter("objectClass", "groupOfUniqueNames"))
+                .or(new EqualsFilter("objectClass", "posixGroup"))
+                .or(new EqualsFilter("objectClass", "groupOfMembers"));
+
+        ContextMapper<String> mapper = ctx -> {
+            DirContextOperations dco = (DirContextOperations) ctx;
+            String cn = dco.getStringAttribute("cn");
+            return cn != null ? cn : rdnValue(dco.getNameInNamespace());
+        };
+
+        try {
+            return template.search("", f.encode(), controls, mapper).stream()
+                    .filter(Objects::nonNull).distinct().sorted().toList();
+        } catch (Exception e) {
+            log.error("LDAP group list failed: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
     public Map<String, String> getClaimAttributes(String username, List<String> ldapAttrs) {
         return getClaimAttributes(username, ldapAttrs, null);
     }
@@ -599,8 +660,8 @@ public class LdapService {
         return Collections.emptyList();
     }
 
-    public List<LdapOuInfo> listOus() {
-        LdapServerConfig config = primaryConfig();
+    public List<LdapOuInfo> listOus(UUID ldapServerId) {
+        LdapServerConfig config = ldapServerId != null ? ldapConfigService.get(ldapServerId) : primaryConfig();
         LdapProps props = propsFrom(config);
         LdapTemplate template = forConfig(config).template();
 

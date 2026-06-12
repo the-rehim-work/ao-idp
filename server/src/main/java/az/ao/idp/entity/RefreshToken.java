@@ -27,6 +27,9 @@ public class RefreshToken {
     @Column(name = "expires_at", nullable = false)
     private Instant expiresAt;
 
+    @Column(name = "scope", length = 500)
+    private String scope;
+
     public RefreshToken() {}
 
     public String getTokenHash() { return tokenHash; }
@@ -40,4 +43,6 @@ public class RefreshToken {
     public Instant getIssuedAt() { return issuedAt; }
     public Instant getExpiresAt() { return expiresAt; }
     public void setExpiresAt(Instant expiresAt) { this.expiresAt = expiresAt; }
+    public String getScope() { return scope; }
+    public void setScope(String scope) { this.scope = scope; }
 }

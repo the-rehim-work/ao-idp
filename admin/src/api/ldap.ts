@@ -37,8 +37,11 @@ export const ldapApi = {
       params: { ...(dn ? { dn } : {}), ...(configId ? { configId } : {}) },
     }).then(r => r.data),
 
-  getOus: () =>
-    apiClient.get<LdapOuInfo[]>('/ldap/ous').then(r => r.data),
+  getOus: (ldapServerId?: string) =>
+    apiClient.get<LdapOuInfo[]>('/ldap/ous', { params: ldapServerId ? { ldapServerId } : {} }).then(r => r.data),
+
+  getGroups: (ldapServerId?: string) =>
+    apiClient.get<string[]>('/ldap/groups', { params: ldapServerId ? { ldapServerId } : {} }).then(r => r.data),
 
   getUsers: (dn?: string, search?: string, attr?: string) =>
     apiClient.get<LdapSearchHit[]>('/ldap/users', {

@@ -1,8 +1,10 @@
-import { useState, type KeyboardEvent } from 'react'
+import { useState, useEffect, type KeyboardEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { appsApi } from '../api/apps'
 import { usersApi } from '../api/users'
-import type { Application, User } from '../types'
+import { ldapApi } from '../api/ldap'
+import { settingsApi } from '../api/settings'
+import type { Application } from '../types'
 
 const C = 'var(--accent)'
 const CD = 'var(--accent-strong)'
@@ -13,6 +15,12 @@ const BORDER_H = 'rgba(94,234,212,0.4)'
 const SURFACE = 'var(--surface-1)'
 const SURFACE2 = 'var(--surface-2)'
 
+interface AppFormRule {
+  ruleType: 'LDAP_GROUP' | 'LDAP_OU'
+  value: string
+  ldapServerId: string
+}
+
 interface AppForm {
   name: string
   slug: string
@@ -20,9 +28,14 @@ interface AppForm {
   allowedOrigins: string[]
   postLogoutRedirectUris: string[]
   isPublicClient: boolean
+  accessMode: 'ASSIGNED' | 'PUBLIC' | 'LDAP_GROUP' | 'LDAP_OU'
+  accessRules: AppFormRule[]
 }
 
-const emptyForm: AppForm = { name: '', slug: '', redirectUris: [], allowedOrigins: [], postLogoutRedirectUris: [], isPublicClient: false }
+const emptyForm: AppForm = {
+  name: '', slug: '', redirectUris: [], allowedOrigins: [], postLogoutRedirectUris: [],
+  isPublicClient: false, accessMode: 'ASSIGNED', accessRules: [],
+}
 const toSlug = (s: string) => s.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
 
 const inputStyle = {
@@ -91,9 +104,491 @@ function TagInput({ label, tags, onChange, placeholder, required }: {
   )
 }
 
-function AppModal({ title, form, setForm, error, onSave, onClose, saving, isEdit, isPublicLocked }: {
+function GroupRuleBuilder({ form, setForm }: {
+  form: AppForm; setForm: React.Dispatch<React.SetStateAction<AppForm>>
+}) {
+  const [filter, setFilter] = useState('')
+  const { data: ldapServers = [] } = useQuery({
+    queryKey: ['ldap-servers-list'],
+    queryFn: () => settingsApi.ldap.list(),
+    staleTime: 60_000,
+  })
+  const [selectedServerId, setSelectedServerId] = useState('')
+
+  const activeServerId = selectedServerId || (ldapServers.find(s => s.active)?.id ?? '')
+
+  const { data: groups = [], isLoading } = useQuery({
+    queryKey: ['ldap-groups', activeServerId],
+    queryFn: () => ldapApi.getGroups(activeServerId || undefined),
+    enabled: ldapServers.length > 0,
+    staleTime: 60_000,
+  })
+
+  const addedValues = new Set(form.accessRules.map(r => r.value))
+  const filtered = groups.filter(g => g.toLowerCase().includes(filter.toLowerCase()))
+
+  function toggleGroup(group: string) {
+    if (addedValues.has(group)) {
+      setForm(f => ({ ...f, accessRules: f.accessRules.filter(r => r.value !== group) }))
+    } else {
+      setForm(f => ({
+        ...f,
+        accessRules: [...f.accessRules, { ruleType: 'LDAP_GROUP', value: group, ldapServerId: activeServerId }],
+      }))
+    }
+  }
+
+  const selectedServerName = ldapServers.find(s => s.id === activeServerId)?.name ?? 'primary'
+
+  return (
+    <div>
+      <label className="block text-xs tracking-widest uppercase mb-1.5" style={{ color: CD }}># ldap groups</label>
+
+      {/* Server picker (only when multiple servers) */}
+      {ldapServers.length > 1 && (
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-xs shrink-0" style={{ color: CB }}>server:</span>
+          <div className="flex gap-1.5 flex-wrap">
+            {ldapServers.filter(s => s.active).map(s => (
+              <button key={s.id} type="button"
+                onClick={() => { setSelectedServerId(s.id); setFilter('') }}
+                className="text-xs px-2 py-0.5"
+                style={{
+                  border: `1px solid ${activeServerId === s.id ? C : BORDER}`,
+                  background: activeServerId === s.id ? 'var(--accent-soft)' : 'none',
+                  color: activeServerId === s.id ? C : CM,
+                  cursor: 'pointer',
+                }}>
+                {s.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Selected groups as tags */}
+      {form.accessRules.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {form.accessRules.map((rule, i) => {
+            const sName = ldapServers.find(s => s.id === rule.ldapServerId)?.name
+            return (
+              <div key={i} className="inline-flex items-center gap-1.5 px-2 py-1 text-xs"
+                style={{ background: 'var(--accent-soft)', border: `1px solid ${C}`, color: C }}>
+                <span>✓ {rule.value}</span>
+                {sName && <span style={{ color: CB, fontSize: '0.65rem' }}>@{sName}</span>}
+                <button type="button"
+                  onClick={() => setForm(f => ({ ...f, accessRules: f.accessRules.filter((_, j) => j !== i) }))}
+                  style={{ color: CM, background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', lineHeight: 1, padding: 0 }}>×</button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Filter */}
+      <input
+        value={filter}
+        onChange={e => setFilter(e.target.value)}
+        placeholder={
+          isLoading ? `loading groups from ${selectedServerName}...`
+          : groups.length ? `filter ${groups.length} groups from ${selectedServerName}...`
+          : `no groups found on ${selectedServerName}`
+        }
+        style={{ ...inputStyle, marginBottom: '0.375rem' }}
+        onFocus={e => { e.target.style.borderColor = C }}
+        onBlur={e => { e.target.style.borderColor = BORDER }}
+      />
+
+      {/* Scrollable list */}
+      <div style={{ border: `1px solid ${BORDER}`, maxHeight: '11rem', overflowY: 'auto', background: SURFACE2 }}>
+        {isLoading ? (
+          <div className="px-3 py-3 text-xs" style={{ color: CM }}>loading groups from LDAP...</div>
+        ) : filtered.length === 0 ? (
+          <div className="px-3 py-3 text-xs" style={{ color: CB }}>
+            {groups.length === 0
+              ? 'no groups found — check LDAP connection in Settings'
+              : 'no groups match filter'}
+          </div>
+        ) : (
+          filtered.map(g => {
+            const selected = addedValues.has(g)
+            return (
+              <button key={g} type="button" onClick={() => toggleGroup(g)}
+                className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left"
+                style={{
+                  background: selected ? 'var(--accent-soft)' : 'none',
+                  border: 'none',
+                  borderBottom: `1px solid rgba(94,234,212,0.07)`,
+                  color: selected ? C : CM,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+                onMouseEnter={e => { if (!selected) (e.currentTarget as HTMLElement).style.background = 'rgba(94,234,212,0.04)' }}
+                onMouseLeave={e => { if (!selected) (e.currentTarget as HTMLElement).style.background = 'none' }}>
+                <span style={{ color: selected ? C : BORDER, width: '0.875rem', flexShrink: 0, fontWeight: 700 }}>{selected ? '✓' : '+'}</span>
+                <span className="flex-1 truncate">{g}</span>
+              </button>
+            )
+          })
+        )}
+      </div>
+      <p className="text-xs mt-1" style={{ color: CB }}>click to select · user must be in at least one selected group (live LDAP check at login)</p>
+    </div>
+  )
+}
+
+function OuRuleBuilder({ form, setForm }: {
+  form: AppForm; setForm: React.Dispatch<React.SetStateAction<AppForm>>
+}) {
+  const [manualDn, setManualDn] = useState('')
+  const { data: ldapServers = [] } = useQuery({
+    queryKey: ['ldap-servers-list'],
+    queryFn: () => settingsApi.ldap.list(),
+    staleTime: 60_000,
+  })
+  const [selectedServerId, setSelectedServerId] = useState('')
+  const activeServerId = selectedServerId || (ldapServers.find(s => s.active)?.id ?? '')
+
+  // tree state: keyed by DN, 'ROOT' for top-level children
+  const [nodeCache, setNodeCache] = useState<Record<string, import('../api/ldap').LdapTreeNode[]>>({})
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [loadingDns, setLoadingDns] = useState<Set<string>>(new Set())
+  const [loadError, setLoadError] = useState('')
+
+  // reset + reload root whenever the active server changes or servers first load
+  useEffect(() => {
+    if (ldapServers.length === 0) return
+    setNodeCache({})
+    setExpanded(new Set())
+    setLoadError('')
+    setLoadingDns(new Set(['ROOT']))
+    ldapApi.getChildren(undefined, activeServerId || undefined)
+      .then(nodes => { setNodeCache({ ROOT: nodes }); setLoadError('') })
+      .catch(() => { setNodeCache({ ROOT: [] }); setLoadError('Could not load LDAP tree — check LDAP connection in Settings') })
+      .finally(() => setLoadingDns(prev => { const s = new Set(prev); s.delete('ROOT'); return s }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeServerId, ldapServers.length])
+
+  function doLoad(dn: string) {
+    if (loadingDns.has(dn)) return
+    setLoadingDns(prev => new Set(prev).add(dn))
+    ldapApi.getChildren(dn, activeServerId || undefined)
+      .then(nodes => setNodeCache(prev => ({ ...prev, [dn]: nodes })))
+      .catch(() => setNodeCache(prev => ({ ...prev, [dn]: [] })))
+      .finally(() => setLoadingDns(prev => { const s = new Set(prev); s.delete(dn); return s }))
+  }
+
+  function toggleExpand(dn: string) {
+    setExpanded(prev => {
+      const next = new Set(prev)
+      if (next.has(dn)) {
+        next.delete(dn)
+      } else {
+        next.add(dn)
+        doLoad(dn)
+      }
+      return next
+    })
+  }
+
+  const addedValues = new Set(form.accessRules.map(r => r.value))
+
+  function toggleOu(dn: string) {
+    if (addedValues.has(dn)) {
+      setForm(f => ({ ...f, accessRules: f.accessRules.filter(r => r.value !== dn) }))
+    } else {
+      setForm(f => ({
+        ...f,
+        accessRules: [...f.accessRules, { ruleType: 'LDAP_OU', value: dn, ldapServerId: activeServerId }],
+      }))
+    }
+  }
+
+  function addManual() {
+    const v = manualDn.trim()
+    if (!v || addedValues.has(v)) return
+    setForm(f => ({ ...f, accessRules: [...f.accessRules, { ruleType: 'LDAP_OU', value: v, ldapServerId: activeServerId }] }))
+    setManualDn('')
+  }
+
+  function renderNodes(parentKey: string, depth: number): React.ReactNode {
+    const nodes = (nodeCache[parentKey] || []).filter(n => n.type !== 'user')
+    if (loadingDns.has(parentKey) && nodes.length === 0) {
+      return <div className="py-1.5 text-xs" style={{ paddingLeft: `${depth * 16 + 28}px`, color: CB }}>loading…</div>
+    }
+    if (nodes.length === 0) return null
+    return nodes.map(n => {
+      const isExp = expanded.has(n.dn)
+      const isSel = addedValues.has(n.dn)
+      const isChildLoading = loadingDns.has(n.dn)
+      const icon = isSel ? '✓' : n.type === 'group' ? '👥' : '📁'
+      return (
+        <div key={n.dn}>
+          <div className="flex items-stretch" style={{ paddingLeft: `${depth * 16}px` }}>
+            <button type="button"
+              onClick={() => n.has_children && toggleExpand(n.dn)}
+              style={{
+                width: '28px', flexShrink: 0, background: 'none', border: 'none',
+                borderBottom: `1px solid rgba(94,234,212,0.07)`,
+                cursor: n.has_children ? 'pointer' : 'default',
+                color: n.has_children ? CM : 'transparent',
+                fontSize: '0.625rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+              {n.has_children ? (isChildLoading ? '…' : isExp ? '▾' : '▸') : ''}
+            </button>
+            <button type="button" onClick={() => toggleOu(n.dn)} title={n.dn}
+              className="flex items-center gap-1.5 flex-1 text-xs text-left"
+              style={{
+                background: isSel ? 'var(--accent-soft)' : 'none', border: 'none',
+                borderBottom: `1px solid rgba(94,234,212,0.07)`,
+                color: isSel ? C : CM, cursor: 'pointer', fontFamily: 'inherit',
+                padding: '0.3rem 0.5rem 0.3rem 0.25rem', minWidth: 0, overflow: 'hidden',
+              }}
+              onMouseEnter={e => { if (!isSel) (e.currentTarget as HTMLElement).style.background = 'rgba(94,234,212,0.04)' }}
+              onMouseLeave={e => { if (!isSel) (e.currentTarget as HTMLElement).style.background = isSel ? 'var(--accent-soft)' : 'none' }}>
+              <span style={{ flexShrink: 0 }}>{icon}</span>
+              <span className="font-semibold" style={{ color: isSel ? C : CD, flexShrink: 0, whiteSpace: 'nowrap', marginRight: '0.25rem' }}>
+                {n.name || n.rdn}
+              </span>
+              <span className="truncate" style={{ color: CB, fontSize: '0.68rem' }}>{n.dn}</span>
+            </button>
+          </div>
+          {isExp && renderNodes(n.dn, depth + 1)}
+        </div>
+      )
+    })
+  }
+
+  const rootLoading = loadingDns.has('ROOT')
+  const rootNodes = nodeCache['ROOT']
+  const selectedServerName = ldapServers.find(s => s.id === activeServerId)?.name ?? 'primary'
+
+  return (
+    <div>
+      <label className="block text-xs tracking-widest uppercase mb-1.5" style={{ color: CD }}># ldap folder / ou tree</label>
+
+      {ldapServers.length > 1 && (
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-xs shrink-0" style={{ color: CB }}>server:</span>
+          <div className="flex gap-1.5 flex-wrap">
+            {ldapServers.filter(s => s.active).map(s => (
+              <button key={s.id} type="button"
+                onClick={() => setSelectedServerId(s.id)}
+                className="text-xs px-2 py-0.5"
+                style={{
+                  border: `1px solid ${activeServerId === s.id ? C : BORDER}`,
+                  background: activeServerId === s.id ? 'var(--accent-soft)' : 'none',
+                  color: activeServerId === s.id ? C : CM,
+                  cursor: 'pointer',
+                }}>
+                {s.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {form.accessRules.length > 0 && (
+        <div className="space-y-1 mb-2">
+          {form.accessRules.map((rule, i) => {
+            const sName = ldapServers.find(s => s.id === rule.ldapServerId)?.name
+            return (
+              <div key={i} className="flex items-center gap-2 px-2 py-1.5 text-xs"
+                style={{ border: `1px solid ${C}`, background: 'var(--accent-soft)' }}>
+                <span style={{ color: CB, flexShrink: 0 }}>📁</span>
+                <span className="flex-1 truncate font-mono" style={{ color: C }} title={rule.value}>{rule.value}</span>
+                {sName && <span style={{ color: CB, fontSize: '0.65rem', flexShrink: 0 }}>@{sName}</span>}
+                <button type="button"
+                  onClick={() => setForm(f => ({ ...f, accessRules: f.accessRules.filter((_, j) => j !== i) }))}
+                  style={{ color: CM, background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', lineHeight: 1, flexShrink: 0 }}>×</button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      <div style={{ border: `1px solid ${BORDER}`, maxHeight: '13rem', overflowY: 'auto', background: SURFACE2 }}>
+        {rootLoading && !rootNodes ? (
+          <div className="px-3 py-3 text-xs" style={{ color: CM }}>loading tree from {selectedServerName}…</div>
+        ) : loadError ? (
+          <div className="px-3 py-3 text-xs" style={{ color: CB }}>{loadError}</div>
+        ) : rootNodes && rootNodes.filter(n => n.type !== 'user').length === 0 ? (
+          <div className="px-3 py-3 text-xs" style={{ color: CB }}>no containers found on {selectedServerName}</div>
+        ) : (
+          renderNodes('ROOT', 0)
+        )}
+      </div>
+
+      <div className="flex gap-2 mt-2">
+        <input value={manualDn} onChange={e => setManualDn(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addManual() } }}
+          placeholder="manual DN: OU=staff,DC=corp,DC=ao"
+          style={{ ...inputStyle, flex: 1, fontSize: '0.75rem' }}
+          onFocus={e => { e.target.style.borderColor = C }}
+          onBlur={e => { e.target.style.borderColor = BORDER }}
+        />
+        <button type="button" onClick={addManual} disabled={!manualDn.trim()}
+          style={{
+            padding: '0 0.75rem', background: manualDn.trim() ? C : CM, color: '#000', border: 'none',
+            cursor: manualDn.trim() ? 'pointer' : 'not-allowed', fontSize: '0.75rem', fontWeight: 700,
+          }}>
+          add
+        </button>
+      </div>
+      <p className="text-xs mt-1" style={{ color: CB }}>click to select folder · sub-folders included (DN suffix match) · expand ▸ to browse · or enter DN manually</p>
+    </div>
+  )
+}
+
+function AssignedUsersManager({ appId }: { appId: string }) {
+  const qc = useQueryClient()
+  const [userFilter, setUserFilter] = useState('')
+  const [ldapSearch, setLdapSearch] = useState('')
+  const [showAddPanel, setShowAddPanel] = useState(false)
+
+  const { data: appUsers, isLoading: loadingUsers } = useQuery({
+    queryKey: ['app-users', appId],
+    queryFn: () => usersApi.listForApp(appId, { size: 100 }),
+  })
+
+  const { data: ldapResults = [], isFetching: fetchingLdap } = useQuery({
+    queryKey: ['ldap-search-add', ldapSearch],
+    queryFn: () => ldapApi.getUsers(undefined, ldapSearch || undefined),
+    enabled: showAddPanel && ldapSearch.length >= 1,
+    staleTime: 30_000,
+  })
+
+  const activateMut = useMutation({
+    mutationFn: (ldapUsername: string) => usersApi.activateForApp(appId, ldapUsername),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['app-users', appId] }),
+  })
+
+  const revokeMut = useMutation({
+    mutationFn: (userId: string) => usersApi.revokeAppAccess(appId, userId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['app-users', appId] }),
+  })
+
+  const users = appUsers?.content ?? []
+  const existingUsernames = new Set(users.map(u => u.ldapUsername))
+  const filteredUsers = userFilter
+    ? users.filter(u =>
+        u.displayName.toLowerCase().includes(userFilter.toLowerCase()) ||
+        u.ldapUsername.toLowerCase().includes(userFilter.toLowerCase())
+      )
+    : users
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="text-xs tracking-widest uppercase" style={{ color: CD }}># assigned users</label>
+        <button type="button"
+          onClick={() => setShowAddPanel(s => !s)}
+          style={{
+            fontSize: '0.75rem', color: showAddPanel ? CM : C,
+            background: 'none', border: `1px solid ${showAddPanel ? BORDER : C}`,
+            padding: '2px 10px', cursor: 'pointer',
+          }}>
+          {showAddPanel ? 'cancel' : '+ add user'}
+        </button>
+      </div>
+
+      {/* LDAP search panel */}
+      {showAddPanel && (
+        <div className="mb-3 p-2.5" style={{ border: `1px solid ${C}`, background: 'rgba(94,234,212,0.03)' }}>
+          <div className="text-xs mb-1.5" style={{ color: CD }}>search LDAP directory</div>
+          <input
+            value={ldapSearch}
+            onChange={e => setLdapSearch(e.target.value)}
+            placeholder="type name or username..."
+            autoFocus
+            style={{ ...inputStyle, marginBottom: '0.375rem' }}
+            onFocus={e => { e.target.style.borderColor = C }}
+            onBlur={e => { e.target.style.borderColor = BORDER }}
+          />
+          <div style={{ border: `1px solid ${BORDER}`, maxHeight: '9rem', overflowY: 'auto', background: SURFACE2 }}>
+            {fetchingLdap ? (
+              <div className="px-3 py-2 text-xs" style={{ color: CM }}>searching...</div>
+            ) : ldapSearch.length === 0 ? (
+              <div className="px-3 py-2 text-xs" style={{ color: CB }}>type to search LDAP users</div>
+            ) : ldapResults.length === 0 ? (
+              <div className="px-3 py-2 text-xs" style={{ color: CB }}>no users found</div>
+            ) : (
+              ldapResults.slice(0, 20).map(u => {
+                const alreadyAdded = existingUsernames.has(u.ldap_username)
+                return (
+                  <button key={u.ldap_username} type="button"
+                    disabled={alreadyAdded || activateMut.isPending}
+                    onClick={() => activateMut.mutate(u.ldap_username)}
+                    className="flex items-center justify-between w-full px-3 py-1.5 text-xs text-left"
+                    style={{
+                      background: alreadyAdded ? 'var(--accent-soft)' : 'none',
+                      border: 'none',
+                      borderBottom: `1px solid rgba(94,234,212,0.07)`,
+                      color: alreadyAdded ? CM : C,
+                      cursor: alreadyAdded ? 'default' : 'pointer',
+                      fontFamily: 'inherit',
+                    }}>
+                    <span>{u.display_name || u.ldap_username}</span>
+                    <span style={{ color: CB }}>{alreadyAdded ? '✓ already added' : u.ldap_username}</span>
+                  </button>
+                )
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Current assigned users */}
+      {loadingUsers ? (
+        <div className="text-xs py-1" style={{ color: CM }}>loading...</div>
+      ) : users.length === 0 ? (
+        <div className="text-xs py-2 px-3" style={{ color: CB, border: `1px solid ${BORDER}`, background: SURFACE2 }}>
+          no users assigned yet — use "+ add user" above
+        </div>
+      ) : (
+        <>
+          {users.length > 5 && (
+            <input value={userFilter} onChange={e => setUserFilter(e.target.value)}
+              placeholder={`filter ${users.length} assigned users...`}
+              style={{ ...inputStyle, marginBottom: '0.375rem' }}
+              onFocus={e => { e.target.style.borderColor = C }}
+              onBlur={e => { e.target.style.borderColor = BORDER }}
+            />
+          )}
+          <div style={{ border: `1px solid ${BORDER}`, maxHeight: '10rem', overflowY: 'auto' }}>
+            {filteredUsers.map(u => (
+              <div key={u.id} className="flex items-center justify-between px-3 py-1.5 text-xs"
+                style={{ borderBottom: `1px solid rgba(94,234,212,0.07)`, background: SURFACE2 }}>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="font-medium truncate" style={{ color: CD }}>{u.displayName}</span>
+                  <span style={{ color: CB }}>{u.ldapUsername}</span>
+                </div>
+                <button type="button"
+                  onClick={() => revokeMut.mutate(u.id)}
+                  disabled={revokeMut.isPending}
+                  style={{
+                    fontSize: '0.7rem', color: '#ff3333',
+                    background: 'none', border: '1px solid rgba(255,51,51,0.3)',
+                    padding: '1px 6px', cursor: 'pointer', flexShrink: 0, marginLeft: '0.5rem',
+                  }}>
+                  revoke
+                </button>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      <p className="text-xs mt-1" style={{ color: CB }}>
+        assigned users always have access regardless of mode — switching to public/group/ou keeps them
+      </p>
+    </div>
+  )
+}
+
+function AppModal({ title, form, setForm, error, onSave, onClose, saving, isEdit, isPublicLocked, appId }: {
   title: string; form: AppForm; setForm: React.Dispatch<React.SetStateAction<AppForm>>
-  error: string; onSave: () => void; onClose: () => void; saving: boolean; isEdit: boolean; isPublicLocked?: boolean
+  error: string; onSave: () => void; onClose: () => void; saving: boolean; isEdit: boolean
+  isPublicLocked?: boolean; appId?: string
 }) {
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
@@ -179,6 +674,49 @@ function AppModal({ title, form, setForm, error, onSave, onClose, saving, isEdit
             placeholder="https://app.ao.az/logged-out"
           />
 
+          {/* Access mode selector */}
+          <div>
+            <label className="block text-xs tracking-widest uppercase mb-1.5" style={{ color: CD }}># access_mode</label>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                { value: 'ASSIGNED', label: 'assigned', desc: 'manual grants only' },
+                { value: 'PUBLIC', label: 'public', desc: 'any LDAP user' },
+                { value: 'LDAP_GROUP', label: 'ldap group', desc: 'by group membership' },
+                { value: 'LDAP_OU', label: 'ldap ou', desc: 'by OU / folder path' },
+              ] as const).map(opt => (
+                <button key={opt.value} type="button"
+                  onClick={() => setForm(f => ({ ...f, accessMode: opt.value, accessRules: [] }))}
+                  className="px-3 py-2 text-left text-xs transition-all"
+                  style={{
+                    border: `1px solid ${form.accessMode === opt.value ? C : BORDER}`,
+                    background: form.accessMode === opt.value ? 'var(--accent-soft)' : 'transparent',
+                    color: form.accessMode === opt.value ? C : CM,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div className="font-bold tracking-wide">{opt.label}</div>
+                  <div className="mt-0.5" style={{ color: CB }}>{opt.desc}</div>
+                </button>
+              ))}
+            </div>
+
+            {/* Mode description */}
+            <div className="mt-2 px-3 py-2 text-xs" style={{ background: SURFACE2, border: `1px solid ${BORDER}`, color: CB }}>
+              {form.accessMode === 'ASSIGNED' && 'Only users you explicitly add below can log in to this app.'}
+              {form.accessMode === 'PUBLIC' && 'Any user who authenticates against LDAP can log in — no individual grants needed. Previously assigned users keep their access.'}
+              {form.accessMode === 'LDAP_GROUP' && 'Users who are members of the selected LDAP groups can log in. Manually assigned users always have access too.'}
+              {form.accessMode === 'LDAP_OU' && 'Users whose LDAP DN falls under the selected OU path can log in. Manually assigned users always have access too.'}
+            </div>
+          </div>
+
+          {form.accessMode === 'LDAP_GROUP' && <GroupRuleBuilder form={form} setForm={setForm} />}
+          {form.accessMode === 'LDAP_OU' && <OuRuleBuilder form={form} setForm={setForm} />}
+
+          {/* Assigned users management — only in edit mode */}
+          {isEdit && appId && (
+            <AssignedUsersManager appId={appId} />
+          )}
+
           <div className="flex gap-2 justify-end pt-1">
             <button onClick={onClose} className="px-4 py-2 text-xs tracking-wide"
               style={{ color: CM, border: `1px solid ${BORDER}`, background: 'none', cursor: 'pointer' }}>cancel</button>
@@ -253,33 +791,6 @@ function DeleteConfirmModal({ app, onDeactivate, onDelete, onClose, pending }: {
   )
 }
 
-function AppUsersSection({ appId }: { appId: string }) {
-  const { data, isLoading } = useQuery({
-    queryKey: ['app-users', appId],
-    queryFn: () => usersApi.listForApp(appId, { size: 50 }),
-  })
-
-  if (isLoading) return <div className="text-xs py-1" style={{ color: CM }}>loading users...</div>
-  if (!data?.content || data.content.length === 0) {
-    return <div className="text-xs py-1" style={{ color: CB }}>no users have access to this app.</div>
-  }
-
-  return (
-    <div className="space-y-1">
-      {data.content.map((u: User) => (
-        <div key={u.id} className="flex items-center justify-between px-2 py-1.5 text-xs"
-          style={{ background: 'var(--accent-soft)', border: `1px solid rgba(94,234,212,0.1)` }}>
-          <span style={{ color: CD }}>{u.displayName}</span>
-          <span style={{ color: CM }}>{u.ldapUsername}</span>
-        </div>
-      ))}
-      {data.total_elements > 50 && (
-        <div className="text-xs pt-1" style={{ color: CB }}>+{data.total_elements - 50} more users</div>
-      )}
-    </div>
-  )
-}
-
 function AppCard({ app, onEdit, onRemove, onToggleActive }: {
   app: Application
   onEdit: () => void
@@ -287,7 +798,6 @@ function AppCard({ app, onEdit, onRemove, onToggleActive }: {
   onToggleActive: () => void
 }) {
   const [showSecret, setShowSecret] = useState(false)
-  const [showUsers, setShowUsers] = useState(false)
   const inactive = !app.is_active
 
   return (
@@ -317,6 +827,17 @@ function AppCard({ app, onEdit, onRemove, onToggleActive }: {
             }}>
               {app.is_active ? 'active' : 'inactive'}
             </span>
+            {app.access_mode && app.access_mode !== 'ASSIGNED' && (
+              <span className="text-xs px-2 py-0.5 font-bold" style={{
+                color: '#a78bfa',
+                border: '1px solid rgba(167,139,250,0.3)',
+                background: 'rgba(167,139,250,0.06)',
+              }}>
+                {app.access_mode === 'PUBLIC' ? 'public access'
+                  : app.access_mode === 'LDAP_GROUP' ? `ldap group (${app.access_rules?.length ?? 0})`
+                  : `ldap ou (${app.access_rules?.length ?? 0})`}
+              </span>
+            )}
           </div>
         </div>
 
@@ -363,13 +884,6 @@ function AppCard({ app, onEdit, onRemove, onToggleActive }: {
             </div>
           </div>
         )}
-
-        {showUsers && (
-          <div className="pt-3" style={{ borderTop: `1px solid ${BORDER}` }}>
-            <div className="text-xs mb-2" style={{ color: CB }}>users with access:</div>
-            <AppUsersSection appId={app.id} />
-          </div>
-        )}
       </div>
 
       <div className="flex" style={{ borderTop: `1px solid ${BORDER}` }}>
@@ -377,11 +891,6 @@ function AppCard({ app, onEdit, onRemove, onToggleActive }: {
           className="flex-1 px-3 py-2 text-xs tracking-wide"
           style={{ color: CD, background: 'none', border: 'none', borderRight: `1px solid ${BORDER}`, cursor: 'pointer' }}>
           {'> '}edit
-        </button>
-        <button onClick={() => setShowUsers(s => !s)}
-          className="flex-1 px-3 py-2 text-xs tracking-wide"
-          style={{ color: CM, background: 'none', border: 'none', borderRight: `1px solid ${BORDER}`, cursor: 'pointer' }}>
-          {'> '}{showUsers ? 'hide users' : 'users'}
         </button>
         {inactive ? (
           <button onClick={onToggleActive}
@@ -417,6 +926,8 @@ export default function ApplicationsPage() {
       redirectUris: f.redirectUris, allowedOrigins: f.allowedOrigins,
       postLogoutRedirectUris: f.postLogoutRedirectUris,
       isPublicClient: f.isPublicClient,
+      accessMode: f.accessMode,
+      accessRules: f.accessRules.map(r => ({ ruleType: r.ruleType, value: r.value, ldapServerId: r.ldapServerId || null })),
     }),
     onSuccess: data => {
       qc.invalidateQueries({ queryKey: ['applications'] })
@@ -433,6 +944,8 @@ export default function ApplicationsPage() {
       name: f.name, slug: f.slug,
       redirectUris: f.redirectUris, allowedOrigins: f.allowedOrigins,
       postLogoutRedirectUris: f.postLogoutRedirectUris,
+      accessMode: f.accessMode,
+      accessRules: f.accessRules.map(r => ({ ruleType: r.ruleType, value: r.value, ldapServerId: r.ldapServerId || null })),
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['applications'] }); setEditApp(null); setForm(emptyForm) },
     onError: (e: any) => setFormError(e.response?.data?.error_description ?? 'update failed'),
@@ -461,6 +974,12 @@ export default function ApplicationsPage() {
       allowedOrigins: app.allowed_origins ?? [],
       postLogoutRedirectUris: app.post_logout_redirect_uris ?? [],
       isPublicClient: app.is_public_client ?? false,
+      accessMode: app.access_mode ?? 'ASSIGNED',
+      accessRules: (app.access_rules ?? []).map(r => ({
+        ruleType: r.rule_type,
+        value: r.value,
+        ldapServerId: r.ldap_server_id ?? '',
+      })),
     })
     setFormError(''); setEditApp(app)
   }
@@ -523,6 +1042,7 @@ export default function ApplicationsPage() {
           form={form} setForm={setForm} error={formError}
           isEdit={!!editApp}
           isPublicLocked={!!editApp}
+          appId={editApp?.id}
           saving={createMut.isPending || updateMut.isPending}
           onSave={() => { setFormError(''); editApp ? updateMut.mutate(form) : createMut.mutate(form) }}
           onClose={() => { setShowCreate(false); setEditApp(null) }}

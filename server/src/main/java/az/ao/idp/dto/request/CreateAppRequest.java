@@ -12,5 +12,13 @@ public record CreateAppRequest(
         @JsonProperty("redirect_uris") @NotEmpty List<String> redirectUris,
         @JsonProperty("allowed_origins") List<String> allowedOrigins,
         @JsonProperty("post_logout_redirect_uris") List<String> postLogoutRedirectUris,
-        @JsonProperty("is_public_client") boolean publicClient
-) {}
+        @JsonProperty("is_public_client") boolean publicClient,
+        @JsonProperty("access_mode") String accessMode,
+        @JsonProperty("access_rules") List<AccessRuleRequest> accessRules
+) {
+    public record AccessRuleRequest(
+            @JsonProperty("rule_type") String ruleType,
+            String value,
+            @JsonProperty("ldap_server_id") java.util.UUID ldapServerId
+    ) {}
+}

@@ -67,6 +67,7 @@ public class SessionService {
         authCode.setRedirectUri(data.redirectUri());
         authCode.setScope(data.scope());
         authCode.setCodeChallenge(codeChallenge);
+        authCode.setNonce(data.nonce());
         authCode.setExpiresAt(Instant.now().plus(ttl));
         authCodeRepository.save(authCode);
     }
@@ -82,7 +83,8 @@ public class SessionService {
                 authCode.getClientId(),
                 authCode.getRedirectUri(),
                 authCode.getScope(),
-                authCode.getCodeChallenge()
+                authCode.getCodeChallenge(),
+                authCode.getNonce()
         );
     }
 
@@ -95,5 +97,9 @@ public class SessionService {
     }
 
     public record SessionData(UUID userId, String ldapUsername) {}
-    public record AuthCodeData(UUID userId, String clientId, String redirectUri, String scope, String codeChallenge) {}
+    public record AuthCodeData(UUID userId, String clientId, String redirectUri, String scope, String codeChallenge, String nonce) {
+        public AuthCodeData(UUID userId, String clientId, String redirectUri, String scope, String codeChallenge) {
+            this(userId, clientId, redirectUri, scope, codeChallenge, null);
+        }
+    }
 }

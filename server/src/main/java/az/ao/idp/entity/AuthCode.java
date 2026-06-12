@@ -26,6 +26,9 @@ public class AuthCode {
     @Column(name = "code_challenge", length = 255)
     private String codeChallenge;
 
+    @Column(name = "nonce", length = 255)
+    private String nonce;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -46,6 +49,8 @@ public class AuthCode {
     public void setScope(String scope) { this.scope = scope; }
     public String getCodeChallenge() { return codeChallenge; }
     public void setCodeChallenge(String codeChallenge) { this.codeChallenge = codeChallenge; }
+    public String getNonce() { return nonce; }
+    public void setNonce(String nonce) { this.nonce = nonce; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getExpiresAt() { return expiresAt; }
     public void setExpiresAt(Instant expiresAt) { this.expiresAt = expiresAt; }

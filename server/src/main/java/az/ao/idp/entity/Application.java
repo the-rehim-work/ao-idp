@@ -42,6 +42,10 @@ public class Application {
     @JdbcTypeCode(SqlTypes.ARRAY)
     private String[] postLogoutRedirectUris = new String[0];
 
+    @Column(name = "access_mode", nullable = false, length = 20)
+    @Enumerated(EnumType.STRING)
+    private AppAccessMode accessMode = AppAccessMode.ASSIGNED;
+
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 
@@ -68,6 +72,8 @@ public class Application {
     public void setPostLogoutRedirectUris(String[] uris) { this.postLogoutRedirectUris = uris; }
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
+    public AppAccessMode getAccessMode() { return accessMode; }
+    public void setAccessMode(AppAccessMode accessMode) { this.accessMode = accessMode; }
     public boolean isPublicClient() { return publicClient; }
     public void setPublicClient(boolean publicClient) { this.publicClient = publicClient; }
     public Instant getCreatedAt() { return createdAt; }

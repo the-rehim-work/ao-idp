@@ -1,9 +1,11 @@
 package az.ao.idp.service;
 
+import az.ao.idp.entity.AppAccessRule;
 import az.ao.idp.entity.Application;
 import az.ao.idp.entity.User;
 import az.ao.idp.entity.UserAppAccess;
 import az.ao.idp.exception.ResourceNotFoundException;
+import az.ao.idp.repository.AppAccessRuleRepository;
 import az.ao.idp.repository.ApplicationRepository;
 import az.ao.idp.repository.UserAppAccessRepository;
 import az.ao.idp.repository.UserRepository;
@@ -32,18 +34,24 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserAppAccessRepository userAppAccessRepository;
     private final ApplicationRepository applicationRepository;
+    private final AppAccessRuleRepository appAccessRuleRepository;
     private final AuditService auditService;
+    private final LdapService ldapService;
 
     public UserService(
             UserRepository userRepository,
             UserAppAccessRepository userAppAccessRepository,
             ApplicationRepository applicationRepository,
-            AuditService auditService
+            AppAccessRuleRepository appAccessRuleRepository,
+            AuditService auditService,
+            LdapService ldapService
     ) {
         this.userRepository = userRepository;
         this.userAppAccessRepository = userAppAccessRepository;
         this.applicationRepository = applicationRepository;
+        this.appAccessRuleRepository = appAccessRuleRepository;
         this.auditService = auditService;
+        this.ldapService = ldapService;
     }
 
     public User getById(UUID id) {
@@ -62,6 +70,21 @@ public class UserService {
 
     public Optional<User> findByEmail(String email) {
         return userRepository.findByEmailIgnoreCase(email);
+    }
+
+    @Transactional
+    public User activateFromLdap(String ldapUsername, LdapService.LdapUserAttributes attrs, UUID ldapServerId) {
+        return userRepository.findByLdapUsername(ldapUsername).orElseGet(() -> {
+            User u = new User();
+            u.setLdapUsername(ldapUsername);
+            u.setDisplayName(attrs.displayName() != null ? attrs.displayName() : ldapUsername);
+            u.setEmail(attrs.email());
+            u.setLdapServerId(ldapServerId);
+            u.setActive(true);
+            User saved = userRepository.save(u);
+            log.info("User auto-enrolled: ldapUsername={} ldapServerId={}", ldapUsername, ldapServerId);
+            return saved;
+        });
     }
 
     @Transactional
@@ -112,7 +135,55 @@ public class UserService {
     }
 
     public boolean hasAppAccess(UUID userId, UUID appId) {
-        return userAppAccessRepository.existsByUserIdAndAppId(userId, appId);
+        if (userAppAccessRepository.existsByUserIdAndAppId(userId, appId)) return true;
+
+        Application app = applicationRepository.findById(appId).orElse(null);
+        if (app == null) return false;
+
+        return switch (app.getAccessMode()) {
+            case ASSIGNED -> false;
+            case PUBLIC -> true;
+            case LDAP_GROUP -> checkGroupAccess(userId, app);
+            case LDAP_OU -> checkOuAccess(userId, app);
+        };
+    }
+
+    private boolean checkGroupAccess(UUID userId, Application app) {
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null || user.getLdapUsername() == null) return false;
+        List<AppAccessRule> rules = appAccessRuleRepository.findAllByAppId(app.getId()).stream()
+                .filter(r -> "LDAP_GROUP".equals(r.getRuleType())).toList();
+        if (rules.isEmpty()) return false;
+
+        List<String> groups = null;
+        for (AppAccessRule rule : rules) {
+            if (rule.getLdapServerId() != null && !rule.getLdapServerId().equals(user.getLdapServerId())) continue;
+            if (groups == null) groups = ldapService.getUserGroups(user.getLdapUsername(), user.getLdapServerId());
+            if (groups.stream().anyMatch(g -> g.equalsIgnoreCase(rule.getValue()))) return true;
+        }
+        return false;
+    }
+
+    private boolean checkOuAccess(UUID userId, Application app) {
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null || user.getLdapUsername() == null) return false;
+        List<AppAccessRule> rules = appAccessRuleRepository.findAllByAppId(app.getId()).stream()
+                .filter(r -> "LDAP_OU".equals(r.getRuleType())).toList();
+        if (rules.isEmpty()) return false;
+
+        String userDn = ldapService.getUserDn(user.getLdapUsername(), user.getLdapServerId());
+        if (userDn == null) return false;
+        String normalizedUserDn = normalizeDn(userDn);
+        for (AppAccessRule rule : rules) {
+            if (rule.getLdapServerId() != null && !rule.getLdapServerId().equals(user.getLdapServerId())) continue;
+            if (normalizedUserDn.endsWith(normalizeDn(rule.getValue()))) return true;
+        }
+        return false;
+    }
+
+    private static String normalizeDn(String dn) {
+        if (dn == null) return "";
+        return dn.replaceAll("\\s*,\\s*", ",").replaceAll("\\s*=\\s*", "=").toLowerCase();
     }
 
     public record AppAccessView(UUID appId, String appName, String clientId, Instant grantedAt) {}

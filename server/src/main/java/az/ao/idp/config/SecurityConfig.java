@@ -75,7 +75,7 @@ public class SecurityConfig {
                         .csrfTokenRequestHandler(requestHandler)
                         .ignoringRequestMatchers(
                                 "/login", "/oauth2/token", "/oauth2/token/revoke", "/oauth2/logout",
-                                "/oauth2/continue-as", "/api/v1/**"
+                                "/oauth2/continue-as", "/oauth2/forget-account", "/oauth2/introspect", "/api/v1/**"
                         )
                 )
                 .sessionManagement(session ->
@@ -84,7 +84,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/oauth2/authorize", "/oauth2/logout",
-                                "/login", "/oauth2/continue-as",
+                                "/login", "/oauth2/continue-as", "/oauth2/forget-account", "/oauth2/introspect",
                                 "/.well-known/**", "/jwks",
                                 "/error",
                                 "/fonts/**", "/css/**", "/js/**", "/images/**", "/img/**",

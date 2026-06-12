@@ -46,7 +46,7 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=en_US.UTF-8
 ENV PGDATA=/var/lib/postgresql/data/pgdata
-ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=25.0 -Djava.security.egd=file:/dev/urandom"
+ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=25.0 -Djava.security.egd=file:/dev/urandom -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget gnupg lsb-release curl ca-certificates locales \

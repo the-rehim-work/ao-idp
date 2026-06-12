@@ -14,7 +14,7 @@ if [ ! -f "$PGDATA/PG_VERSION" ]; then
     echo "[start.sh] Initializing PostgreSQL cluster at $PGDATA ..."
     mkdir -p "$PGDATA"
     chown -R postgres:postgres "$(dirname "$PGDATA")"
-    su -s /bin/bash postgres -c "$PG_BIN/initdb -D '$PGDATA' --auth-host=md5 --auth-local=trust"
+    su -s /bin/bash postgres -c "$PG_BIN/initdb -D '$PGDATA' --auth-host=md5 --auth-local=trust --encoding=UTF8 --locale=en_US.UTF-8"
     echo "host all all 127.0.0.1/32 md5" >> "$PGDATA/pg_hba.conf"
     echo "listen_addresses='127.0.0.1'" >> "$PGDATA/postgresql.conf"
 fi

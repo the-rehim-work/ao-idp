@@ -71,6 +71,24 @@ public class JwtService {
                 .compact();
     }
 
+    public String getIssuer() { return issuer; }
+
+    public String issueIdToken(UUID userId, String clientId, Map<String, Object> claims, String nonce) {
+        Instant now = Instant.now();
+        long expirySeconds = settingsService.getAccessTokenExpiryMinutes() * 60;
+        var builder = Jwts.builder()
+                .subject(userId.toString())
+                .issuer(issuer)
+                .audience().add(clientId).and()
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(now.plusSeconds(expirySeconds)))
+                .id(UUID.randomUUID().toString())
+                .header().keyId(activeKeyPair.kid()).and();
+        if (nonce != null && !nonce.isBlank()) builder.claim("nonce", nonce);
+        claims.forEach(builder::claim);
+        return builder.signWith(activeKeyPair.privateKey(), Jwts.SIG.RS256).compact();
+    }
+
     public Claims validateUserToken(String token) {
         return parseToken(token);
     }

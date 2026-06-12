@@ -41,13 +41,15 @@ public class JwksController {
                 issuer + "/jwks",
                 issuer + "/oauth2/logout",
                 issuer + "/oauth2/token/revoke",
+                issuer + "/oauth2/introspect",
                 List.of("code"),
                 List.of("public"),
                 List.of("RS256"),
                 List.of("openid", "profile"),
-                List.of("client_secret_post", "none"),
+                List.of("client_secret_post", "client_secret_basic", "none"),
                 List.of("authorization_code", "refresh_token"),
-                List.of("S256")
+                List.of("S256"),
+                List.of("sub", "iss", "aud", "exp", "iat", "nonce", "ldap_username", "email", "display_name")
         ));
     }
 }

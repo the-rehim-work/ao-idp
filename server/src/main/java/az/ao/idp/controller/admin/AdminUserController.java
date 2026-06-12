@@ -54,9 +54,15 @@ public class AdminUserController {
     }
 
     @GetMapping("/ldap/ous")
-    public ResponseEntity<?> ldapOus() {
+    public ResponseEntity<?> ldapOus(@RequestParam(required = false) UUID ldapServerId) {
         if (!ldapConfigService.isConfigured()) return ResponseEntity.status(503).body(LDAP_NOT_CONFIGURED);
-        return ResponseEntity.ok(ldapService.listOus());
+        return ResponseEntity.ok(ldapService.listOus(ldapServerId));
+    }
+
+    @GetMapping("/ldap/groups")
+    public ResponseEntity<?> ldapGroups(@RequestParam(required = false) UUID ldapServerId) {
+        if (!ldapConfigService.isConfigured()) return ResponseEntity.status(503).body(LDAP_NOT_CONFIGURED);
+        return ResponseEntity.ok(ldapService.listGroups(ldapServerId));
     }
 
     @GetMapping("/ldap/entry")
