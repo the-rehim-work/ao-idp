@@ -312,7 +312,7 @@ function OuRuleBuilder({ form, setForm }: {
   }
 
   function renderNodes(parentKey: string, depth: number): React.ReactNode {
-    const nodes = (nodeCache[parentKey] || []).filter(n => n.type !== 'user')
+    const nodes = (nodeCache[parentKey] || []).filter(n => n.type === 'ou' || n.type === 'other')
     if (loadingDns.has(parentKey) && nodes.length === 0) {
       return <div className="py-1.5 text-xs" style={{ paddingLeft: `${depth * 16 + 28}px`, color: CB }}>loading…</div>
     }
