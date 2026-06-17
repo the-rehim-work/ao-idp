@@ -1150,13 +1150,16 @@ body::before, body::after { display: none; }
 .field input:focus { border-color:#f05a1a; background:rgba(240,90,26,0.06); box-shadow:0 0 0 3px rgba(240,90,26,0.12); }
 .btn { border-radius:10px; background:linear-gradient(135deg,#f05a1a 0%,#e04510 100%); border:none; color:#fff; font-family:var(--font); font-size:0.9rem; font-weight:600; letter-spacing:0; text-transform:none; box-shadow:0 2px 8px rgba(240,90,26,0.3); }
 .btn:hover { background:linear-gradient(135deg,#ff6a2a 0%,#f05a1a 100%); box-shadow:0 4px 16px rgba(240,90,26,0.45); transform:translateY(-1px); color:#fff; }
-.continue-panel { border-radius:12px; border:1.5px solid #e2e8f0 !important; border-left:3px solid #f05a1a !important; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
-.continue-avatar { border-radius:9px; border:1.5px solid rgba(240,90,26,0.3); background:rgba(240,90,26,0.06); color:#f05a1a; font-weight:700; }
-.continue-name { color:#1e293b; font-weight:600; } .continue-chevron { color:#f05a1a; }
-.continue-signout { color:#94a3b8; border-left:1px solid #e2e8f0; font-family:var(--font); }
-.continue-signout:hover { color:#ef4444; background:rgba(239,68,68,0.05); }
 .bottom { font-size:0.72rem; letter-spacing:0; text-transform:none; color:#94a3b8; }
 .wrap > .app-banner { border-radius:16px 16px 0 0; }
+.divider{color:#94a3b8}.divider::before,.divider::after{background:#e2e8f0}
+.account-row{background:#fff;border:1.5px solid #e2e8f0;border-left:3px solid #f05a1a;border-radius:12px;overflow:hidden}
+.account-main:hover{background:rgba(240,90,26,0.05)}
+.account-avatar{background:linear-gradient(135deg,#f05a1a,#e04510);color:#fff;border-radius:10px}
+.account-name{color:#1e293b;font-weight:600}.account-uname{color:#64748b}
+.account-chevron{color:#f05a1a}
+.account-remove{color:#94a3b8;border-left:1px solid #e2e8f0}
+.account-remove:hover{color:#ef4444;background:rgba(239,68,68,0.05)}
 `
 
 const DARK_CSS_TEMPLATE = `/* AO IDP — Dark Glassmorphism Theme */
@@ -1175,8 +1178,13 @@ body::before { display:none; }
 .field input:focus { border-color:rgba(94,234,212,0.55);background:rgba(94,234,212,0.04);box-shadow:0 0 0 3px rgba(94,234,212,0.08); }
 .btn { border-radius:9px;background:var(--c);border:1px solid var(--c);color:#060810;font-family:var(--font);font-size:0.875rem;font-weight:700;letter-spacing:0;text-transform:none;box-shadow:0 0 20px rgba(94,234,212,0.25),0 4px 12px rgba(0,0,0,0.3); }
 .btn:hover { background:#7ff4e4;border-color:#7ff4e4;box-shadow:0 0 30px rgba(94,234,212,0.5);transform:translateY(-1px); }
-.continue-signout { color:rgba(94,234,212,0.3);border-left:1px solid rgba(94,234,212,0.08);font-family:var(--font); }
-.continue-signout:hover { color:#f87171;background:rgba(239,68,68,0.06); }
+.account-row{background:rgba(255,255,255,0.04);border:1px solid rgba(94,234,212,0.12);border-radius:10px;overflow:hidden}
+.account-main:hover{background:rgba(94,234,212,0.04)}
+.account-avatar{background:linear-gradient(135deg,rgba(94,234,212,0.25),rgba(94,234,212,0.1));color:#e2fdf8}
+.account-name{color:#e2fdf8;font-weight:600}.account-uname{color:rgba(148,163,184,0.7)}
+.account-chevron{color:rgba(94,234,212,0.5)}
+.account-remove{color:rgba(94,234,212,0.3);border-left:1px solid rgba(94,234,212,0.08)}
+.account-remove:hover{color:#f87171;background:rgba(239,68,68,0.06)}
 `
 
 const CORPORATE_BLUE_CSS = `/* AO IDP — Corporate Blue Theme */
@@ -1198,11 +1206,14 @@ body::before, body::after { display:none; }
 .btn { border-radius:10px; background:#1e40af; border:none; color:#fff; font-family:var(--font); font-size:0.9rem; font-weight:600; letter-spacing:0; text-transform:none; box-shadow:0 2px 8px rgba(30,64,175,0.3); }
 .btn:hover { background:#1d4ed8; box-shadow:0 4px 16px rgba(30,64,175,0.45); transform:translateY(-1px); color:#fff; }
 .bottom { font-size:0.72rem; letter-spacing:0; text-transform:none; color:#94a3b8; }
-.continue-panel { border-radius:12px; border:1.5px solid #e0e7ff !important; border-left:3px solid #1e40af !important; background:#fff; }
-.continue-avatar { border-radius:8px; border:1.5px solid rgba(30,64,175,0.3); background:rgba(30,64,175,0.06); color:#1e40af; }
-.continue-name { color:#1e293b; font-weight:600; } .continue-chevron { color:#1e40af; }
-.continue-signout { color:#94a3b8; border-left:1px solid #e0e7ff; font-family:var(--font); }
-.continue-signout:hover { color:#ef4444; background:rgba(239,68,68,0.05); }
+.divider{color:#64748b}.divider::before,.divider::after{background:#c7d2fe}
+.account-row{background:#fff;border:1.5px solid #c7d2fe;border-left:3px solid #1e40af;border-radius:12px;overflow:hidden}
+.account-main:hover{background:rgba(30,64,175,0.04)}
+.account-avatar{background:linear-gradient(135deg,#1e40af,#1d4ed8);color:#fff;border-radius:8px}
+.account-name{color:#1e293b;font-weight:600}.account-uname{color:#475569}
+.account-chevron{color:#1e40af}
+.account-remove{color:#94a3b8;border-left:1px solid #c7d2fe}
+.account-remove:hover{color:#ef4444;background:rgba(239,68,68,0.05)}
 `
 
 const MIDNIGHT_PURPLE_CSS = `/* AO IDP — Midnight Purple Theme */
@@ -1223,11 +1234,13 @@ body::before { display:none; }
 .btn { border-radius:10px; background:linear-gradient(135deg,#7c3aed,#6d28d9); border:none; color:#fff; font-family:var(--font); font-size:0.875rem; font-weight:700; letter-spacing:0; text-transform:none; box-shadow:0 0 20px rgba(139,92,246,0.3); }
 .btn:hover { background:linear-gradient(135deg,#8b5cf6,#7c3aed); box-shadow:0 0 30px rgba(139,92,246,0.5); transform:translateY(-1px); }
 .meta { display:none; } .bottom { color:#7c3aed; }
-.continue-panel { border-radius:12px; border:1px solid rgba(139,92,246,0.2) !important; border-left:3px solid #8b5cf6 !important; background:rgba(20,15,40,0.8); }
-.continue-avatar { border-radius:8px; background:rgba(139,92,246,0.15); border:1px solid rgba(139,92,246,0.3); color:#a78bfa; }
-.continue-name { color:#e9d5ff; } .continue-chevron { color:#8b5cf6; }
-.continue-signout { color:rgba(167,139,250,0.4); border-left:1px solid rgba(139,92,246,0.12); font-family:var(--font); }
-.continue-signout:hover { color:#f87171; background:rgba(239,68,68,0.06); }
+.account-row{background:rgba(20,15,40,0.6);border:1px solid rgba(139,92,246,0.2);border-radius:12px;overflow:hidden}
+.account-main:hover{background:rgba(139,92,246,0.08)}
+.account-avatar{background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border-radius:8px}
+.account-name{color:#e9d5ff;font-weight:600}.account-uname{color:#a78bfa}
+.account-chevron{color:#8b5cf6}
+.account-remove{color:rgba(167,139,250,0.4);border-left:1px solid rgba(139,92,246,0.12)}
+.account-remove:hover{color:#f87171;background:rgba(239,68,68,0.06)}
 `
 
 const FOREST_GREEN_CSS = `/* AO IDP — Forest Green Theme */
@@ -1247,11 +1260,13 @@ body::before { display:none; }
 .btn { border-radius:8px; background:#059669; border:none; color:#fff; font-family:var(--font); font-size:0.875rem; font-weight:700; letter-spacing:0; text-transform:none; }
 .btn:hover { background:#10b981; box-shadow:0 4px 20px rgba(16,185,129,0.4); transform:translateY(-1px); }
 .meta { display:none; }
-.continue-panel { border-radius:10px; border:1px solid rgba(16,185,129,0.15) !important; border-left:3px solid #10b981 !important; background:rgba(10,26,16,0.9); }
-.continue-avatar { border-radius:8px; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.25); color:#34d399; }
-.continue-name { color:#d1fae5; } .continue-chevron { color:#10b981; }
-.continue-signout { color:rgba(52,211,153,0.35); border-left:1px solid rgba(16,185,129,0.1); font-family:var(--font); }
-.continue-signout:hover { color:#f87171; background:rgba(239,68,68,0.06); }
+.account-row{background:rgba(10,26,16,0.7);border:1px solid rgba(16,185,129,0.15);border-radius:10px;overflow:hidden}
+.account-main:hover{background:rgba(16,185,129,0.06)}
+.account-avatar{background:linear-gradient(135deg,#059669,#10b981);color:#fff;border-radius:8px}
+.account-name{color:#d1fae5;font-weight:600}.account-uname{color:#34d399}
+.account-chevron{color:#10b981}
+.account-remove{color:rgba(52,211,153,0.35);border-left:1px solid rgba(16,185,129,0.1)}
+.account-remove:hover{color:#f87171;background:rgba(239,68,68,0.06)}
 `
 
 const ROSE_PINK_CSS = `/* AO IDP — Rose Pink Theme */
@@ -1271,11 +1286,14 @@ body::before, body::after { display:none; }
 .btn { border-radius:10px; background:linear-gradient(135deg,#f43f5e,#e11d48); border:none; color:#fff; font-family:var(--font); font-size:0.9rem; font-weight:700; letter-spacing:0; text-transform:none; box-shadow:0 2px 10px rgba(244,63,94,0.3); }
 .btn:hover { background:linear-gradient(135deg,#fb7185,#f43f5e); box-shadow:0 4px 20px rgba(244,63,94,0.45); transform:translateY(-1px); }
 .meta { display:none; } .bottom { color:#94a3b8; text-transform:none; letter-spacing:0; }
-.continue-panel { border-radius:12px; border:1.5px solid #fecdd3 !important; border-left:3px solid #f43f5e !important; background:#fff; }
-.continue-avatar { border-radius:50%; background:rgba(244,63,94,0.1); border:1.5px solid rgba(244,63,94,0.3); color:#f43f5e; }
-.continue-name { color:#1e293b; font-weight:600; } .continue-chevron { color:#f43f5e; }
-.continue-signout { color:#94a3b8; border-left:1px solid #fecdd3; font-family:var(--font); }
-.continue-signout:hover { color:#ef4444; background:rgba(239,68,68,0.05); }
+.divider{color:#94a3b8}.divider::before,.divider::after{background:#fecdd3}
+.account-row{background:#fff;border:1.5px solid #fecdd3;border-left:3px solid #f43f5e;border-radius:12px;overflow:hidden}
+.account-main:hover{background:rgba(244,63,94,0.04)}
+.account-avatar{background:linear-gradient(135deg,#f43f5e,#e11d48);color:#fff;border-radius:50%}
+.account-name{color:#1e293b;font-weight:600}.account-uname{color:#94a3b8}
+.account-chevron{color:#f43f5e}
+.account-remove{color:#94a3b8;border-left:1px solid #fecdd3}
+.account-remove:hover{color:#ef4444;background:rgba(239,68,68,0.05)}
 `
 
 const MINIMAL_WHITE_CSS = `/* AO IDP — Minimal White Theme */
@@ -1297,12 +1315,14 @@ body::before, body::after { display:none; }
 .btn:hover { background:#1f2937; box-shadow:0 2px 8px rgba(0,0,0,0.15); transform:none; }
 .meta { display:none; } .divider { color:#9ca3af; } .divider::before,.divider::after { background:#e5e7eb; }
 .bottom { font-size:0.75rem; letter-spacing:0; text-transform:none; color:#9ca3af; }
-.continue-panel { border-radius:8px; border:1.5px solid #e5e7eb !important; border-left:3px solid #111827 !important; background:#f9fafb; box-shadow:none; }
-.continue-avatar { border-radius:6px; background:#f3f4f6; border:1.5px solid #d1d5db; color:#111827; }
-.continue-name { color:#111827; font-weight:600; } .continue-hint { color:#6b7280; } .continue-chevron { color:#6b7280; }
-.continue-signout { color:#9ca3af; border-left:1px solid #e5e7eb; font-family:var(--font); }
-.continue-signout:hover { color:#ef4444; background:rgba(239,68,68,0.05); }
 .err { border-radius:6px; background:#fef2f2; border:1px solid #fecaca; color:#dc2626; box-shadow:none; }
+.account-row{background:#f9fafb;border:1.5px solid #d1d5db;border-radius:8px;overflow:hidden}
+.account-main:hover{background:#f3f4f6}
+.account-avatar{background:#111827;color:#fff;border-radius:6px}
+.account-name{color:#111827;font-weight:600}.account-uname{color:#6b7280}
+.account-chevron{color:#6b7280}
+.account-remove{color:#9ca3af;border-left:1px solid #e5e7eb}
+.account-remove:hover{color:#ef4444;background:rgba(239,68,68,0.05)}
 `
 
 const SLATE_DARK_CSS = `/* AO IDP — Slate Dark Theme */
@@ -1321,11 +1341,13 @@ body::before { display:none; }
 .btn { border-radius:8px; background:#334155; border:1px solid #475569; color:#f1f5f9; font-family:var(--font); font-size:0.875rem; font-weight:600; letter-spacing:0; text-transform:none; box-shadow:none; }
 .btn:hover { background:#475569; box-shadow:none; transform:none; color:#fff; }
 .meta { display:none; } .bottom { color:#334155; text-transform:none; letter-spacing:0; }
-.continue-panel { border-radius:10px; border:1px solid #334155 !important; border-left:3px solid #64748b !important; background:#1e293b; }
-.continue-avatar { border-radius:6px; background:#0f172a; border:1px solid #334155; color:#94a3b8; }
-.continue-name { color:#f1f5f9; } .continue-chevron { color:#64748b; }
-.continue-signout { color:rgba(148,163,184,0.4); border-left:1px solid rgba(100,116,139,0.15); font-family:var(--font); }
-.continue-signout:hover { color:#f87171; background:rgba(239,68,68,0.06); }
+.account-row{background:#0f172a;border:1px solid #334155;border-radius:10px;overflow:hidden}
+.account-main:hover{background:rgba(100,116,139,0.08)}
+.account-avatar{background:linear-gradient(135deg,#334155,#475569);color:#f1f5f9;border-radius:6px}
+.account-name{color:#f1f5f9;font-weight:600}.account-uname{color:#64748b}
+.account-chevron{color:#64748b}
+.account-remove{color:rgba(148,163,184,0.4);border-left:1px solid rgba(100,116,139,0.15)}
+.account-remove:hover{color:#f87171;background:rgba(239,68,68,0.06)}
 `
 
 const OCEAN_BLUE_CSS = `/* AO IDP — Ocean Blue Theme */
@@ -1345,11 +1367,13 @@ body::before { display:none; }
 .btn { border-radius:8px; background:linear-gradient(135deg,#0284c7,#0369a1); border:none; color:#fff; font-family:var(--font); font-size:0.875rem; font-weight:700; letter-spacing:0; text-transform:none; box-shadow:0 0 20px rgba(14,165,233,0.25); }
 .btn:hover { background:linear-gradient(135deg,#0ea5e9,#0284c7); box-shadow:0 0 30px rgba(14,165,233,0.4); transform:translateY(-1px); }
 .meta { display:none; } .bottom { color:#0284c7; text-transform:none; letter-spacing:0; }
-.continue-panel { border-radius:10px; border:1px solid rgba(14,165,233,0.15) !important; border-left:3px solid #0ea5e9 !important; background:rgba(4,22,39,0.9); }
-.continue-avatar { border-radius:8px; background:rgba(14,165,233,0.1); border:1px solid rgba(14,165,233,0.25); color:#38bdf8; }
-.continue-name { color:#e0f7ff; } .continue-chevron { color:#0ea5e9; }
-.continue-signout { color:rgba(56,189,248,0.35); border-left:1px solid rgba(14,165,233,0.12); font-family:var(--font); }
-.continue-signout:hover { color:#f87171; background:rgba(239,68,68,0.06); }
+.account-row{background:rgba(4,22,39,0.7);border:1px solid rgba(14,165,233,0.15);border-radius:10px;overflow:hidden}
+.account-main:hover{background:rgba(14,165,233,0.06)}
+.account-avatar{background:linear-gradient(135deg,#0284c7,#0369a1);color:#fff;border-radius:8px}
+.account-name{color:#e0f7ff;font-weight:600}.account-uname{color:#38bdf8}
+.account-chevron{color:#0ea5e9}
+.account-remove{color:rgba(56,189,248,0.35);border-left:1px solid rgba(14,165,233,0.12)}
+.account-remove:hover{color:#f87171;background:rgba(239,68,68,0.06)}
 `
 
 const NEON_MATRIX_CSS = `/* AO IDP — Neon Matrix Theme */
@@ -1370,11 +1394,13 @@ body::after { display:none; }
 .btn { border-radius:0; background:transparent; border:1px solid #00ff00; color:#00ff00; letter-spacing:0.12em; text-transform:uppercase; box-shadow:0 0 10px rgba(0,255,0,0.3); }
 .btn:hover { background:rgba(0,255,0,0.1); box-shadow:0 0 20px rgba(0,255,0,0.6); transform:none; }
 .meta { display:none; } .bottom { color:rgba(0,255,0,0.3); letter-spacing:0.15em; text-transform:uppercase; }
-.continue-panel { border-radius:0; border:1px solid rgba(0,255,0,0.3) !important; border-left:2px solid #00ff00 !important; background:rgba(0,10,0,0.9); }
-.continue-avatar { border-radius:0; background:rgba(0,255,0,0.05); border:1px solid rgba(0,255,0,0.4); color:#00ff00; }
-.continue-name { color:#00ff00; } .continue-chevron { color:#00ff00; }
-.continue-signout { color:rgba(0,255,0,0.25); border-left:1px solid rgba(0,255,0,0.1); font-family:var(--font); }
-.continue-signout:hover { color:#ff4444; background:rgba(255,0,0,0.06); }
+.account-row{background:rgba(0,10,0,0.9);border:1px solid rgba(0,255,0,0.3);border-radius:0;overflow:hidden}
+.account-main:hover{background:rgba(0,255,0,0.06)}
+.account-avatar{background:rgba(0,255,0,0.05);color:#00ff00;border:1px solid rgba(0,255,0,0.4);border-radius:0}
+.account-name{color:#00ff00;font-weight:600;text-shadow:0 0 8px rgba(0,255,0,0.6)}.account-uname{color:rgba(0,255,0,0.4)}
+.account-chevron{color:#00ff00}
+.account-remove{color:rgba(0,255,0,0.25);border-left:1px solid rgba(0,255,0,0.1)}
+.account-remove:hover{color:#ff4444;background:rgba(255,0,0,0.06)}
 `
 
 const WARM_SAND_CSS = `/* AO IDP — Warm Sand Theme */
@@ -1393,11 +1419,14 @@ body::before, body::after { display:none; }
 .btn { border-radius:8px; background:linear-gradient(135deg,#b45309,#92400e); border:none; color:#fef3c7; font-family:var(--font); font-size:0.9rem; font-weight:700; letter-spacing:0; text-transform:none; box-shadow:0 2px 8px rgba(180,83,9,0.25); }
 .btn:hover { background:linear-gradient(135deg,#d97706,#b45309); box-shadow:0 4px 16px rgba(180,83,9,0.35); transform:translateY(-1px); }
 .meta { display:none; } .bottom { color:#a8a29e; text-transform:none; letter-spacing:0; }
-.continue-panel { border-radius:10px; border:1.5px solid #e7e0d6 !important; border-left:3px solid #b45309 !important; background:#fff; }
-.continue-avatar { border-radius:8px; background:#fef3c7; border:1.5px solid rgba(180,83,9,0.3); color:#b45309; }
-.continue-name { color:#2c2416; font-weight:600; } .continue-chevron { color:#b45309; }
-.continue-signout { color:#a8a29e; border-left:1px solid #e7e0d6; font-family:var(--font); }
-.continue-signout:hover { color:#ef4444; background:rgba(239,68,68,0.05); }
+.divider{color:#a8a29e}.divider::before,.divider::after{background:#d6cfc4}
+.account-row{background:#fff;border:1.5px solid #d6cfc4;border-left:3px solid #b45309;border-radius:10px;overflow:hidden}
+.account-main:hover{background:rgba(180,83,9,0.04)}
+.account-avatar{background:linear-gradient(135deg,#b45309,#92400e);color:#fef3c7;border-radius:8px}
+.account-name{color:#2c2416;font-weight:600}.account-uname{color:#78716c}
+.account-chevron{color:#b45309}
+.account-remove{color:#a8a29e;border-left:1px solid #d6cfc4}
+.account-remove:hover{color:#ef4444;background:rgba(239,68,68,0.05)}
 `
 
 const SOFT_LAVENDER_CSS = `/* AO IDP — Soft Lavender Theme */
@@ -1419,12 +1448,15 @@ body::before, body::after { display:none; }
 .btn { border-radius:10px; background:linear-gradient(135deg,#7c3aed,#6d28d9); border:none; color:#fff; font-family:var(--font); font-size:0.9rem; font-weight:600; letter-spacing:0; text-transform:none; box-shadow:0 2px 10px rgba(124,58,237,0.3); }
 .btn:hover { background:linear-gradient(135deg,#8b5cf6,#7c3aed); box-shadow:0 4px 18px rgba(124,58,237,0.45); transform:translateY(-1px); }
 .bottom { color:#a78bfa; text-transform:none; letter-spacing:0; font-size:0.72rem; }
-.continue-panel { border-radius:12px; border:1.5px solid #ede9fe !important; border-left:3px solid #7c3aed !important; background:#fff; box-shadow:0 2px 8px rgba(124,58,237,0.08); }
-.continue-avatar { border-radius:10px; background:rgba(124,58,237,0.08); border:1.5px solid rgba(124,58,237,0.25); color:#7c3aed; font-weight:700; }
-.continue-name { color:#1e1b4b; font-weight:600; } .continue-chevron { color:#7c3aed; }
-.continue-signout { color:#c4b5fd; border-left:1px solid #ede9fe; font-family:var(--font); }
-.continue-signout:hover { color:#ef4444; background:rgba(239,68,68,0.05); }
+.divider{color:#a78bfa}.divider::before,.divider::after{background:#ddd6fe}
 .err { border-radius:8px; background:#fef2f2; border:1px solid #fecaca; color:#dc2626; box-shadow:none; }
+.account-row{background:#fff;border:1.5px solid #ede9fe;border-left:3px solid #7c3aed;border-radius:12px;overflow:hidden}
+.account-main:hover{background:rgba(124,58,237,0.04)}
+.account-avatar{background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border-radius:10px}
+.account-name{color:#1e1b4b;font-weight:600}.account-uname{color:#7c3aed}
+.account-chevron{color:#7c3aed}
+.account-remove{color:#c4b5fd;border-left:1px solid #ede9fe}
+.account-remove:hover{color:#ef4444;background:rgba(239,68,68,0.05)}
 `
 
 const MORNING_SKY_CSS = `/* AO IDP — Morning Sky Theme */
@@ -1446,12 +1478,15 @@ body::before, body::after { display:none; }
 .btn { border-radius:10px; background:linear-gradient(135deg,#0284c7,#0369a1); border:none; color:#fff; font-family:var(--font); font-size:0.9rem; font-weight:600; letter-spacing:0; text-transform:none; box-shadow:0 2px 10px rgba(2,132,199,0.3); }
 .btn:hover { background:linear-gradient(135deg,#0ea5e9,#0284c7); box-shadow:0 4px 18px rgba(2,132,199,0.45); transform:translateY(-1px); }
 .bottom { color:#7dd3fc; text-transform:none; letter-spacing:0; font-size:0.72rem; }
-.continue-panel { border-radius:12px; border:1.5px solid #bae6fd !important; border-left:3px solid #0284c7 !important; background:#fff; box-shadow:0 2px 8px rgba(2,132,199,0.08); }
-.continue-avatar { border-radius:10px; background:rgba(2,132,199,0.08); border:1.5px solid rgba(2,132,199,0.25); color:#0284c7; font-weight:700; }
-.continue-name { color:#0c4a6e; font-weight:600; } .continue-chevron { color:#0284c7; }
-.continue-signout { color:#7dd3fc; border-left:1px solid #bae6fd; font-family:var(--font); }
-.continue-signout:hover { color:#ef4444; background:rgba(239,68,68,0.05); }
+.divider{color:#0284c7}.divider::before,.divider::after{background:#bae6fd}
 .err { border-radius:8px; background:#fef2f2; border:1px solid #fecaca; color:#dc2626; box-shadow:none; }
+.account-row{background:#fff;border:1.5px solid #bae6fd;border-left:3px solid #0284c7;border-radius:12px;overflow:hidden}
+.account-main:hover{background:rgba(2,132,199,0.04)}
+.account-avatar{background:linear-gradient(135deg,#0284c7,#0369a1);color:#fff;border-radius:10px}
+.account-name{color:#0c4a6e;font-weight:600}.account-uname{color:#0284c7}
+.account-chevron{color:#0284c7}
+.account-remove{color:#7dd3fc;border-left:1px solid #bae6fd}
+.account-remove:hover{color:#ef4444;background:rgba(239,68,68,0.05)}
 `
 
 const CSS_THEMES = [
