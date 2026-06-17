@@ -695,24 +695,39 @@ function _esc(s) {
 }
 
 function getProfiles() {
-    var raw = _getCookie('ao-user');
-    if (!raw) return [];
-    var json = _b64Decode(raw);
-    if (!json) return [];
-    try {
-        var p = JSON.parse(json);
-        if (Array.isArray(p)) return p.filter(function(x){ return x && x.u; });
-        if (p && p.u) return [p];
-    } catch(e) {}
-    return [];
+    // Scan ALL ao-user cookies (browser may have both a domain-scoped and a no-domain
+    // variant from old code). Use the one with the most accounts so we always operate
+    // on the freshest data regardless of which cookie the browser lists first.
+    var best = [];
+    var parts = document.cookie.split('; ');
+    for (var i = 0; i < parts.length; i++) {
+        if (parts[i].indexOf('ao-user=') !== 0) continue;
+        var raw = parts[i].substring('ao-user='.length);
+        var json = _b64Decode(decodeURIComponent(raw));
+        if (!json) continue;
+        try {
+            var arr = JSON.parse(json);
+            if (Array.isArray(arr)) {
+                var valid = arr.filter(function(x){ return x && x.u; });
+                if (valid.length > best.length) best = valid;
+            } else if (arr && arr.u && best.length === 0) {
+                best = [arr];
+            }
+        } catch(e) {}
+    }
+    return best;
 }
 function saveProfiles(profiles) {
     var sec = location.protocol === 'https:' ? '; Secure' : '';
     var dom = _cookieDomain ? '; domain=' + _cookieDomain : '';
+    // Always clear the no-domain (host-only) variant to eliminate stale legacy cookies
+    // that survive deletion of the domain-scoped one and reappear on reload.
+    if (dom) {
+        document.cookie = 'ao-user=; path=/; max-age=0' + sec;
+    }
     if (profiles.length === 0) {
         document.cookie = 'ao-user=; path=/; max-age=0' + dom + sec;
     } else {
-        // Build compact JSON preserving the rt field for each profile
         var parts = profiles.map(function(p) {
             var s = '{"u":' + JSON.stringify(p.u) + ',"n":' + JSON.stringify(p.n || p.u);
             if (p.rt) s += ',"rt":' + JSON.stringify(p.rt);
