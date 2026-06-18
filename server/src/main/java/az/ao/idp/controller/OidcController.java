@@ -406,14 +406,26 @@ public class OidcController {
     }
 
     /**
-     * Removes a stored account's remember token server-side. Called by the login page
-     * "x" button so a removed account can no longer be used for passwordless continue-as,
-     * regardless of prompt=login or any other query params on /login.
+     * Removes a stored account's remember token server-side and authoritatively rewrites
+     * the ao-user cookie without the removed account. Called by the login page "x" button.
+     * Always returns 204 to avoid leaking info about token existence.
      */
     @PostMapping(value = "/oauth2/forget-account", consumes = "application/x-www-form-urlencoded")
     @ResponseBody
-    public ResponseEntity<Void> forgetAccount(@RequestParam("remember_token") String rememberToken) {
-        rememberTokenService.revoke(rememberToken);
+    public ResponseEntity<Void> forgetAccount(
+            @RequestParam(value = "remember_token", required = false) String rememberToken,
+            @RequestParam(value = "username", required = false) String username,
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        if (rememberToken != null && !rememberToken.isBlank()) {
+            rememberTokenService.revoke(rememberToken);
+        }
+        if (username != null && !username.isBlank()) {
+            List<String[]> profileList = parseProfileList(getUserProfileCookie(request));
+            profileList.removeIf(p -> username.equals(p[0]));
+            response.addCookie(buildProfileCookie(profileList));
+        }
         return ResponseEntity.noContent().build();
     }
 

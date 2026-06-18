@@ -682,7 +682,9 @@ function _getCookie(name) {
 }
 function _b64Decode(s) {
     try {
-        return decodeURIComponent(atob(s.replace(/-/g,'+').replace(/_/g,'/')).split('').map(function(c){
+        var b = s.replace(/-/g,'+').replace(/_/g,'/');
+        while (b.length % 4) b += '=';
+        return decodeURIComponent(atob(b).split('').map(function(c){
             return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
         }).join(''));
     } catch(e) { return null; }
@@ -717,17 +719,24 @@ function getProfiles() {
     }
     return best;
 }
+function _clearAoUser() {
+    // Delete every possible ao-user cookie variant (domain/no-domain, Secure/non-Secure,
+    // leading-dot/no-dot) so no stale copy survives regardless of how it was originally set.
+    var base = 'ao-user=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    document.cookie = base;
+    document.cookie = base + '; Secure';
+    if (_cookieDomain) {
+        document.cookie = base + '; domain=' + _cookieDomain;
+        document.cookie = base + '; domain=' + _cookieDomain + '; Secure';
+        document.cookie = base + '; domain=.' + _cookieDomain;
+        document.cookie = base + '; domain=.' + _cookieDomain + '; Secure';
+    }
+}
 function saveProfiles(profiles) {
     var sec = location.protocol === 'https:' ? '; Secure' : '';
     var dom = _cookieDomain ? '; domain=' + _cookieDomain : '';
-    // Always clear the no-domain (host-only) variant to eliminate stale legacy cookies
-    // that survive deletion of the domain-scoped one and reappear on reload.
-    if (dom) {
-        document.cookie = 'ao-user=; path=/; max-age=0' + sec;
-    }
-    if (profiles.length === 0) {
-        document.cookie = 'ao-user=; path=/; max-age=0' + dom + sec;
-    } else {
+    _clearAoUser();
+    if (profiles.length > 0) {
         var parts = profiles.map(function(p) {
             var s = '{"u":' + JSON.stringify(p.u) + ',"n":' + JSON.stringify(p.n || p.u);
             if (p.rt) s += ',"rt":' + JSON.stringify(p.rt);
@@ -850,16 +859,15 @@ function removeAccount(username) {
         renderAccounts(profiles);
     }
 
-    // Revoke the remember token server-side so it can no longer be used for
-    // passwordless continue-as, regardless of prompt=login or other query params.
-    if (removed.length && removed[0].rt) {
-        fetch('/oauth2/forget-account', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'remember_token=' + encodeURIComponent(removed[0].rt),
-            keepalive: true
-        }).catch(function(){});
-    }
+    // Notify server: revoke remember token + authoritatively rewrite ao-user cookie
+    // (server Set-Cookie is the fallback if client-side saveProfiles couldn't clear all variants).
+    var body = 'username=' + encodeURIComponent(username);
+    if (removed.length && removed[0].rt) body += '&remember_token=' + encodeURIComponent(removed[0].rt);
+    fetch('/oauth2/forget-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body
+    }).catch(function(){});
 
     // If currently in password mode for this user, return to full form
     var uField = document.getElementById('username');
