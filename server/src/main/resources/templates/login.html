@@ -572,6 +572,7 @@
         <input type="hidden" name="code_challenge"        th:value="${codeChallenge}"/>
         <input type="hidden" name="code_challenge_method" th:value="${codeChallengeMethod}"/>
         <input type="hidden" name="nonce"                 th:value="${nonce}"/>
+        <input type="hidden" name="prompt"                th:value="${promptValue}"/>
     </form>
 
     <!-- Login form -->
@@ -584,6 +585,7 @@
         <input type="hidden" name="code_challenge"        th:value="${codeChallenge}"/>
         <input type="hidden" name="code_challenge_method" th:value="${codeChallengeMethod}"/>
         <input type="hidden" name="nonce"                 th:value="${nonce}"/>
+        <input type="hidden" name="prompt"                th:value="${promptValue}"/>
         <input type="hidden" name="identifier_mode" id="identifier_mode"
                th:value="${identifierType == 'email' ? 'email' : (identifierType == 'any' ? 'any' : 'username')}"/>
 
@@ -675,6 +677,7 @@ function setBtnBusy() {
 // ── Multi-account continue-as ──────────────────────────────────────────
 var _caEnabled = /*[[${continueAsEnabled}]]*/ true;
 var _cookieDomain = /*[[${cookieDomain}]]*/ '';
+var _promptLogin = /*[[${promptLogin}]]*/ false;
 
 function _getCookie(name) {
     var m = document.cookie.match('(?:^|; )' + name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '=([^;]*)');
@@ -787,7 +790,9 @@ function renderAccounts(profiles) {
 // One-click: if rt is present → submit passwordless continue-as form immediately.
 // Otherwise → hide account list, show selected-user header + password field only.
 function selectAccount(username, displayName, rt) {
-    if (rt) {
+    // When prompt=login is active (app requires fresh credentials), ignore the remember
+    // token and always ask for the password — the account card is just a username hint.
+    if (rt && !_promptLogin) {
         // Passwordless path: show overlay then submit the continue-as form
         var initial = (displayName || username).charAt(0).toUpperCase();
         showLoginOverlay(initial, displayName || username);

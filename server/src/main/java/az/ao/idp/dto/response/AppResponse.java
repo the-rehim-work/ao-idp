@@ -18,6 +18,7 @@ public record AppResponse(
         @JsonProperty("post_logout_redirect_uris") List<String> postLogoutRedirectUris,
         @JsonProperty("is_active") boolean active,
         @JsonProperty("is_public_client") boolean publicClient,
+        @JsonProperty("force_reauth") boolean forceReauth,
         @JsonProperty("created_at") Instant createdAt,
         @JsonProperty("access_mode") String accessMode,
         @JsonProperty("access_rules") List<AccessRuleResponse> accessRules

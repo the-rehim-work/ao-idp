@@ -13,6 +13,7 @@ public record CreateAppRequest(
         @JsonProperty("allowed_origins") List<String> allowedOrigins,
         @JsonProperty("post_logout_redirect_uris") List<String> postLogoutRedirectUris,
         @JsonProperty("is_public_client") boolean publicClient,
+        @JsonProperty("force_reauth") boolean forceReauth,
         @JsonProperty("access_mode") String accessMode,
         @JsonProperty("access_rules") List<AccessRuleRequest> accessRules
 ) {

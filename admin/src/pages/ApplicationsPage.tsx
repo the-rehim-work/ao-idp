@@ -28,13 +28,14 @@ interface AppForm {
   allowedOrigins: string[]
   postLogoutRedirectUris: string[]
   isPublicClient: boolean
+  forceReauth: boolean
   accessMode: 'ASSIGNED' | 'PUBLIC' | 'LDAP_GROUP' | 'LDAP_OU'
   accessRules: AppFormRule[]
 }
 
 const emptyForm: AppForm = {
   name: '', slug: '', redirectUris: [], allowedOrigins: [], postLogoutRedirectUris: [],
-  isPublicClient: false, accessMode: 'ASSIGNED', accessRules: [],
+  isPublicClient: false, forceReauth: true, accessMode: 'ASSIGNED', accessRules: [],
 }
 const toSlug = (s: string) => s.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
 
@@ -674,6 +675,29 @@ function AppModal({ title, form, setForm, error, onSave, onClose, saving, isEdit
             placeholder="https://app.ao.az/logged-out"
           />
 
+          <div>
+            <div className="text-xs mb-1.5" style={{ color: CB }}>authentication</div>
+            <button type="button"
+              onClick={() => setForm(f => ({ ...f, forceReauth: !f.forceReauth }))}
+              className="w-full flex items-center justify-between px-3 py-2 text-xs text-left transition-all"
+              style={{
+                border: `1px solid ${form.forceReauth ? C : BORDER}`,
+                background: form.forceReauth ? 'var(--accent-soft)' : 'transparent',
+                color: form.forceReauth ? C : CM,
+                cursor: 'pointer',
+              }}>
+              <span>
+                <span style={{ fontWeight: 600 }}>Require password on each login</span>
+                <span style={{ color: CB, marginLeft: '0.5rem' }}>
+                  {form.forceReauth ? '— remember tokens disabled (prompt=login)' : '— allow remember-token auto-login'}
+                </span>
+              </span>
+              <span style={{ fontWeight: 700, fontSize: '0.65rem', letterSpacing: '0.05em' }}>
+                {form.forceReauth ? 'ON' : 'OFF'}
+              </span>
+            </button>
+          </div>
+
           {/* Access mode selector */}
           <div>
             <label className="block text-xs tracking-widest uppercase mb-1.5" style={{ color: CD }}># access_mode</label>
@@ -926,6 +950,7 @@ export default function ApplicationsPage() {
       redirectUris: f.redirectUris, allowedOrigins: f.allowedOrigins,
       postLogoutRedirectUris: f.postLogoutRedirectUris,
       isPublicClient: f.isPublicClient,
+      forceReauth: f.forceReauth,
       accessMode: f.accessMode,
       accessRules: f.accessRules.map(r => ({ ruleType: r.ruleType, value: r.value, ldapServerId: r.ldapServerId || null })),
     }),
@@ -944,6 +969,7 @@ export default function ApplicationsPage() {
       name: f.name, slug: f.slug,
       redirectUris: f.redirectUris, allowedOrigins: f.allowedOrigins,
       postLogoutRedirectUris: f.postLogoutRedirectUris,
+      forceReauth: f.forceReauth,
       accessMode: f.accessMode,
       accessRules: f.accessRules.map(r => ({ ruleType: r.ruleType, value: r.value, ldapServerId: r.ldapServerId || null })),
     }),
@@ -974,6 +1000,7 @@ export default function ApplicationsPage() {
       allowedOrigins: app.allowed_origins ?? [],
       postLogoutRedirectUris: app.post_logout_redirect_uris ?? [],
       isPublicClient: app.is_public_client ?? false,
+      forceReauth: app.force_reauth ?? true,
       accessMode: app.access_mode ?? 'ASSIGNED',
       accessRules: (app.access_rules ?? []).map(r => ({
         ruleType: r.rule_type,

@@ -37,6 +37,7 @@ export interface Application {
   post_logout_redirect_uris: string[]
   is_active: boolean
   is_public_client: boolean
+  force_reauth: boolean
   created_at: string
   access_mode?: 'ASSIGNED' | 'PUBLIC' | 'LDAP_GROUP' | 'LDAP_OU'
   access_rules?: AppAccessRule[]

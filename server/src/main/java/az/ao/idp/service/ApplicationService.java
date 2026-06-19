@@ -93,6 +93,7 @@ public class ApplicationService {
             app.setPostLogoutRedirectUris(request.postLogoutRedirectUris().toArray(new String[0]));
         }
         app.setActive(true);
+        app.setForceReauth(request.forceReauth());
         app.setAccessMode(parseAccessMode(request.accessMode()));
 
         Application saved = applicationRepository.save(app);
@@ -120,6 +121,7 @@ public class ApplicationService {
         if (request.postLogoutRedirectUris() != null) {
             app.setPostLogoutRedirectUris(request.postLogoutRedirectUris().toArray(new String[0]));
         }
+        app.setForceReauth(request.forceReauth());
         app.setAccessMode(parseAccessMode(request.accessMode()));
         replaceAccessRules(id, request.accessRules());
         auditService.log("admin", adminId, "app_updated", "application", id.toString(), app, null, null,
@@ -219,7 +221,7 @@ public class ApplicationService {
                 app.getRedirectUris() != null ? Arrays.asList(app.getRedirectUris()) : List.of(),
                 app.getAllowedOrigins() != null ? Arrays.asList(app.getAllowedOrigins()) : List.of(),
                 app.getPostLogoutRedirectUris() != null ? Arrays.asList(app.getPostLogoutRedirectUris()) : List.of(),
-                app.isActive(), app.isPublicClient(), app.getCreatedAt(),
+                app.isActive(), app.isPublicClient(), app.isForceReauth(), app.getCreatedAt(),
                 app.getAccessMode() != null ? app.getAccessMode().name() : AppAccessMode.ASSIGNED.name(),
                 ruleResponses
         );

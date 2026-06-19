@@ -152,6 +152,8 @@ public class OidcController {
         model.addAttribute("brandingCustomCss", nvl(branding.customCss(), ""));
         model.addAttribute("continueAsEnabled", branding.continueAsEnabled());
         model.addAttribute("brandingFontFamily", nvl(branding.fontFamily(), ""));
+        model.addAttribute("promptLogin", "login".equals(prompt));
+        model.addAttribute("promptValue", prompt != null ? prompt : "");
         String cookieDomain = idpProperties.cookie().domain();
         if (cookieDomain != null && cookieDomain.startsWith(".")) cookieDomain = cookieDomain.substring(1);
         model.addAttribute("cookieDomain", cookieDomain != null ? cookieDomain : "");
@@ -198,7 +200,10 @@ public class OidcController {
             }
         }
 
-        return buildLoginRedirect(clientId, redirectUri, state, scope, codeChallenge, codeChallengeMethod, null, nonce);
+        // If this app requires fresh auth (default: true), force prompt=login so the login
+        // page disables remember-token auto-submit and the user must type their password.
+        String effectivePrompt = (app.isForceReauth() && !"login".equals(prompt)) ? "login" : prompt;
+        return buildLoginRedirect(clientId, redirectUri, state, scope, codeChallenge, codeChallengeMethod, null, nonce, effectivePrompt);
     }
 
     @PostMapping("/login")
@@ -213,6 +218,7 @@ public class OidcController {
             @RequestParam(value = "code_challenge", required = false) String codeChallenge,
             @RequestParam(value = "code_challenge_method", required = false) String codeChallengeMethod,
             @RequestParam(value = "nonce", required = false) String nonce,
+            @RequestParam(value = "prompt", required = false) String prompt,
             HttpServletRequest request,
             HttpServletResponse response
     ) throws IOException {
@@ -245,7 +251,7 @@ public class OidcController {
                         Map.of("reason", "invalid_credentials", "ldap_username", username, "remaining_attempts", remaining,
                                 "app_client_id", clientId != null ? clientId : "none", "app_name", "none"));
                 return buildLoginRedirect(clientId, redirectUri, state, scope, codeChallenge, codeChallengeMethod,
-                        "İstifadəçi adı və ya şifrə yanlışdır", nonce);
+                        "İstifadəçi adı və ya şifrə yanlışdır", nonce, prompt);
             }
 
             LdapService.LdapUserAttributes attrs = ldapService.getUserAttributes(username, authResult.ldapServerId());
@@ -258,7 +264,7 @@ public class OidcController {
                 if (loginApp == null || !qualifiesForAutoEnroll(username, authResult.ldapServerId(), loginApp)) {
                     log.info("Login blocked: username={} ip={} reason=not_activated", username, ipAddress);
                     return buildLoginRedirect(clientId, redirectUri, state, scope, codeChallenge, codeChallengeMethod,
-                            "Hesab aktivləşdirilməyib. Administratorla əlaqə saxlayın.", nonce);
+                            "Hesab aktivləşdirilməyib. Administratorla əlaqə saxlayın.", nonce, prompt);
                 }
                 existingUser = userService.activateFromLdap(username, attrs, authResult.ldapServerId());
                 accessAlreadyVerified = true; // qualifiesForAutoEnroll already confirmed access
@@ -277,7 +283,7 @@ public class OidcController {
                                     "display_name", attrs.displayName() != null ? attrs.displayName() : username,
                                     "app_name", loginApp.getName(), "app_client_id", clientId));
                     return buildLoginRedirect(clientId, redirectUri, state, scope, codeChallenge, codeChallengeMethod,
-                            "Bu tətbiqə girişiniz yoxdur. Administratorla əlaqə saxlayın.", nonce);
+                            "Bu tətbiqə girişiniz yoxdur. Administratorla əlaqə saxlayın.", nonce, prompt);
                 }
             }
 
@@ -316,11 +322,11 @@ public class OidcController {
 
         } catch (az.ao.idp.exception.InvalidClientException | az.ao.idp.exception.InvalidTokenException e) {
             return buildLoginRedirect(clientId, redirectUri, state, scope, codeChallenge, codeChallengeMethod,
-                    e.getMessage(), nonce);
+                    e.getMessage(), nonce, prompt);
         } catch (Exception e) {
             log.error("Login internal error: username={} ip={} error={}", identifier, ipAddress, e.getMessage(), e);
             return buildLoginRedirect(clientId, redirectUri, state, scope, codeChallenge, codeChallengeMethod,
-                    "Daxil olma zamanı xəta baş verdi. Yenidən cəhd edin.", nonce);
+                    "Daxil olma zamanı xəta baş verdi. Yenidən cəhd edin.", nonce, prompt);
         }
     }
 
@@ -339,6 +345,7 @@ public class OidcController {
             @RequestParam(value = "code_challenge", required = false) String codeChallenge,
             @RequestParam(value = "code_challenge_method", required = false) String codeChallengeMethod,
             @RequestParam(value = "nonce", required = false) String nonce,
+            @RequestParam(value = "prompt", required = false) String prompt,
             HttpServletRequest request,
             HttpServletResponse response
     ) throws IOException {
@@ -348,7 +355,7 @@ public class OidcController {
         if (tokenData == null) {
             log.info("Continue-as failed: invalid or expired remember token ip={}", ipAddress);
             return buildLoginRedirect(clientId, redirectUri, state, scope, codeChallenge, codeChallengeMethod,
-                    "Sessiya müddəti bitib. Yenidən daxil olun.", nonce);
+                    "Sessiya müddəti bitib. Yenidən daxil olun.", nonce, prompt);
         }
 
         UUID userId = tokenData.userId();
@@ -358,7 +365,7 @@ public class OidcController {
         if (!user.isActive()) {
             log.info("Continue-as blocked: username={} reason=inactive", username);
             return buildLoginRedirect(clientId, redirectUri, state, scope, codeChallenge, codeChallengeMethod,
-                    "Hesab aktiv deyil. Administratorla əlaqə saxlayın.", nonce);
+                    "Hesab aktiv deyil. Administratorla əlaqə saxlayın.", nonce, prompt);
         }
 
         if (clientId != null && redirectUri != null) {
@@ -366,7 +373,7 @@ public class OidcController {
             if (loginApp != null && !userService.hasAppAccess(user.getId(), loginApp.getId())) {
                 log.info("Continue-as blocked: username={} app={} reason=no_app_access", username, clientId);
                 return buildLoginRedirect(clientId, redirectUri, state, scope, codeChallenge, codeChallengeMethod,
-                        "Bu tətbiqə girişiniz yoxdur. Administratorla əlaqə saxlayın.", nonce);
+                        "Bu tətbiqə girişiniz yoxdur. Administratorla əlaqə saxlayın.", nonce, prompt);
             }
         }
 
@@ -430,7 +437,8 @@ public class OidcController {
     }
 
     private String buildLoginRedirect(String clientId, String redirectUri, String state, String scope,
-                                       String codeChallenge, String codeChallengeMethod, String error, String nonce) {
+                                       String codeChallenge, String codeChallengeMethod, String error, String nonce,
+                                       String prompt) {
         StringBuilder sb = new StringBuilder("redirect:/login");
         boolean first = true;
 
@@ -441,6 +449,7 @@ public class OidcController {
         if (codeChallenge != null && !codeChallenge.isBlank()) { sb.append(first ? "?" : "&").append("code_challenge=").append(enc(codeChallenge)); first = false; }
         if (codeChallengeMethod != null && !codeChallengeMethod.isBlank()) { sb.append(first ? "?" : "&").append("code_challenge_method=").append(enc(codeChallengeMethod)); first = false; }
         if (nonce != null && !nonce.isBlank()) { sb.append(first ? "?" : "&").append("nonce=").append(enc(nonce)); first = false; }
+        if (prompt != null && !prompt.isBlank()) { sb.append(first ? "?" : "&").append("prompt=").append(enc(prompt)); first = false; }
         if (error != null) { sb.append(first ? "?" : "&").append("error=").append(enc(error)); }
 
         return sb.toString();

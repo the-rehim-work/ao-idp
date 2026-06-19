@@ -1,0 +1,2 @@
+ALTER TABLE applications
+    ADD COLUMN force_reauth BOOLEAN NOT NULL DEFAULT TRUE;

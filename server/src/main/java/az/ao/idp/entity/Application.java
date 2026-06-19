@@ -46,6 +46,9 @@ public class Application {
     @Enumerated(EnumType.STRING)
     private AppAccessMode accessMode = AppAccessMode.ASSIGNED;
 
+    @Column(name = "force_reauth", nullable = false)
+    private boolean forceReauth = true;
+
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 
@@ -76,5 +79,7 @@ public class Application {
     public void setAccessMode(AppAccessMode accessMode) { this.accessMode = accessMode; }
     public boolean isPublicClient() { return publicClient; }
     public void setPublicClient(boolean publicClient) { this.publicClient = publicClient; }
+    public boolean isForceReauth() { return forceReauth; }
+    public void setForceReauth(boolean forceReauth) { this.forceReauth = forceReauth; }
     public Instant getCreatedAt() { return createdAt; }
 }

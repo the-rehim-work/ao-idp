@@ -8,7 +8,7 @@ export const appsApi = {
 
   create: (data: {
     name: string; slug: string; redirectUris: string[]; allowedOrigins?: string[]
-    postLogoutRedirectUris?: string[]; isPublicClient?: boolean
+    postLogoutRedirectUris?: string[]; isPublicClient?: boolean; forceReauth?: boolean
     accessMode?: string; accessRules?: Array<{ ruleType: string; value: string; ldapServerId?: string | null }>
   }) =>
     apiClient.post<Application>('/applications', {
@@ -18,13 +18,14 @@ export const appsApi = {
       allowed_origins: data.allowedOrigins ?? [],
       post_logout_redirect_uris: data.postLogoutRedirectUris ?? [],
       is_public_client: data.isPublicClient ?? false,
+      force_reauth: data.forceReauth ?? true,
       access_mode: data.accessMode ?? 'ASSIGNED',
       access_rules: (data.accessRules ?? []).map(r => ({ rule_type: r.ruleType, value: r.value, ldap_server_id: r.ldapServerId ?? null })),
     }).then(r => r.data),
 
   update: (id: string, data: {
     name: string; slug: string; redirectUris: string[]; allowedOrigins?: string[]
-    postLogoutRedirectUris?: string[]
+    postLogoutRedirectUris?: string[]; forceReauth?: boolean
     accessMode?: string; accessRules?: Array<{ ruleType: string; value: string; ldapServerId?: string | null }>
   }) =>
     apiClient.put<Application>(`/applications/${id}`, {
@@ -33,6 +34,7 @@ export const appsApi = {
       redirect_uris: data.redirectUris,
       allowed_origins: data.allowedOrigins ?? [],
       post_logout_redirect_uris: data.postLogoutRedirectUris ?? [],
+      force_reauth: data.forceReauth ?? true,
       access_mode: data.accessMode ?? 'ASSIGNED',
       access_rules: (data.accessRules ?? []).map(r => ({ rule_type: r.ruleType, value: r.value, ldap_server_id: r.ldapServerId ?? null })),
     }).then(r => r.data),
