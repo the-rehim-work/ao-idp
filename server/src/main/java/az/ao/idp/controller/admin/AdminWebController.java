@@ -156,7 +156,7 @@ public class AdminWebController {
             List<String> redirectUriList = splitLines(redirectUris);
             List<String> allowedOriginList = splitLines(allowedOrigins);
             var created = applicationService.create(
-                    new az.ao.idp.dto.request.CreateAppRequest(name, slug, redirectUriList, allowedOriginList, null, publicClient, null, null),
+                    new az.ao.idp.dto.request.CreateAppRequest(name, slug, redirectUriList, allowedOriginList, null, publicClient, true, null, null),
                     getSessionAdminId(request)
             );
             redirectAttributes.addFlashAttribute("newClientId", created.clientId());
@@ -201,7 +201,7 @@ public class AdminWebController {
             List<String> allowedOriginList = splitLines(allowedOrigins);
             applicationService.update(
                     id,
-                    new az.ao.idp.dto.request.CreateAppRequest(name, slug, redirectUriList, allowedOriginList, null, publicClient, null, null),
+                    new az.ao.idp.dto.request.CreateAppRequest(name, slug, redirectUriList, allowedOriginList, null, publicClient, true, null, null),
                     getSessionAdminId(request)
             );
             redirectAttributes.addFlashAttribute("success", "Tətbiq yeniləndi");
