@@ -33,12 +33,15 @@ RUN npm run build && \
 FROM gradle:8.7-jdk21-alpine AS server-builder
 
 WORKDIR /build
+# Copy only build files first so dependency download is cached separately from source changes
 COPY server/settings.gradle server/build.gradle ./
 COPY server/gradle ./gradle
+RUN gradle --no-daemon dependencies --configuration compileClasspath 2>/dev/null || true
+
 COPY server/src ./src
 COPY --from=ui-builder /app/dist ./src/main/resources/static/admin
 COPY --from=ui-builder /app/fonts ./src/main/resources/static/fonts
-RUN gradle --no-daemon clean bootJar
+RUN gradle --no-daemon bootJar
 
 # ─── Stage 3: Combined runtime image ─────────────────────────────────────────
 FROM ubuntu:22.04
