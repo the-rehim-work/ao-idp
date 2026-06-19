@@ -188,8 +188,11 @@ public class OidcController {
 
         Application app = oidcService.validateClientForAuth(clientId, redirectUri);
 
-        // prompt=login forces re-authentication (OIDC Core §3.1.2.1) — skip the auto-auth.
-        if (sessionCookie != null && !"login".equals(prompt)) {
+        // Determine effective prompt: app-level force_reauth overrides a missing prompt=login.
+        String effectivePrompt = (app.isForceReauth() && !"login".equals(prompt)) ? "login" : prompt;
+
+        // prompt=login (or force_reauth) forces re-authentication (OIDC Core §3.1.2.1) — skip auto-auth.
+        if (sessionCookie != null && !"login".equals(effectivePrompt)) {
             SessionService.SessionData session = sessionService.getSession(sessionCookie);
             if (session != null) {
                 User user = userService.getById(session.userId());
@@ -200,9 +203,6 @@ public class OidcController {
             }
         }
 
-        // If this app requires fresh auth (default: true), force prompt=login so the login
-        // page disables remember-token auto-submit and the user must type their password.
-        String effectivePrompt = (app.isForceReauth() && !"login".equals(prompt)) ? "login" : prompt;
         return buildLoginRedirect(clientId, redirectUri, state, scope, codeChallenge, codeChallengeMethod, null, nonce, effectivePrompt);
     }
 
